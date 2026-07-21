@@ -40,55 +40,79 @@
 <body>
 
     <!-- Sección principal del mapa -->
-    <section id="map-section" class="map-full">
-        <!-- Indicador de carga mientras decodifica el Base64 -->
-        <div id="map-loading" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #333;">
-            <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-            <p style="margin-top: 15px; font-weight: 500;">Cargando mapa y datos de clínicas...</p>
-        </div>
-
-        <div id="map" class="map-viewport"></div>
-        
-        <div class="map-controls">
-            <div class="mc-row">
-                <div class="mc-card">
-                    <div class="mc-line">
-                        <select id="clinicSelect" class="mc-select" title="Select a clinic"></select>
-                    </div>
-                    <div class="mc-line mc-search">
-                        <input id="searchInput" class="mc-input" list="clinicNameList" placeholder="Address, ZIP, code, nickname, or clinic name" />
-                        <datalist id="clinicNameList"></datalist>
-                        <button class="btn primary" onclick="findNearest()">🔎 Find</button>
-                        <button class="btn ghost" onclick="clearSearch()">✕ Clear</button>
+    <section id="map-section" class="map-full" style="display:none">
+                <div id="map" class="map-viewport"></div>
+                <div class="map-controls">
+                    <div class="mc-row">
+                        <div class="mc-card">
+                            <div class="mc-line">
+                                <select id="clinicSelect" class="mc-select" title="Select a clinic"></select>
+                            </div>
+                            <div class="mc-line mc-search">
+                                <input id="searchInput" class="mc-input" list="clinicNameList" placeholder="Address, ZIP, code, nickname, or clinic name" />
+                                <datalist id="clinicNameList"></datalist>
+                                <button class="btn primary" onclick="findNearest()">🔎 Find</button>
+                                <button class="btn ghost" onclick="clearSearch()">✕ Clear</button>
+                            </div>
+                        </div>
+                        <div class="mc-fab-col">
+                            <button class="mc-fab" title="Recenter" onclick="window.AppMap?.invalidate()">⤢</button>
+                        </div>
                     </div>
                 </div>
-                <div class="mc-fab-col">
-                    <button class="mc-fab" title="Recenter" onclick="window.AppMap?.invalidate()">⤢</button>
-                </div>
-            </div>
-        </div>
-
-        <aside id="place-sheet" class="sheet" aria-hidden="true">
-            <div class="sheet-hd">
-                <div class="sheet-title">Selected Clinic</div>
-                <button class="sheet-close" title="Close" onclick="window.closePlaceSheet?.()">✕</button>
-            </div>
-            <div class="sheet-body" id="clinic-info-body">
-                <div class="empty-state">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                        <circle cx="12" cy="10" r="3"></circle>
-                    </svg>
-                    <div>Click a clinic marker or use search.</div>
-                </div>
-            </div>
-        </aside>
-    </section>
+                <aside id="place-sheet" class="sheet" aria-hidden="true">
+                    <div class="sheet-hd">
+                        <div class="sheet-title">Selected Clinic</div>
+                        <button class="sheet-close" title="Close" onclick="window.closePlaceSheet?.()">✕</button>
+                    </div>
+                    <div class="sheet-body" id="clinic-info-body">
+                        <div class="empty-state">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                            <div>Click a clinic marker or use search.</div>
+                        </div>
+                    </div>
+                </aside>
+            </section>
 
     <!-- 3. Librería de Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="map.js"></script>    
+    <script>
+            window.APP_DATA = window.APP_DATA || {};
+            window.APP_FILES = window.APP_FILES || {};
+
+            window.registerDataFile = function(config, data) {
+                if (!window.APP_FILES[config.file]) {
+                    window.APP_FILES[config.file] = config;
+                }
+                window.APP_DATA[config.dataKey] = data;
+                console.log("📁 Registered:", config.file);
+            };
+    </script>
+    <script>
+    function openModal(id) {
+        var modal = document.getElementById(id);
+        var overlay = document.getElementById('overlay');
+        if (modal && overlay) {
+            modal.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+    }
+
+    function closeAll() {
+        var modals = document.getElementsByClassName('modal');
+        for (var i = 0; i < modals.length; i++) {
+            modals[i].style.display = 'none';
+        }
+        var overlay = document.getElementById('overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+</script>
     
-    <!-- 4. Tu script principal del mapa (map.js) -->
-    <script src="map.js"></script>
 </body>
 </html>
