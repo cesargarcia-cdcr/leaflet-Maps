@@ -108,11 +108,32 @@
         buildExtensionsIndex();
     }
 
-    // Inicializar el mapa de Leaflet por si el contenedor estaba oculto al inicio
-    if (window.AppMap && typeof window.AppMap.invalidate === 'function') {
-        setTimeout(() => window.AppMap.invalidate(), 200);
+    // === AGREGAR ESTO PARA FORZAR LA VISIBILIDAD Y RENDERIZADO DEL MAPA ===
+    const mapSection = document.getElementById('map-section');
+    if (mapSection) {
+        mapSection.style.display = 'block'; // Mostrar la sección del mapa
     }
-}
+
+    // Si tu app usa una función de navegación por pestañas, actívala:
+    if (typeof navigateTo === 'function') {
+        navigateTo('map');
+    }
+
+    // Inicializar o refrescar el mapa de Leaflet
+    if (window.AppMap && typeof window.AppMap.invalidate === 'function') {
+        setTimeout(() => window.AppMap.invalidate(), 250);
+    } else if (typeof initMap === 'function') {
+        // O si tu función de inicialización del mapa se llama diferente (ej: initMap)
+        initMap();
+    }
+    // ====================================================================
+
+    // Ocultar pantalla de carga inicial si existe
+    const loader = document.getElementById('map-loading');
+    if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(() => loader.remove(), 300);
+    }
     
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items))
