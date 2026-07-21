@@ -1,0 +1,362 @@
+{
+  "Medical": [
+    {
+      "name": "Ventura",
+      "front": "5100",
+      "back": "5182 / 5122 5123 5124 5125",
+      "code": "VTA"
+    },
+    {
+      "name": "Oxnard",
+      "front": "5200 / 5268",
+      "back": "4105 / 5242 5243 5244 5245 5246 5247",
+      "code": "OXN"
+    },
+    {
+      "name": "Fillmore",
+      "front": "5300",
+      "back": "5305 5307 5306 5321",
+      "code": "FIL"
+    },
+    {
+      "name": "Santa Paula",
+      "front": "5500",
+      "back": "4229 / 5522 5531 5533 5528 5515",
+      "code": "SP"
+    },
+    {
+      "name": "Ojai",
+      "front": "5400",
+      "back": "5426 / 5429 5428 5443 5424 5435",
+      "code": "OJAI"
+    },
+    {
+      "name": "Maravilla",
+      "front": "5600",
+      "back": "4454 / 5621 5631 5632 5610 5612",
+      "code": "MAR"
+    },
+    {
+      "name": "Ocean View",
+      "front": "5700",
+      "back": "4455 / 5714 5723 5735 5721 5729 5720",
+      "code": "OV"
+    },
+    {
+      "name": "Karen R. Burnham",
+      "front": "5800",
+      "back": "5818 / 5847 5827 5822 5846 5885 5884 5863 5838 5868",
+      "code": "KRB"
+    },
+    {
+      "name": "Newbury Park",
+      "front": "5900",
+      "back": "5930 / 5911 5912 5918",
+      "code": "NBP"
+    },
+    {
+      "name": "El Rio",
+      "front": "6000",
+      "back": "4452 / 6051 6041 6042 6074 6023",
+      "code": "EL RIO"
+    },
+    {
+      "name": "E. Simi Valley",
+      "front": "6500",
+      "back": "6581 / 6527 6514 6506 6521 6524 6526 6510",
+      "code": "ESV"
+    },
+    {
+      "name": "Simi Valley",
+      "front": "6100",
+      "back": "4451 / 6115 6105 6148 6143 6141 6132 6113 6171 6172 6148 6106 6145",
+      "code": "SVM"
+    },
+    {
+      "name": "Moorpark",
+      "front": "6300",
+      "back": "6302 6306 6303 6305 6337 6357",
+      "code": "MRPK"
+    },
+    {
+      "name": "La Colonia",
+      "front": "6200",
+      "back": "6291 / 6203 6206 6207 6213",
+      "code": "LAC"
+    },
+    {
+      "name": "Paseo Camarillo",
+      "front": "6400",
+      "back": "6451 / 6409 6410 6411 6412 6431",
+      "code": "PC"
+    },
+    {
+      "name": "Roberto S. Juarez",
+      "front": "6900",
+      "back": "6990 / 3766",
+      "code": "RSJ"
+    },
+    {
+      "name": "CarePlus RSJ",
+      "front": "6900",
+      "back": "6991",
+      "code": "RSJ-CP"
+    }
+  ],
+  "MH": [
+    {
+      "name": "Ventura",
+      "ext": "5144 / 5145",
+      "phone": "805-647-0991",
+      "code": "VTA"
+    },
+    {
+      "name": "Oxnard",
+      "ext": "5298",
+      "phone": "805-483-6067",
+      "code": "OXN"
+    },
+    {
+      "name": "Fillmore",
+      "ext": "5320",
+      "phone": "805-524-5653",
+      "code": "FIL"
+    },
+    {
+      "name": "Santa Paula",
+      "ext": "5512",
+      "phone": "805-933-9245",
+      "code": "SP"
+    },
+    {
+      "name": "Ojai",
+      "ext": "5437",
+      "phone": "805-640-8295",
+      "code": "OJAI"
+    },
+    {
+      "name": "Maravilla",
+      "ext": "5609 / 5604",
+      "phone": "805-488-8390",
+      "code": "MAR"
+    },
+    {
+      "name": "Ocean View",
+      "ext": "5731",
+      "phone": "805986-5596",
+      "code": "OV"
+    },
+    {
+      "name": "Karen R. Burnham",
+      "ext": "5813 / 5821",
+      "phone": "805-751-4765",
+      "code": "KRB"
+    },
+    {
+      "name": "Newbury Park",
+      "ext": "5913",
+      "phone": "805-498-7426",
+      "code": "NBP"
+    },
+    {
+      "name": "El Rio",
+      "ext": "6044 / 6043",
+      "phone": "805-751-4985",
+      "code": "EL RIO"
+    },
+    {
+      "name": "E. Simi Valley",
+      "ext": "6502",
+      "phone": "805-915-4420",
+      "code": "ESV"
+    },
+    {
+      "name": "Simi Valley",
+      "ext": "4150",
+      "phone": "805-915-4140",
+      "code": "SVM"
+    },
+    {
+      "name": "Moorpark",
+      "ext": "6331",
+      "phone": "805-222-2326",
+      "code": "MRPK"
+    },
+    {
+      "name": "La Colonia",
+      "ext": "6227",
+      "code": "LAC"
+    },
+    {
+      "name": "Paseo Camarillo",
+      "ext": "6403",
+      "phone": "805-920-7031",
+      "code": "PC"
+    },
+    {
+      "name": "Roberto S. Juarez",
+      "ext": "3761",
+      "phone": "805-330-8684",
+      "code": "RSJ"
+    }
+  ],
+  "Dental": [
+    {
+      "name": "Ventura",
+      "ext": "4334",
+      "phone": "805-659-0560",
+      "code": "VTA"
+    },
+    {
+      "name": "Oxnard",
+      "ext": "4101 / 5224",
+      "phone": "805-483-3600",
+      "code": "OXN"
+    },
+    {
+      "name": "Fillmore",
+      "ext": "5351 / 5313 / 5331",
+      "phone": "805-524-5653",
+      "code": "FIL"
+    },
+    {
+      "name": "Ocean View",
+      "ext": "5716 / 5717 ",
+      "phone": "805-986-8554 ",
+      "code": "OV"
+    },
+    {
+      "name": "Karen R. Burnham",
+      "ext": "4140 / 5871 5872 5873",
+      "phone": "805-751-4656",
+      "code": "KRB"
+    },
+    {
+      "name": "Newbury Park",
+      "ext": "5932",
+      "phone": "805-498-7291",
+      "code": "NBP"
+    },
+    {
+      "name": "El Rio",
+      "ext": "6059",
+      "phone": "805-436-3443",
+      "code": "EL RIO"
+    },
+    {
+      "name": "E. Simi Valley",
+      "ext": "6529 / 6542",
+      "phone": "805-915-4430",
+      "code": "ESV"
+    },
+    {
+      "name": "Simi Valley",
+      "ext": "6152",
+      "phone": "805-915-4135",
+      "code": "SVM"
+    },
+    {
+      "name": "Moorpark",
+      "ext": "6352 / 6329",
+      "phone": "805-222-2324",
+      "code": "MRPK"
+    },
+    {
+      "name": "La Colonia",
+      "ext": "6235 / 6236",
+      "phone": "805-240-7519",
+      "code": "LAC"
+    },
+    {
+      "name": "Paseo Camarillo",
+      "ext": "6450 / 6405 6406",
+      "phone": "805-920-7022",
+      "code": "PC"
+    },
+    {
+      "name": "Roberto S. Juarez",
+      "ext": "3760 / 6924 / 6916",
+      "phone": "805-330-8682",
+      "code": "RSJ"
+    }
+  ],
+  "Optical": [
+    {
+      "name": "Ventura",
+      "ext": "3910 / 5154 5155 ",
+      "phone": "805-915-4145",
+      "code": "VTA"
+    },
+    {
+      "name": "Oxnard",
+      "ext": "4102",
+      "phone": "805-498-2714",
+      "code": "OXN"
+    },
+    {
+      "name": "Fillmore",
+      "ext": "5335 / 5339",
+      "phone": "805-436-3443",
+      "code": "FIL"
+    },
+    {
+      "name": "Karen R. Burnham",
+      "ext": "5806 / 5805",
+      "phone": "(805)727-8987",
+      "code": "KRB"
+    },
+    {
+      "name": "Newbury Park",
+      "ext": "5990 / 5908 / 5902",
+      "phone": "805-222-2325",
+      "code": "NBP"
+    },
+    {
+      "name": "El Rio",
+      "ext": "6075 / 6078 / 6065",
+      "phone": "805-915-4410",
+      "code": "EL RIO"
+    },
+    {
+      "name": "E. Simi Valley",
+      "ext": "6530",
+      "phone": "805-659-0250",
+      "code": "ESV"
+    },
+    {
+      "name": "Simi Valley",
+      "ext": "6152",
+      "phone": "(805)330-8683",
+      "code": "SVM"
+    },
+    {
+      "name": "Moorpark",
+      "ext": "6384 / 6312",
+      "phone": "(805)330-8100",
+      "code": "MRPK"
+    },
+    {
+      "name": "La Colonia",
+      "ext": "6225 / 6226 ",
+      "phone": "(805)278-2206",
+      "code": "LAC"
+    },
+    {
+      "name": "Paseo Camarillo (Optical)",
+      "ext": "6408 / 6428 ",
+      "phone": "805-483-7833",
+      "code": "PC"
+    },
+    {
+      "name": "Roberto S. Juarez",
+      "ext": "6921 / 6992",
+      "phone": "805-920-7024",
+      "code": "RSJ"
+    }
+  ],
+  "Meta": {
+    "general_number": "(805) 647-6353",
+    "referral_department": "(805) 620-6277 Ext 8450",
+    "revised": "March 20, 2026"
+  }
+}
