@@ -42,77 +42,78 @@
     /* ---------- Data Load (Actualizado para Base64 vía URL) ---------- */
     /* ---------- Data Load (Modificado para leer desde Base64 en la URL) ---------- */
     async function loadData() {
-        let clinicsTxt = null;
-        let provTxt = null;
-        let extensionsJson = {};
-    
-        try {
-            // Leer el parámetro 'data' de la URL (ej: ?data=...)
-            const params = new URLSearchParams(window.location.search);
-            const encodedData = params.get('data') || window.location.hash.replace('#data=', '');
-    
-            if (encodedData) {
-                // Decodificar Base64 soportando caracteres especiales y acentos (UTF-8)
-                const jsonString = decodeURIComponent(
-                    atob(encodedData)
-                        .split('')
-                        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                        .join('')
-                );
-                
-                const payload = JSON.parse(jsonString);
-                clinicsTxt = payload.clinics || null;
-                provTxt = payload.providers || null;
-                extensionsJson = payload.extensions || {};
-            }
-        } catch (e) {
-            console.warn("⚠️ Error al decodificar los datos de la URL:", e);
+    let clinicsTxt = null;
+    let provTxt = null;
+    let extensionsJson = {};
+
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const encodedData = params.get('data') || window.location.hash.replace('#data=', '');
+
+        if (encodedData) {
+            const jsonString = decodeURIComponent(
+                atob(encodedData)
+                    .split('')
+                    .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join('')
+            );
+            
+            const payload = JSON.parse(jsonString);
+            clinicsTxt = payload.clinics || null;
+            provTxt = payload.providers || null;
+            extensionsJson = payload.extensions || {};
         }
-    
-        // Asegurar que los objetos globales existan
-        window.APP_DATA = window.APP_DATA || {};
-        window.APP_FILES = window.APP_FILES || {};
-    
-        // 1. Registrar y cargar Clínicas
-        if (clinicsTxt) {
-            if (typeof window.registerDataFile === 'function') {
-                window.registerDataFile({ file: 'clinics.csv', dataKey: 'clinics' }, clinicsTxt);
-            }
-            CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(clinicsTxt)));
+    } catch (e) {
+        console.warn("⚠️ Error al decodificar los datos de la URL:", e);
+    }
+
+    window.APP_DATA = window.APP_DATA || {};
+    window.APP_FILES = window.APP_FILES || {};
+
+    // 1. Cargar Clínicas y poblar selectores de la UI
+    if (clinicsTxt) {
+        if (typeof window.registerDataFile === 'function') {
+            window.registerDataFile({ file: 'clinics.csv', dataKey: 'clinics' }, clinicsTxt);
         }
-    
-        // 2. Registrar y cargar Proveedores
-        if (provTxt) {
-            if (typeof window.registerDataFile === 'function') {
-                window.registerDataFile({ file: 'PROVIDERS-Sched.txt', dataKey: 'providers' }, provTxt);
-            }
-            const provRows = CSV_rowsToObjects(CSV_parse(provTxt));
-            window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
-                const code = String(row['Health Center'] || '').trim().toUpperCase();
-                if (!acc[code]) acc[code] = [];
-                acc[code].push(row);
-                return acc;
-            }, {});
-        } else {
-            window.APP_DATA.providersByCode = {};
-        }
-    
-        // 3. Registrar y cargar Extensiones
-        if (extensionsJson) {
-            if (typeof window.registerDataFile === 'function') {
-                window.registerDataFile({ file: 'extensions.json', dataKey: 'extensions' }, extensionsJson);
-            }
-            EXT = extensionsJson;
-            buildExtensionsIndex();
-        }
-    
-        // Ocultar pantalla de carga inicial si existe
-        const loader = document.getElementById('map-loading');
-        if (loader) {
-            loader.style.opacity = '0';
-            setTimeout(() => loader.remove(), 300);
+        CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(clinicsTxt)));
+        
+        // REFRESCAR LOS SELECTS DE LA BARRA SUPERIOR DEL MAPA
+        if (typeof populateClinicSelects === 'function') {
+            populateClinicSelects();
         }
     }
+
+    // 2. Cargar Proveedores
+    if (provTxt) {
+        if (typeof window.registerDataFile === 'function') {
+            window.registerDataFile({ file: 'PROVIDERS-Sched.txt', dataKey: 'providers' }, provTxt);
+        }
+        const provRows = CSV_rowsToObjects(CSV_parse(provTxt));
+        window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
+            const code = String(row['Health Center'] || '').trim().toUpperCase();
+            if (!acc[code]) acc[code] = [];
+            acc[code].push(row);
+            return acc;
+        }, {});
+    } else {
+        window.APP_DATA.providersByCode = {};
+    }
+
+    // 3. Cargar Extensiones
+    if (extensionsJson) {
+        if (typeof window.registerDataFile === 'function') {
+            window.registerDataFile({ file: 'extensions.json', dataKey: 'extensions' }, extensionsJson);
+        }
+        EXT = extensionsJson;
+        buildExtensionsIndex();
+    }
+
+    // Inicializar el mapa de Leaflet por si el contenedor estaba oculto al inicio
+    if (window.AppMap && typeof window.AppMap.invalidate === 'function') {
+        setTimeout(() => window.AppMap.invalidate(), 200);
+    }
+}
+    
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items))
             return [];
