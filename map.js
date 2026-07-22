@@ -33,30 +33,56 @@
 
     /* ---------- Data Load ---------- */
     async function loadData() {
-        // 1. Load Clinics
-        const clinicsTxt = await CSV_loadText('clinics.csv');
-        if (clinicsTxt) {
-            CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(clinicsTxt)));
+    // 0. Cargar desde parámetro Base64 en la URL si existe (?data=...)
+    const urlParams = new URLSearchParams(window.location.search);
+    const rawDataParam = urlParams.get('data');
+    if (rawDataParam) {
+        try {
+            const jsonStr = new TextDecoder().decode(Uint8Array.from(atob(rawDataParam), c => c.charCodeAt(0)));
+            const parsedPayload = JSON.parse(jsonStr);
+            
+            if (parsedPayload.clinics) {
+                CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(parsedPayload.clinics)));
+            }
+            if (parsedPayload.providers) {
+                const provRows = CSV_rowsToObjects(CSV_parse(parsedPayload.providers));
+                window.APP_DATA = window.APP_DATA || {};
+                window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
+                    const code = String(row['Health Center'] || '').trim().toUpperCase();
+                    if (!acc[code]) acc[code] = [];
+                    acc[code].push(row);
+                    return acc;
+                }, {});
+            }
+            EXT = parsedPayload.extensions || {};
+            buildExtensionsIndex();
+            return; // Salir para evitar los fetch 404
+        } catch (e) {
+            console.error("Error al decodificar el payload de la URL:", e);
         }
-
-        // 2. Load Providers and map by "Health Center" code
-        const provTxt = await CSV_loadText('PROVIDERS-Sched.csv');
-        if (provTxt) {
-            const provRows = CSV_rowsToObjects(CSV_parse(provTxt));
-            window.APP_DATA = window.APP_DATA || {};
-            window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
-                const code = String(row['Health Center'] || '').trim().toUpperCase();
-                if (!acc[code]) acc[code] = [];
-                acc[code].push(row);
-                return acc;
-            }, {});
-        }
-
-        // 3. Load Extensions and map by "code"
-        EXT = await safeJson('extensions.json') ?? {};
-        buildExtensionsIndex();
     }
 
+    // 1. Fallback a archivos locales si no hay parámetro URL
+    const clinicsTxt = await CSV_loadText('clinics.csv');
+    if (clinicsTxt) {
+        CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(clinicsTxt)));
+    }
+
+    const provTxt = await CSV_loadText('PROVIDERS-Sched.csv');
+    if (provTxt) {
+        const provRows = CSV_rowsToObjects(CSV_parse(provTxt));
+        window.APP_DATA = window.APP_DATA || {};
+        window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
+            const code = String(row['Health Center'] || '').trim().toUpperCase();
+            if (!acc[code]) acc[code] = [];
+            acc[code].push(row);
+            return acc;
+        }, {});
+    }
+
+    EXT = await safeJson('extensions.json') ?? {};
+    buildExtensionsIndex();
+}
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items)) return [];
         const out = [], seen = new Set();
