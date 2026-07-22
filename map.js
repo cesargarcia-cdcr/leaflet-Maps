@@ -84,41 +84,41 @@
     buildExtensionsIndex();
 }
     function mapClinicsCsvToObjects(items) {
-        if (!items || !Array.isArray(items)) return [];
-        const out = [], seen = new Set();
+    if (!items || !Array.isArray(items)) return [];
+    const out = [], seen = new Set();
 
-        for (const it of items) {
-            const code = it['code'];
-            const name = it['name'];
-            const plusCode = it['plusCode'];
-            const nicknames = it['nicknames'];
+    for (const it of items) {
+        const code = it['code'];
+        const name = it['name'];
+        const plusCode = it['plusCode'];
+        const nicknames = it['nicknames'];
 
-            const addr = [it['address'], it['city'], it['state'], it['zipCode']]
-            .filter(Boolean)
-            .join(', ');
+        const addr = [it['address'], it['city'], it['state'], it['zipCode']]
+        .filter(Boolean)
+        .join(', ');
 
-            const lat = parseFloat(it['lat']);
-            const lng = parseFloat(it['lng']);
+        // Forzar conversión numérica limpia y asegurar respaldo por nombre de columna
+        const lat = parseFloat(it['lat']);
+        const lng = parseFloat(it['lng']);
 
-            const clinic = {
-                clinicId: it['clinicId'] || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
-                code: code,
-                name: name,
-                plusCode: plusCode, 
-                address: addr,
-                lat: lat,
-                lng: lng,
-                nicknames: nicknames
-            };
+        const clinic = {
+            clinicId: it['clinicId'] || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
+            code: code,
+            name: name,
+            plusCode: plusCode, 
+            address: addr,
+            lat: isNaN(lat) ? null : lat,
+            lng: isNaN(lng) ? null : lng,
+            nicknames: nicknames
+        };
 
-            if (code && !seen.has(code)) {
-                out.push(clinic);
-                seen.add(code);
-            }
+        if (code && !seen.has(code)) {
+            out.push(clinic);
+            seen.add(code);
         }
-        return out;
     }
-
+    return out;
+}
     function buildExtensionsIndex() {
         EXT_BY_CODE = {};
         for (const section in EXT) {
