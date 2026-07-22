@@ -239,19 +239,22 @@
             shadowSize: [41, 41]
         });
 
-        for (const c of CLINICS) {
-            let lat = c.lat;
-            let lng = c.lng;
+       for (const c of CLINICS) {
+    let lat = c.lat;
+    let lng = c.lng;
 
-            const plusDecoded = await tryDecodePlusCode(c.plusCode);
-            if (plusDecoded) {
-                lat = plusDecoded.lat;
-                lng = plusDecoded.lng;
-            }
+    // Solo intentar decodificar si realmente existe un Plus Code escrito
+    if (c.plusCode && String(c.plusCode).trim() !== '') {
+        const plusDecoded = await tryDecodePlusCode(c.plusCode);
+        if (plusDecoded) {
+            lat = plusDecoded.lat;
+            lng = plusDecoded.lng;
+        }
+    }
 
-            if (typeof lat !== 'number' || typeof lng !== 'number') continue;
+    if (typeof lat !== 'number' || isNaN(lat) || typeof lng !== 'number' || isNaN(lng)) continue;
 
-            const m = L.marker([lat, lng], { icon: clinicIcon }).addTo(markersLayer);
+    const m = L.marker([lat, lng], { icon: clinicIcon }).addTo(markersLayer);
             
             m.bindTooltip(c.code, {
                 permanent: true,
