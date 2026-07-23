@@ -274,15 +274,22 @@
     }
 
     function selectClinic(c) {
-        renderSelectedClinic(c);
-        map.fitBounds(L.latLngBounds([[c.lat, c.lng]]), {
-            paddingTopLeft: [0, 0],
-            paddingBottomRight: [380, 0],
-            maxZoom: 11,
-            animate: true,
-            duration: 0.5
-        });
-    }
+    renderSelectedClinic(c);
+    
+    // Enviar los datos de la clínica seleccionada al SharePoint padre
+    window.parent.postMessage({
+        type: 'CLINIC_SELECTED',
+        clinic: c
+    }, '*');
+
+    map.fitBounds(L.latLngBounds([[c.lat, c.lng]]), {
+        paddingTopLeft: [0, 0],
+        paddingBottomRight: [380, 0],
+        maxZoom: 11,
+        animate: true,
+        duration: 0.5
+    });
+}
 
     /* ---------- Sheet Render ---------- */
     function renderSelectedClinic(c, distance) {
