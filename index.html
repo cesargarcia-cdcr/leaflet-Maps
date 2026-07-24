@@ -5,8 +5,8 @@
     <title>Clinic Map Locator</title>
     <!-- CSS de Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Tus estilos -->
-    <link rel="stylesheet" href="notes.css">
+    <!-- Tus estilos actualizados -->
+    <link rel="stylesheet" href="map.css">
     <style>
         html, body {
             margin: 0;
@@ -15,10 +15,14 @@
             height: 100%;
             overflow: hidden;
             font-family: Arial, sans-serif;
+            position: relative;
         }
         #map-section {
             width: 100%;
             height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
         #map {
             width: 100%;
@@ -27,6 +31,13 @@
     </style>
 </head>
 <body>
+
+    <!-- Barra de búsqueda flotante superior centrada -->
+    <div id="search-container">
+        <input type="text" id="searchInput" placeholder="Buscar dirección o Plus Code..." onkeydown="if(event.key === 'Enter') findNearest();" />
+        <button onclick="findNearest()">Buscar</button>
+        <button onclick="clearSearch()" title="Limpiar">✕</button>
+    </div>
 
     <!-- Contenedor único del mapa -->
     <div id="map-section">
