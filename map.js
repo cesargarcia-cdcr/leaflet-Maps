@@ -395,7 +395,7 @@ function selectClinic(c) {
     }
 
     /* ---------- Bootstrap ---------- */
-    window.addEventListener('DOMContentLoaded', async() => {
+window.addEventListener('DOMContentLoaded', async() => {
         try {
             map = L.map('map', { zoomControl: true, maxBounds: CA_BOUNDS, maxBoundsViscosity: .8 }).setView([34.25, -119.10], 10);
             buildBaseLayers();
@@ -409,12 +409,14 @@ function selectClinic(c) {
             }
             addMarkers();
             
-            // Evento para limpiar selección al hacer clic en el mapa vacío
             map.on('click', () => {
                 selectClinic(null);
             });
 
-            setTimeout(() => map.invalidateSize(), 200);
+            // Forzar recálculo de tamaño para compensar la carga del iframe de Power Apps
+            setTimeout(() => { map.invalidateSize(); }, 150);
+            setTimeout(() => { map.invalidateSize(); }, 500);
+            setTimeout(() => { map.invalidateSize(); }, 1000);
         } catch (e) {
             console.error('bootstrap', e);
         }
