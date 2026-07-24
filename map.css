@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CONFIGURACIÓN GLOBAL Y SOPORTE DE VIEWPORT PARA IFRAME
+   CONFIGURACIÓN GLOBAL Y MAPA 100% PARA IFRAME
    ========================================================================== */
 html, body, #map {
     width: 100%;
@@ -10,7 +10,7 @@ html, body, #map {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Soportes de altura defensivos para navegadores y contenedores embebidos */
+/* Soportes defensivos de altura */
 body.page-map #map-section .map-viewport { 
     height: 100dvh; 
 }
@@ -33,27 +33,29 @@ body.page-map #map-section #map {
 }
 
 /* ==========================================================================
-   BARRA DE BÚSQUEDA Y CÁLCULO DE RUTA (FLOTANTE)
+   BARRA DE BÚSQUEDA FLOTANTE SUPERIOR CENTRADA
    ========================================================================== */
 #search-container {
     position: absolute;
-    top: 12px;
-    left: 60px; /* Espacio para no chocar con los controles de zoom nativos de Leaflet */
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 1000;
     background: #ffffff;
     padding: 8px 12px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     display: flex;
     gap: 8px;
     align-items: center;
+    max-width: 90%;
 }
 
 #searchInput {
-    padding: 6px 10px;
+    padding: 6px 12px;
     border: 1px solid #d1d5db;
     border-radius: 6px;
-    width: 240px;
+    width: 260px;
     font-size: 14px;
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
@@ -61,11 +63,11 @@ body.page-map #map-section #map {
 
 #searchInput:focus {
     border-color: #2563eb;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 #search-container button {
-    padding: 6px 12px;
+    padding: 6px 14px;
     background: #2563eb;
     color: white;
     border: none;
@@ -91,7 +93,7 @@ body.page-map #map-section #map {
 }
 
 /* ==========================================================================
-   PERSONALIZACIÓN DE ETIQUETAS DE CLÍNICA EN EL MAPA
+   ETIQUETAS DE CLÍNICA EN EL MAPA
    ========================================================================== */
 .leaflet-tooltip.clinic-label {
     background: rgba(255, 255, 255, 0.9);
