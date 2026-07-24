@@ -228,7 +228,7 @@
         }
     }
 
-    function selectClinic(c) {
+function selectClinic(c) {
         if (!c) {
             window.parent.postMessage({ type: 'CLEAR_SELECTION' }, '*');
             return;
@@ -240,9 +240,8 @@
             clinic: c
         }, '*');
 
-        map.fitBounds(L.latLngBounds([[c.lat, c.lng]]), {
-            padding: [50, 50],
-            maxZoom: 13,
+        // Reemplazamos fitBounds por setView para garantizar un centrado exacto
+        map.setView([c.lat, c.lng], 13, {
             animate: true,
             duration: 0.5
         });
