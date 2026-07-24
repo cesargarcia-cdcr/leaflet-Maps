@@ -1,9 +1,7 @@
-/* === Map UI/UX Standalone (v1) === */
+/* === Map UI/UX Standalone (v1 - Clean Map Only) === */
 'use strict';
 (function () {
-    let CLINICS = [],
-    EXT = {},
-    EXT_BY_CODE = {};
+    let CLINICS = [];
     let map,
     searchMarker = null,
     searchLine = null,
@@ -33,103 +31,62 @@
 
     /* ---------- Data Load ---------- */
     async function loadData() {
-    // 0. Cargar desde parámetro Base64 en la URL si existe (?data=...)
-    const urlParams = new URLSearchParams(window.location.search);
-    const rawDataParam = urlParams.get('data');
-    if (rawDataParam) {
-        try {
-            const jsonStr = new TextDecoder().decode(Uint8Array.from(atob(rawDataParam), c => c.charCodeAt(0)));
-            const parsedPayload = JSON.parse(jsonStr);
-            
-            if (parsedPayload.clinics) {
-                CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(parsedPayload.clinics)));
+        const urlParams = new URLSearchParams(window.location.search);
+        const rawDataParam = urlParams.get('data');
+        if (rawDataParam) {
+            try {
+                const jsonStr = new TextDecoder().decode(Uint8Array.from(atob(rawDataParam), c => c.charCodeAt(0)));
+                const parsedPayload = JSON.parse(jsonStr);
+                
+                if (parsedPayload.clinics) {
+                    CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(parsedPayload.clinics)));
+                }
+                return;
+            } catch (e) {
+                console.error("Error al decodificar el payload de la URL:", e);
             }
-            if (parsedPayload.providers) {
-                const provRows = CSV_rowsToObjects(CSV_parse(parsedPayload.providers));
-                window.APP_DATA = window.APP_DATA || {};
-                window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
-                    const code = String(row['Health Center'] || '').trim().toUpperCase();
-                    if (!acc[code]) acc[code] = [];
-                    acc[code].push(row);
-                    return acc;
-                }, {});
-            }
-            EXT = parsedPayload.extensions || {};
-            buildExtensionsIndex();
-            return; // Salir para evitar los fetch 404
-        } catch (e) {
-            console.error("Error al decodificar el payload de la URL:", e);
+        }
+
+        const clinicsTxt = await CSV_loadText('clinics.csv');
+        if (clinicsTxt) {
+            CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(clinicsTxt)));
         }
     }
 
-    // 1. Fallback a archivos locales si no hay parámetro URL
-    const clinicsTxt = await CSV_loadText('clinics.csv');
-    if (clinicsTxt) {
-        CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(clinicsTxt)));
-    }
-
-    const provTxt = await CSV_loadText('PROVIDERS-Sched.csv');
-    if (provTxt) {
-        const provRows = CSV_rowsToObjects(CSV_parse(provTxt));
-        window.APP_DATA = window.APP_DATA || {};
-        window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
-            const code = String(row['Health Center'] || '').trim().toUpperCase();
-            if (!acc[code]) acc[code] = [];
-            acc[code].push(row);
-            return acc;
-        }, {});
-    }
-
-    EXT = await safeJson('extensions.json') ?? {};
-    buildExtensionsIndex();
-}
     function mapClinicsCsvToObjects(items) {
-    if (!items || !Array.isArray(items)) return [];
-    const out = [], seen = new Set();
+        if (!items || !Array.isArray(items)) return [];
+        const out = [], seen = new Set();
 
-    for (const it of items) {
-        const code = it['code'];
-        const name = it['name'];
-        const plusCode = it['plusCode'];
-        const nicknames = it['nicknames'];
+        for (const it of items) {
+            const code = it['code'];
+            const name = it['name'];
+            const plusCode = it['plusCode'];
+            const nicknames = it['nicknames'];
 
-        const addr = [it['address'], it['city'], it['state'], it['zipCode']]
-        .filter(Boolean)
-        .join(', ');
+            const addr = [it['address'], it['city'], it['state'], it['zipCode']]
+            .filter(Boolean)
+            .join(', ');
 
-        // Forzar conversión numérica limpia y asegurar respaldo por nombre de columna
-        const lat = parseFloat(it['lat']);
-        const lng = parseFloat(it['lng']);
+            const lat = parseFloat(it['lat']);
+            const lng = parseFloat(it['lng']);
 
-        const clinic = {
-            clinicId: it['clinicId'] || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
-            code: code,
-            name: name,
-            plusCode: plusCode, 
-            address: addr,
-            lat: isNaN(lat) ? null : lat,
-            lng: isNaN(lng) ? null : lng,
-            nicknames: nicknames
-        };
+            const clinic = {
+                clinicId: it['clinicId'] || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
+                code: code,
+                name: name,
+                plusCode: plusCode, 
+                address: addr,
+                lat: isNaN(lat) ? null : lat,
+                lng: isNaN(lng) ? null : lng,
+                nicknames: nicknames
+            };
 
-        if (code && !seen.has(code)) {
-            out.push(clinic);
-            seen.add(code);
-        }
-    }
-    return out;
-}
-    function buildExtensionsIndex() {
-        EXT_BY_CODE = {};
-        for (const section in EXT) {
-            if (section === 'Meta' || !Array.isArray(EXT[section])) continue;
-            for (const item of EXT[section]) {
-                const code = String(item.code || '').toUpperCase();
-                if (!code) continue;
-                if (!EXT_BY_CODE[code]) EXT_BY_CODE[code] = {};
-                EXT_BY_CODE[code][section] = item;
+            if (code && !seen.has(code)) {
+                out.push(clinic);
+                seen.add(code);
             }
         }
+        return out;
     }
 
     /* ---------- OLC & Geocode ---------- */
@@ -169,11 +126,10 @@
         if (!window.OpenLocationCode) return null;
         const raw = String(input || '').trim();
         if (!raw.includes('+')) return null;
-        let code = raw, loc = null;
+        let code = raw;
         if (raw.includes(',')) {
-            const [p, ...r] = raw.split(',');
+            const [p] = raw.split(',');
             code = String(p || '').trim().toUpperCase();
-            loc = r.join(',').trim();
         } else code = raw.toUpperCase();
         try {
             if (OpenLocationCode.isFull(code)) {
@@ -221,7 +177,7 @@
         return await geocode(q);
     }
 
-    /* ---------- Markers ---------- */
+    /* ---------- Markers & Selection ---------- */
     async function addMarkers() {
         if (markersLayer) {
             map.removeLayer(markersLayer);
@@ -239,22 +195,21 @@
             shadowSize: [41, 41]
         });
 
-       for (const c of CLINICS) {
-    let lat = c.lat;
-    let lng = c.lng;
+        for (const c of CLINICS) {
+            let lat = c.lat;
+            let lng = c.lng;
 
-    // Solo intentar decodificar si realmente existe un Plus Code escrito
-    if (c.plusCode && String(c.plusCode).trim() !== '') {
-        const plusDecoded = await tryDecodePlusCode(c.plusCode);
-        if (plusDecoded) {
-            lat = plusDecoded.lat;
-            lng = plusDecoded.lng;
-        }
-    }
+            if (c.plusCode && String(c.plusCode).trim() !== '') {
+                const plusDecoded = await tryDecodePlusCode(c.plusCode);
+                if (plusDecoded) {
+                    lat = plusDecoded.lat;
+                    lng = plusDecoded.lng;
+                }
+            }
 
-    if (typeof lat !== 'number' || isNaN(lat) || typeof lng !== 'number' || isNaN(lng)) continue;
+            if (typeof lat !== 'number' || isNaN(lat) || typeof lng !== 'number' || isNaN(lng)) continue;
 
-    const m = L.marker([lat, lng], { icon: clinicIcon }).addTo(markersLayer);
+            const m = L.marker([lat, lng], { icon: clinicIcon }).addTo(markersLayer);
             
             m.bindTooltip(c.code, {
                 permanent: true,
@@ -274,124 +229,31 @@
     }
 
     function selectClinic(c) {
-    renderSelectedClinic(c);
-    
-    // Enviar los datos de la clínica seleccionada al SharePoint padre
-    window.parent.postMessage({
-        type: 'CLINIC_SELECTED',
-        clinic: c
-    }, '*');
+        if (!c) {
+            window.parent.postMessage({ type: 'CLEAR_SELECTION' }, '*');
+            return;
+        }
+        
+        // Enviar la clínica seleccionada a Power Apps vía iframe postMessage
+        window.parent.postMessage({
+            type: 'CLINIC_SELECTED',
+            clinic: c
+        }, '*');
 
-    map.fitBounds(L.latLngBounds([[c.lat, c.lng]]), {
-        paddingTopLeft: [0, 0],
-        paddingBottomRight: [380, 0],
-        maxZoom: 11,
-        animate: true,
-        duration: 0.5
+        map.fitBounds(L.latLngBounds([[c.lat, c.lng]]), {
+            padding: [50, 50],
+            maxZoom: 13,
+            animate: true,
+            duration: 0.5
+        });
+    }
+
+    // Limpiar selección al hacer clic en el fondo del mapa
+    document.addEventListener('DOMContentLoaded', () => {
+        // Se enlazará después de que map esté inicializado
     });
-}
 
-    /* ---------- Sheet Render ---------- */
-    function renderSelectedClinic(c, distance) {
-        const panel = document.getElementById('clinic-info-body');
-        if (!panel) return;
-        const nb = s => String(s || '').replace(/\s*\/\s*/g, '&nbsp;/&nbsp;').replace(/\s{2,}/g, ' ').trim();
-
-        const now = new Date();
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
-
-        const linkedProviders = (window.APP_DATA?.providersByCode?.[c.code.toUpperCase()] || [])
-        .filter(p => String(p.Date || '').trim() === todayStr);
-
-        let html = '';
-        html += `
-      <div style="margin-bottom:20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-          <div style="font-weight:800; font-size:1.3rem; color:#0f172a; line-height:1.2;">🏥 ${c.name}</div>
-          ${distance !== undefined ? `<div style="font-size:.75rem; font-weight:700; color:#1d4ed8; background:#dbeafe; padding:4px 10px; border-radius:20px; white-space:nowrap;">📍 ${distance.toFixed(1)} km</div>` : ''}
-        </div>
-        <div style="margin-top:8px; font-size:0.85rem; color:#475569; display:flex; align-items:center; gap:6px;">
-          <span>📌</span> <span>${c.address ?? ''}</span>
-        </div>
-      </div>`;
-
-        const sections = EXT_BY_CODE[c.code] ? Object.keys(EXT_BY_CODE[c.code]) : [];
-
-        if (sections.length > 0) {
-            const order = ['Medical', 'Optical', 'Dental', 'MH'];
-            const ordered = [...order.filter(s => sections.includes(s)), ...sections.filter(s => !order.includes(s)).sort()];
-
-            html += `<div class="modern-stack extensions-panel">
-                  <div class="modern-header">📞 Extensions & Lines</div>
-                  <div class="modern-body">`;
-
-            ordered.forEach((sec) => {
-                const v = EXT_BY_CODE[c.code][sec] || {};
-                const rows = [];
-                if (v.front) rows.push({ label: 'Front', value: nb(v.front) });
-                if (v.back) rows.push({ label: 'Back', value: nb(v.back) });
-                if (!v.front && !v.back && v.ext) rows.push({ label: 'EXT', value: nb(v.ext) });
-
-                html += `
-            <div class="modern-ext-group">
-              <div class="modern-ext-title">
-                <span>🔹 ${sec}</span>
-                ${v.phone ? `<span style="color:#2563eb; font-weight:600;">${v.phone}</span>` : ''}
-              </div>
-              ${rows.map(r => `
-                <div class="modern-grid-row">
-                  <div class="modern-lbl">${r.label}</div>
-                  <div class="modern-val">${r.value}</div>
-                </div>
-              `).join('')}
-            </div>`;
-            });
-            html += `</div></div>`;
-        }
-
-        html += `<div class="modern-stack providers-panel">
-              <div class="modern-header">🧑‍⚕️ On Duty Today (${todayStr})</div>
-              <div class="modern-body">`;
-
-        if (linkedProviders.length > 0) {
-            html += linkedProviders.map(p => `
-            <div class="provider-row" style="padding: 6px 0; border-bottom: 1px dashed #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
-                <div style="flex: 1; display: flex; align-items: center; gap: 6px;">
-                    <span style="color: #475569; font-family: monospace; font-weight: 700; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 1px 5px; border-radius: 3px; font-size: 0.75rem;">
-                        🆔 ${p['Provider ID'] || 'N/A'}
-                    </span>
-                    <a href="#" 
-                       onclick="event.preventDefault(); showProviderPopover('${p['Provider ID'] || ''}', '${p['Employee Name'].replace(/'/g, "\\'")}')" 
-                       style="color: #4f46e5; text-decoration: none; font-weight: 700; cursor: pointer;">
-                       ${p['Employee Name']}
-                    </a>
-                    <span style="color:#64748b; font-size:0.75rem;">${p.Specialty ? `[${p.Specialty}]` : ''}</span>
-                </div>
-                <span class="provider-badge">${p['JOB NAME'] ?? 'MD'}</span>
-            </div>
-        `).join('');
-        } else {
-            html += `<div style="font-size:0.8rem; color:#64748b; text-align:center; padding: 4px 0;">📅 No providers scheduled for today.</div>`;
-        }
-
-        html += `</div></div>`;
-        panel.innerHTML = html;
-        openSheet();
-    }
-
-    function openSheet() {
-        const s = document.getElementById('place-sheet');
-        if (s) { s.classList.add('open'); s.setAttribute('aria-hidden', 'false'); }
-    }
-    function closeSheet() {
-        const s = document.getElementById('place-sheet');
-        if (s) { s.classList.remove('open'); s.setAttribute('aria-hidden', 'true'); }
-    }
-    window.closePlaceSheet = closeSheet;
-
-    /* ---------- Search & Picker ---------- */
+    /* ---------- Search & Routing ---------- */
     function getClinicByCode(code) {
         const n = String(code ?? '').toUpperCase().trim();
         return CLINICS.find(c => c.code?.toUpperCase().trim() === n);
@@ -408,124 +270,25 @@
         });
     }
 
-    function populateClinicPickers() {
-        const sel = document.getElementById('clinicSelect');
-        const dl = document.getElementById('clinicNameList');
-        if (!sel && !dl) return;
-        
-        const ordered = [...CLINICS].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        
-        if (sel) {
-            sel.innerHTML = '<option value="">Todas las clínicas…</option>';
-            for (const c of ordered) {
-                const main = document.createElement('option');
-                main.value = c.code;
-                main.textContent = c.code ? `${c.code} — ${c.name}` : c.name;
-                main.dataset.code = c.code;
-                sel.appendChild(main);
-            }
-            if (!sel.__wired) {
-                sel.addEventListener('change', () => {
-                    const opt = sel.selectedOptions?.[0];
-                    const code = opt?.dataset?.code;
-                    const c = code ? getClinicByCode(code) : null;
-                    if (c && c.lat && c.lng) selectClinic(c);
-                });
-                sel.__wired = true;
-            }
-        }
-
-        if (dl) {
-            let optionsHtml = [];
-            CLINICS.forEach(c => {
-                const nicknamesArray = String(c.nicknames || '').split(',').map(n => n.trim()).filter(Boolean);
-                const nicknamesStr = nicknamesArray.length > 0 ? ` (${nicknamesArray.join(', ')})` : '';
-                optionsHtml.push(`<option value="${c.name}${nicknamesStr}" data-type="clinic" data-code="${c.code}"></option>`);
-            });
-
-            const now = new Date();
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
-            const seenPairs = new Set();
-
-            if (window.APP_DATA && window.APP_DATA.providersByCode) {
-                for (const code in window.APP_DATA.providersByCode) {
-                    const list = window.APP_DATA.providersByCode[code] || [];
-                    list.forEach(p => {
-                        if (String(p.Date || '').trim() === todayStr && p['Employee Name']) {
-                            const uniqueKey = `${p['Provider ID']}-${code}`;
-                            if (!seenPairs.has(uniqueKey)) {
-                                const pId = String(p['Provider ID'] || '').trim();
-                                const pName = String(p['Employee Name'] || '').trim();
-                                const pSpec = p.Specialty ?? p['JOB NAME'] ?? 'MD';
-                                optionsHtml.push(`<option value="${pName}" label="🆔 ${pId} -> Hoy en ${code} (${pSpec})"></option>`);
-                                optionsHtml.push(`<option value="${pId}" label="👨‍⚕️ ${pName} -> Hoy en ${code} (${pSpec})"></option>`);
-                                seenPairs.add(uniqueKey);
-                            }
-                        }
-                    });
-                }
-            }
-            dl.innerHTML = optionsHtml.join('');
-        }
-    }
-
     async function findNearest() {
-        const sel = document.getElementById('clinicSelect');
-        const chosen = sel?.selectedOptions?.[0]?.dataset?.code ?? '';
-        if (chosen) {
-            const c = getClinicByCode(chosen);
-            if (c && c.lat && c.lng) { selectClinic(c); return; }
-        }
         const q = (document.getElementById('searchInput')?.value ?? '').trim();
         if (!q) return;
 
-        const now = new Date();
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
-        let providerTargetCode = null;
-        let matchedProviderName = null;
-
-        if (window.APP_DATA && window.APP_DATA.providersByCode) {
-            for (const code in window.APP_DATA.providersByCode) {
-                const list = window.APP_DATA.providersByCode[code] || [];
-                const found = list.find(p => 
-                    String(p.Date || '').trim() === todayStr && (
-                        String(p['Employee Name'] || '').toLowerCase().includes(q.toLowerCase()) ||
-                        String(p['Provider ID'] || '').trim() === q
-                    )
-                );
-                if (found) {
-                    providerTargetCode = code;
-                    matchedProviderName = found['Employee Name'];
-                    break;
-                }
-            }
-        }
-
-        if (providerTargetCode) {
-            const c = getClinicByCode(providerTargetCode);
-            if (c && c.lat && c.lng) {
-                selectClinic(c);
-                document.getElementById('searchInput').value = matchedProviderName;
-                return;
-            }
-        }
-
         const bySearch = getClinicBySearch(q);
-        if (bySearch && bySearch.lat) { selectClinic(bySearch); return; }
+        if (bySearch && bySearch.lat) { 
+            selectClinic(bySearch); 
+            return; 
+        }
         
         const g = await resolveLocation(q);
-        if (!g) { alert('Address/Plus Code/Provider not found.'); return; }
+        if (!g) { alert('Dirección / Plus Code no encontrado.'); return; }
         
         if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
         if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
 
         searchMarker = L.circleMarker([g.lat, g.lng], {
             radius: 7, color: '#dc2626', fillColor: '#dc2626', fillOpacity: .8, weight: 2
-        }).addTo(map).bindPopup('📍 Dirección de Búsqueda');
+        }).addTo(map).bindPopup('📍 Ubicación Buscada');
 
         let candidates = [];
         for (const c of CLINICS) {
@@ -573,7 +336,7 @@
         }
 
         if (bestMatch) {
-            renderSelectedClinic(bestMatch, minDrivingDistance);
+            selectClinic(bestMatch);
             if (bestRouteGeometry) {
                 const coordinates = bestRouteGeometry.coordinates.map(coord => [coord[1], coord[0]]);
                 searchLine = L.polyline(coordinates, { color: '#2563eb', weight: 4, opacity: 0.85, lineJoin: 'round' }).addTo(map);
@@ -590,11 +353,7 @@
     function clearSearch() {
         const box = document.getElementById('searchInput');
         if (box) box.value = '';
-        const sel = document.getElementById('clinicSelect');
-        if (sel) sel.value = '';
-        const panel = document.getElementById('clinic-info-body');
-        if (panel) panel.innerHTML = `<div class="empty-state">Selecciona una clínica o busca por dirección/código.</div>`;
-        closeSheet();
+        selectClinic(null); // Notificar limpieza al padre
         if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
         if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
     }
@@ -627,13 +386,13 @@
     }
     
     function geolocate() {
-        if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
+        if (!navigator.geolocation) { alert('Geolocalización no soportada'); return; }
         navigator.geolocation.getCurrentPosition(pos => {
             const { latitude, longitude } = pos.coords;
             const p = [latitude, longitude];
-            L.circleMarker(p, { radius: 7, color: '#16a34a', fillColor: '#16a34a', fillOpacity: .85, weight: 2 }).addTo(map).bindPopup('📍 You are here').openPopup();
+            L.circleMarker(p, { radius: 7, color: '#16a34a', fillColor: '#16a34a', fillOpacity: .85, weight: 2 }).addTo(map).bindPopup('📍 Estás aquí').openPopup();
             map.setView(p, 14);
-        }, () => alert('Geolocation error'));
+        }, () => alert('Error de geolocalización'));
     }
 
     /* ---------- Bootstrap ---------- */
@@ -642,7 +401,6 @@
             map = L.map('map', { zoomControl: true, maxBounds: CA_BOUNDS, maxBoundsViscosity: .8 }).setView([34.25, -119.10], 10);
             buildBaseLayers();
             await loadData();
-            buildExtensionsIndex();
             
             for (const c of CLINICS) {
                 if (typeof c.lat !== 'number' || typeof c.lng !== 'number') {
@@ -651,7 +409,12 @@
                 }
             }
             addMarkers();
-            populateClinicPickers();
+            
+            // Evento para limpiar selección al hacer clic en el mapa vacío
+            map.on('click', () => {
+                selectClinic(null);
+            });
+
             setTimeout(() => map.invalidateSize(), 200);
         } catch (e) {
             console.error('bootstrap', e);
@@ -704,92 +467,14 @@
         return out;
     }
     
+    async function CSV_loadTest(url) {
+        const r = await fetch(url, { cache: 'no-cache' });
+        if (!r.ok) return null;
+        return await r.text();
+    }
     async function CSV_loadText(url) {
         const r = await fetch(url, { cache: 'no-cache' });
         if (!r.ok) return null;
         return await r.text();
     }
-    
-    /* ---------- Popover de Cumplimiento (Do's & Don'ts) ---------- */
-    async function showProviderPopover(providerId, providerName) {
-        removeProviderPopover();
-        let masterList = window.APP_DATA?.Main_Providers_csv || [];
-        
-        if (masterList.length === 0) {
-            try {
-                const responseMain = await fetch('Main-Providers.csv');
-                if (responseMain.ok) {
-                    const textMain = await responseMain.text();
-                    masterList = CSV_rowsToObjects(CSV_parse(textMain));
-                }
-            } catch (err) {
-                console.error("❌ Error Main-Providers.csv:", err);
-            }
-        }
-
-        const doc = masterList.find(m => {
-            const mId = String(m['Provider ID'] || '').trim();
-            const mName = String(m['Provider'] || '').toLowerCase().trim();
-            return (providerId && mId === String(providerId).trim()) || (mName === providerName.toLowerCase().trim());
-        });
-
-        if (!doc) {
-            alert(`No se encontraron directrices para: ${providerName}`);
-            return;
-        }
-
-        const docName = String(doc['Provider'] || providerName).trim();
-        const docDegree = String(doc['Dr Degree'] || '').trim();
-        const docSpec = String(doc['Specialty'] || 'General Medicine').trim();
-        const docLang = String(doc['Languages '] || doc['Languages'] || '').trim();
-        const docNpi = String(doc['NPI'] || 'N/A').trim();
-        const docDos = String(doc["Do's ✔"] || '').trim();
-        const docDonts = String(doc["Don'ts ❌"] || '').trim();
-
-        const backdrop = document.createElement('div');
-        backdrop.id = 'pdir-popover-backdrop';
-        backdrop.style = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.2); z-index:99999; display:flex; align-items:center; justify-content:center;';
-        
-        const popover = document.createElement('div');
-        popover.id = 'pdir-popover-card';
-        popover.style = 'width:440px; max-width:90vw; background:#ffffff; padding:18px; border-radius:8px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); border:1px solid #e2e8f0; font-family: system-ui, sans-serif;';
-
-        let guidelinesHtml = '<div style="margin-top:10px; font-size:0.8rem; color:#64748b; text-align:center; font-style:italic;">⚠️ Sin directrices registradas.</div>';
-        if (docDos || docDonts) {
-            guidelinesHtml = `
-                <div style="margin-top:12px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem; line-height:1.5;">
-                    ${docDos ? `<div style="color:#16a34a; margin-bottom:8px;"><strong>Do's ✔:</strong> ${docDos}</div>` : ''}
-                    ${docDonts ? `<div style="color:#dc2626;"><strong>Don'ts ❌:</strong> ${docDonts}</div>` : ''}
-                </div>`;
-        }
-
-        popover.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:start; gap:10px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
-                <div>
-                    <h4 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">${docName}${docDegree ? `, ${docDegree}` : ''}</h4>
-                    <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">
-                        <span>🔑 ID: <strong>${providerId || 'N/A'}</strong> | 🌐 NPI: <strong>${docNpi}</strong></span>
-                        ${docLang ? `<br>🗣️ ${docLang}` : ''}
-                    </div>
-                </div>
-                <span style="background:#e0e7ff; color:#4338ca; font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:4px;">${docSpec}</span>
-            </div>
-            ${guidelinesHtml}
-            <div style="margin-top:14px; text-align:right;">
-                <button onclick="removeProviderPopover()" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#475569; padding:6px 14px; border-radius:4px; font-size:0.8rem; font-weight:600; cursor:pointer;">Cerrar</button>
-            </div>
-        `;
-
-        backdrop.appendChild(popover);
-        document.body.appendChild(backdrop);
-        backdrop.addEventListener('click', (e) => { if (e.target === backdrop) removeProviderPopover(); });
-    }
-
-    function removeProviderPopover() {
-        const existing = document.getElementById('pdir-popover-backdrop');
-        if (existing) existing.remove();
-    }
-
-    window.showProviderPopover = showProviderPopover;
-    window.removeProviderPopover = removeProviderPopover;
 })();
