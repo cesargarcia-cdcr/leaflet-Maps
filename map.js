@@ -422,6 +422,34 @@ window.addEventListener('DOMContentLoaded', async() => {
         }
     });
 
+    /* ---------- Responsive Size Listener (Iframe / Power Apps) ---------- */
+    const mapContainer = document.getElementById('map');
+    if (window.ResizeObserver && mapContainer) {
+        const resizeObserver = new ResizeObserver(() => {
+            if (map) {
+                requestAnimationFrame(() => {
+                    map.invalidateSize();
+                });
+            }
+        });
+        resizeObserver.observe(mapContainer);
+    }
+
+    window.addEventListener('resize', () => {
+        if (map) {
+            map.invalidateSize();
+        }
+    });
+
+    /* ---------- Expose ---------- */
+    window.findNearest = findNearest;
+    window.clearSearch = clearSearch;
+    window.AppMap = {
+        invalidate() { try { map?.invalidateSize() } catch (_) {} },
+        toggleFullscreen,
+        geolocate
+    };
+
     /* ---------- Expose ---------- */
     window.findNearest = findNearest;
     window.clearSearch = clearSearch;
