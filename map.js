@@ -423,10 +423,13 @@ window.addEventListener('DOMContentLoaded', async() => {
     });
 
     /* ---------- Responsive Size Listener (Iframe / Power Apps) ---------- */
+/* ---------- Responsive Size Listener (Iframe / Power Apps) ---------- */
     const mapContainer = document.getElementById('map');
+    
+    // 1. Método actual (funciona bien en SharePoint / navegadores web estándar)
     if (window.ResizeObserver && mapContainer) {
         const resizeObserver = new ResizeObserver(() => {
-            if (map) {
+            if (typeof map !== 'undefined' && map) {
                 requestAnimationFrame(() => {
                     map.invalidateSize();
                 });
@@ -435,8 +438,21 @@ window.addEventListener('DOMContentLoaded', async() => {
         resizeObserver.observe(mapContainer);
     }
 
+    // 2. Método adicional para Power Apps (escucha mensajes del contenedor padre)
+    window.addEventListener('message', (event) => {
+        // Power Apps envía notificaciones de cambio de tamaño a través del postMessage del iframe
+        if (event.data && (event.data.width || event.data.height || typeof event.data === 'string')) {
+            if (typeof map !== 'undefined' && map) {
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 100); // Pequeño respiro para que el DOM termine de aplicar el cambio
+            }
+        }
+    });
+
+    // 3. Fallback por si la ventana cambia de orientación o tamaño globalmente
     window.addEventListener('resize', () => {
-        if (map) {
+        if (typeof map !== 'undefined' && map) {
             map.invalidateSize();
         }
     });
