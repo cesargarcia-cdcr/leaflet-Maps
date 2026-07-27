@@ -92,7 +92,9 @@
     /* ---------- OLC & Geocode ---------- */
     const CA_BOUNDS = [[32.529523, -124.482003], [42.009518, -114.131211]];
     const CA_VIEWBOX = '-124.482003,42.009518,-114.131211,32.529523';
+    const VENTURA_VIEWBOX = '-120.8,34.5,-118.8,32.8';
     const CA_CENTER = { lat: 37.25, lng: -119.7 };
+    const VENTURA_CENTER = { lat: 34.15, lng: -119.8 };
     let __OLC_READY = null;
 
     function ensureOLC() {
@@ -154,19 +156,112 @@
         __last = Date.now();
     }
 
+    /* Helper: Normalize address before geocoding */
+    function normalizeAddress(q) {
+        let normalized = String(q ?? '').trim();
+        
+        // Replace common street abbreviations with full names
+        normalized = normalized.replace(/\b(St|St\.|Street)\b/gi, 'Street')
+                               .replace(/\b(Rd|Rd\.|Road)\b/gi, 'Road')
+                               .replace(/\b(Ave|Ave\.|Avenue)\b/gi, 'Avenue')
+                               .replace(/\b(Blvd|Blvd\.|Boulevard)\b/gi, 'Boulevard')
+                               .replace(/\b(Dr|Dr\.|Drive)\b/gi, 'Drive')
+                               .replace(/\b(Ln|Ln\.|Lane)\b/gi, 'Lane')
+                               .replace(/\b(Ct|Ct\.|Court)\b/gi, 'Court')
+                               .replace(/\b(Pkwy|Parkway)\b/gi, 'Parkway')
+                               .replace(/\b(Hwy|Highway)\b/gi, 'Highway')
+                               .replace(/\b(N\.|North)\b/gi, 'North')
+                               .replace(/\b(S\.|South)\b/gi, 'South')
+                               .replace(/\b(E\.|East)\b/gi, 'East')
+                               .replace(/\b(W\.|West)\b/gi, 'West');
+        
+        // Collapse multiple spaces
+        normalized = normalized.replace(/\s+/g, ' ').trim();
+        
+        return normalized;
+    }
+
+    /* Helper: Check if location is within Ventura County bounds */
+    function isInVenturaCounty(lat, lng) {
+        const minLat = 32.8, maxLat = 34.5, minLng = -120.8, maxLng = -118.8;
+        return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+    }
+
     async function geocode(q) {
         try {
             await throttle();
-            q = String(q ?? '').trim();
-            if (!/(\bCA\b|\bCalifornia\b|\bUSA\b|\d{5})/i.test(q)) q += ', CA, USA';
-            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=us&viewbox=${encodeURIComponent(CA_VIEWBOX)}&bounded=1&limit=5`;
-            const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-            if (!r.ok) return null;
-            const d = await r.json();
-            if (!Array.isArray(d) || !d.length) return null;
-            const best = d.find(x => /(^|,\s)California(,|\s|$)/i.test(x?.display_name || '')) || d[0];
+            
+            // 1. NORMALIZE ADDRESS
+            q = normalizeAddress(q);
+            
+            // 2. ENSURE STATE/COUNTRY: Add CA, USA if not present
+            if (!/(\bCA\b|\bCalifornia\b|\bUSA\b|\d{5})/i.test(q)) {
+                q += ', Ventura County, CA, USA';
+            }
+            
+            // 3. PRIMARY REQUEST: Strict Ventura County bounds + Increase limit to 10
+            console.log('Geocoding (strict Ventura bounds):', q);
+            let url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=us&viewbox=${encodeURIComponent(VENTURA_VIEWBOX)}&bounded=1&limit=10`;
+            let r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (!r.ok) throw new Error('Primary request failed');
+            let d = await r.json();
+            
+            // 4. FALLBACK 1: Try with wider California bounds if strict search fails
+            if (!Array.isArray(d) || !d.length) {
+                console.warn('Strict Ventura search returned no results, trying wider California bounds...');
+                url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=us&viewbox=${encodeURIComponent(CA_VIEWBOX)}&bounded=1&limit=10`;
+                r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!r.ok) throw new Error('Fallback 1 failed');
+                d = await r.json();
+            }
+            
+            // 5. FALLBACK 2: Try without viewbox restriction (broadest search)
+            if (!Array.isArray(d) || !d.length) {
+                console.warn('Wider California search returned no results, trying unrestricted search...');
+                url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=us&limit=10`;
+                r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!r.ok) throw new Error('Fallback 2 failed');
+                d = await r.json();
+            }
+            
+            if (!Array.isArray(d) || !d.length) {
+                console.warn('All geocoding attempts failed for:', q);
+                return null;
+            }
+            
+            // 6. RESULT FILTERING: Prioritize California results, filter by distance from Ventura County
+            let best = null;
+            
+            // First preference: Explicit California match
+            best = d.find(x => /(^|,\s)California(,|\s|$)/i.test(x?.display_name || ''));
+            
+            // Second preference: Within Ventura County bounds
+            if (!best) {
+                best = d.find(x => isInVenturaCounty(+x.lat, +x.lon));
+            }
+            
+            // Third preference: Closest to Ventura County center
+            if (!best) {
+                best = d.sort((a, b) => {
+                    const distA = Math.hypot(
+                        Math.abs(+a.lat - VENTURA_CENTER.lat),
+                        Math.abs(+a.lon - VENTURA_CENTER.lng)
+                    );
+                    const distB = Math.hypot(
+                        Math.abs(+b.lat - VENTURA_CENTER.lat),
+                        Math.abs(+b.lon - VENTURA_CENTER.lng)
+                    );
+                    return distA - distB;
+                })[0];
+            }
+            
+            // Fallback to first result if all else fails
+            if (!best) best = d[0];
+            
+            console.log('Geocoded result:', best?.display_name, 'Lat:', best?.lat, 'Lon:', best?.lon);
             return { lat: +best.lat, lng: +best.lon };
-        } catch (_) {
+        } catch (e) {
+            console.error('Geocode error:', e);
             return null;
         }
     }
@@ -228,29 +323,38 @@
         }
     }
 
-function selectClinic(c) {
+    function selectClinic(c) {
         if (!c) {
-            window.parent.postMessage({ type: 'CLEAR_SELECTION' }, '*');
+            // User clicked on map background (non-marker area)
+            // Notify parent that selection has been cleared
+            const clearMessage = {
+                type: 'CLINIC_DESELECTED',
+                clinic: null,
+                timestamp: new Date().toISOString(),
+                action: 'map_background_click'
+            };
+            console.log('Sending CLINIC_DESELECTED message to parent:', clearMessage);
+            window.parent.postMessage(clearMessage, '*');
             return;
         }
         
-        // Enviar la clínica seleccionada a Power Apps vía iframe postMessage
-        window.parent.postMessage({
+        // User selected a clinic marker
+        // Prepare message to send to Power Apps via iframe postMessage
+        const selectionMessage = {
             type: 'CLINIC_SELECTED',
-            clinic: c
-        }, '*');
+            clinic: c,
+            timestamp: new Date().toISOString(),
+            action: 'marker_click'
+        };
+        console.log('Sending CLINIC_SELECTED message to parent:', selectionMessage);
+        window.parent.postMessage(selectionMessage, '*');
 
-        // Reemplazamos fitBounds por setView para garantizar un centrado exacto
+        // Center map on selected clinic with smooth animation
         map.setView([c.lat, c.lng], 13, {
             animate: true,
             duration: 0.5
         });
     }
-
-    // Limpiar selección al hacer clic en el fondo del mapa
-    document.addEventListener('DOMContentLoaded', () => {
-        // Se enlazará después de que map esté inicializado
-    });
 
     /* ---------- Search & Routing ---------- */
     function getClinicByCode(code) {
@@ -352,7 +456,7 @@ function selectClinic(c) {
     function clearSearch() {
         const box = document.getElementById('searchInput');
         if (box) box.value = '';
-        selectClinic(null); // Notificar limpieza al padre
+        selectClinic(null); // Notify parent of clearing
         if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
         if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
     }
@@ -395,7 +499,7 @@ function selectClinic(c) {
     }
 
     /* ---------- Bootstrap ---------- */
-window.addEventListener('DOMContentLoaded', async() => {
+    window.addEventListener('DOMContentLoaded', async() => {
         try {
             map = L.map('map', { zoomControl: true, maxBounds: CA_BOUNDS, maxBoundsViscosity: .8 }).setView([34.25, -119.10], 10);
             buildBaseLayers();
@@ -409,8 +513,27 @@ window.addEventListener('DOMContentLoaded', async() => {
             }
             addMarkers();
             
-            map.on('click', () => {
-                selectClinic(null);
+            // Handle clicks on map background (non-marker areas)
+            map.on('click', (e) => {
+                // Check if click was on a marker by checking if any layer at click point is a marker
+                let clickedMarker = false;
+                markersLayer.eachLayer((layer) => {
+                    if (layer instanceof L.Marker) {
+                        const markerLatLng = layer.getLatLng();
+                        const clickLatLng = e.latlng;
+                        // If click is very close to marker (within ~40px), it's a marker click
+                        const distance = map.latLngToContainerPoint(markerLatLng)
+                            .distanceTo(map.latLngToContainerPoint(clickLatLng));
+                        if (distance < 40) {
+                            clickedMarker = true;
+                        }
+                    }
+                });
+                
+                // Only clear selection if background was clicked (not a marker)
+                if (!clickedMarker) {
+                    selectClinic(null);
+                }
             });
 
             // Forzar recálculo de tamaño para compensar la carga del iframe de Power Apps
@@ -423,7 +546,6 @@ window.addEventListener('DOMContentLoaded', async() => {
     });
 
     /* ---------- Responsive Size Listener (Iframe / Power Apps) ---------- */
-/* ---------- Responsive Size Listener (Iframe / Power Apps) ---------- */
     const mapContainer = document.getElementById('map');
     
     // 1. Método actual (funciona bien en SharePoint / navegadores web estándar)
@@ -456,15 +578,6 @@ window.addEventListener('DOMContentLoaded', async() => {
             map.invalidateSize();
         }
     });
-
-    /* ---------- Expose ---------- */
-    window.findNearest = findNearest;
-    window.clearSearch = clearSearch;
-    window.AppMap = {
-        invalidate() { try { map?.invalidateSize() } catch (_) {} },
-        toggleFullscreen,
-        geolocate
-    };
 
     /* ---------- Expose ---------- */
     window.findNearest = findNearest;
