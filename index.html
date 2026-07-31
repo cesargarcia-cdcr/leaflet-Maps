@@ -9,6 +9,7 @@
     <!-- Tus estilos actualizados -->
     <link rel="stylesheet" href="map.css">
     <style>
+        /* Forzar comportamiento full-screen: ocupar toda la ventana del navegador */
         html, body {
             margin: 0;
             padding: 0;
@@ -19,36 +20,29 @@
             position: relative;
             font-size: 16px;
         }
-        
-        /* Recommended iframe resolution: 1366x768 (laptop/desktop standard) */
-        body {
-            max-width: 1366px;
-            max-height: 768px;
-            margin: 0 auto;
-        }
-        
+
+        /* Contenedor del mapa fijado a toda la ventana (fullscreen) */
         #map-section {
-            width: 100%;
-            height: 100vh;
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
-            max-width: 1366px;
-            max-height: 768px;
-            margin: 0 auto;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            z-index: 0;
         }
-        
+
+        /* Mapa ocupa todo el contenedor */
         #map {
             width: 100%;
             height: 100%;
         }
-        
-        /* Responsive scaling for various screen sizes */
-        @media (max-width: 1366px) {
-            body, #map-section {
-                max-width: 100%;
-                max-height: 100%;
-            }
+
+        /* Ajustes para la barra de búsqueda en pantallas pequeñas */
+        @media (max-width: 480px) {
+            #searchInput { width: 140px; }
         }
     </style>
 </head>
@@ -71,27 +65,23 @@
     <!-- Tu lógica -->
     <script src="map.js"></script>
     <script>
-        // Disparar la carga directamente al arrancar la página
-        window.addEventListener('DOMContentLoaded', () => {
-            if (typeof loadData === 'function') {
-                loadData();
-            }
-        });
-        
-        // Override Power Apps iframe resolution constraints
-        // Force viewport to recommended resolution: 1366x768 (laptop/desktop standard)
+        // Aseguramos que no se reimpongan restricciones de tamaño desde este archivo.
         window.addEventListener('load', () => {
             const mapSection = document.getElementById('map-section');
             if (mapSection) {
-                // Reset any Power Apps imposed constraints
-                mapSection.style.maxWidth = '1366px';
-                mapSection.style.maxHeight = '768px';
+                // Eliminar cualquier restricción de tamaño aplicada externamente
+                mapSection.style.maxWidth = '';
+                mapSection.style.maxHeight = '';
                 mapSection.style.width = '100%';
                 mapSection.style.height = '100%';
             }
+
+            // Forzar re-cálculo de tamaño del mapa si la librería ya está cargada
+            setTimeout(() => { try { window.AppMap?.invalidate?.(); } catch (_) {} }, 150);
+            setTimeout(() => { try { window.AppMap?.invalidate?.(); } catch (_) {} }, 500);
         });
-        
-        // Additional measure: Communicate with parent iframe about recommended size
+
+        // Comunicar al contenedor padre que el mapa está listo (puede seguir enviando recomendaciones)
         if (window.parent !== window) {
             window.parent.postMessage({
                 type: 'MAP_READY',
