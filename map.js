@@ -31,27 +31,64 @@
 
     /* ---------- Data Load ---------- */
     async function loadData() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const rawDataParam = urlParams.get('data');
-        if (rawDataParam) {
-            try {
-                const jsonStr = new TextDecoder().decode(Uint8Array.from(atob(rawDataParam), c => c.charCodeAt(0)));
-                const parsedPayload = JSON.parse(jsonStr);
-                
-                if (parsedPayload.clinics) {
-                    CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(parsedPayload.clinics)));
-                }
-                return;
-            } catch (e) {
-                console.error("Error al decodificar el payload de la URL:", e);
+    try {
+        // Fetch from your two corporate SharePoint lists simultaneously
+        const [listAResponse, listBResponse] = await Promise.all([
+            fetch("_api/web/lists/getbytitle('clinics-list')/items?$select=code,clinicId,name,address,city,state,zipCode,operationHours,offeredServices,plusCode,latitude,longitude", {
+                headers: { "Accept": "application/json;odata=verbose" }
+            }),
+            fetch("_api/web/lists/getbytitle('clinicsExtensions')/items?$select=section,code,name,front,back,phone,fax", {
+                headers: { "Accept": "application/json;odata=verbose" }
+            })
+        ]);
+
+        const dataA = (await listAResponse.json()).d.results;
+        const dataB = (await listBResponse.json()).d.results;
+
+        const out = [], seen = new Set();
+
+        for (const item of dataA) {
+            const code = item.code;
+            const ext = dataB.find(b => b.code === code) || {};
+
+            const addr = [item.address, item.city, item.state, item.zipCode]
+                .filter(Boolean)
+                .join(', ');
+
+            const lat = parseFloat(item.latitude);
+            const lng = parseFloat(item.longitude);
+
+            const clinic = {
+                clinicId: item.clinicId || item.name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
+                code: code,
+                name: item.name,
+                plusCode: item.plusCode,
+                address: addr,
+                lat: isNaN(lat) ? null : lat,
+                lng: isNaN(lng) ? null : lng,
+                medical: {
+                    front: ext.front || '',
+                    back: ext.back || '',
+                    phone: ext.phone || '',
+                    fax: ext.fax || ''
+                },
+                operationHours: item.operationHours || '',
+                offeredServices: item.offeredServices || ''
+            };
+
+            if (code && !seen.has(code)) {
+                out.push(clinic);
+                seen.add(code);
             }
         }
 
-        const clinicsTxt = await CSV_loadText('clinics.csv');
-        if (clinicsTxt) {
-            CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(clinicsTxt)));
-        }
+        CLINICS = out;
+        console.log("Successfully loaded CLINICS from SharePoint lists:", CLINICS.length);
+
+    } catch (error) {
+        console.error("Error fetching multi-list clinic data from SharePoint:", error);
     }
+}
 
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items)) return [];
