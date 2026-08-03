@@ -32,12 +32,14 @@
     /* ---------- Data Load ---------- */
     async function loadData() {
     try {
-        // Fetch from your two corporate SharePoint lists simultaneously
+        // Explicitly target your corporate SharePoint site URL endpoints
+        const siteUrl = "https://clinicasdelcaminoreal.sharepoint.com/sites/CDCROperationsHub";
+        
         const [listAResponse, listBResponse] = await Promise.all([
-            fetch("_api/web/lists/getbytitle('clinics-list')/items?$select=code,clinicId,name,address,city,state,zipCode,operationHours,offeredServices,plusCode,latitude,longitude", {
+            fetch(`${siteUrl}/_api/web/lists/getbytitle('clinics-list')/items?$select=code,clinicId,name,address,city,state,zipCode,operationHours,offeredServices,plusCode,latitude,longitude`, {
                 headers: { "Accept": "application/json;odata=verbose" }
             }),
-            fetch("_api/web/lists/getbytitle('clinicsExtensions')/items?$select=section,code,name,front,back,phone,fax", {
+            fetch(`${siteUrl}/_api/web/lists/getbytitle('clinicsExtensions')/items?$select=section,code,name,front,back,phone,fax`, {
                 headers: { "Accept": "application/json;odata=verbose" }
             })
         ]);
@@ -89,7 +91,7 @@
         console.error("Error fetching multi-list clinic data from SharePoint:", error);
     }
 }
-
+    
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items)) return [];
         const out = [], seen = new Set();
