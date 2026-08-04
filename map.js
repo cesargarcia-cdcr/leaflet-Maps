@@ -30,7 +30,8 @@
     };
 
     /* ---------- Data Load ---------- */
-    async function loadData() {
+    /* ---------- Data Load ---------- */
+async function loadData() {
     try {
         const apiUrl = "https://orgfaab9bde.crm.dynamics.com/api/data/v9.2/crbab_healthcenters";
 
@@ -92,6 +93,14 @@
                 seen.add(code);
             }
         }
+
+        CLINICS = out;
+        console.log("Successfully loaded CLINICS from Dataverse table:", CLINICS.length);
+
+    } catch (error) {
+        console.error("Error fetching clinic data from Dataverse:", error);
+    }
+}
 
         CLINICS = out;
         console.log("Successfully loaded CLINICS from Dataverse table:", CLINICS.length);
