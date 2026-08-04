@@ -32,51 +32,59 @@
     /* ---------- Data Load ---------- */
     async function loadData() {
     try {
-        const flowUrl = "https://default9b73741be2804409a5706e3065ab75.30.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/15/workflows/ace54e143a8a40ab8ffcf95f7723669c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zJJ76sIG9ptVNBeswYx_BX256-pg4arIaDpr7SVxVDg";
+        const apiUrl = "https://orgfaab9bde.crm.dynamics.com/api/data/v9.2/crbab_healthcenters";
 
-        const response = await fetch(flowUrl);
+        const response = await fetch(apiUrl, {
+            method: "GET",
+            headers: {
+                "Accept": "application/json",
+                "OData-MaxVersion": "4.0",
+                "OData-Version": "4.0",
+                "Content-Type": "application/json; charset=utf-8"
+            }
+        });
 
         if (!response.ok) {
-            throw new Error(`Power Automate request failed with status: ${response.status}`);
+            throw new Error(`Dataverse request failed with status: ${response.status}`);
         }
 
         const result = await response.json();
-        
-        // Your SharePoint list items array for clinics
-        const dataA = result.clinics; 
-        
-        // Your SharePoint list items array for extensions
-        const dataB = result.extensions;
+        const records = result.value || [];
 
         const out = [], seen = new Set();
 
-        for (const item of dataA) {
-            const code = item.code;
-            const ext = dataB.find(b => b.code === code) || {};
+        for (const item of records) {
+            // Map your Dataverse column logical names here
+            const code = item.crbab_code || item.code;
+            const name = item.crbab_name || item.name;
+            const plusCode = item.crbab_pluscode || item.plusCode;
 
-            const addr = [item.address, item.city, item.state, item.zipCode]
-                .filter(Boolean)
-                .join(', ');
+            const addr = [
+                item.crbab_address || item.address,
+                item.crbab_city || item.city,
+                item.crbab_state || item.state,
+                item.crbab_zipcode || item.zipCode
+            ].filter(Boolean).join(', ');
 
-            const lat = parseFloat(item.latitude);
-            const lng = parseFloat(item.longitude);
+            const lat = parseFloat(item.crbab_latitude || item.latitude);
+            const lng = parseFloat(item.crbab_longitude || item.longitude);
 
             const clinic = {
-                clinicId: item.clinicId || item.name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
+                clinicId: item.crbab_clinicid || item.clinicId || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
                 code: code,
-                name: item.name,
-                plusCode: item.plusCode,
+                name: name,
+                plusCode: plusCode,
                 address: addr,
                 lat: isNaN(lat) ? null : lat,
                 lng: isNaN(lng) ? null : lng,
                 medical: {
-                    front: ext.front || '',
-                    back: ext.back || '',
-                    phone: ext.phone || '',
-                    fax: ext.fax || ''
+                    front: item.crbab_medicalfront || '',
+                    back: item.crbab_medicalback || '',
+                    phone: item.crbab_phone || '',
+                    fax: item.crbab_fax || ''
                 },
-                operationHours: item.operationHours || '',
-                offeredServices: item.offeredServices || ''
+                operationHours: item.crbab_operationhours || '',
+                offeredServices: item.crbab_offeredservices || ''
             };
 
             if (code && !seen.has(code)) {
@@ -86,10 +94,10 @@
         }
 
         CLINICS = out;
-        console.log("Successfully loaded CLINICS from SharePoint lists:", CLINICS.length);
+        console.log("Successfully loaded CLINICS from Dataverse table:", CLINICS.length);
 
     } catch (error) {
-        console.error("Error fetching multi-list clinic data from SharePoint:", error);
+        console.error("Error fetching clinic data from Dataverse:", error);
     }
 }
     
