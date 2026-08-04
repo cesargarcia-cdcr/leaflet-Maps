@@ -55,6 +55,7 @@
 
         const dataA = (await listAResponse.json()).d.results;
         const dataB = (await listBResponse.json()).d.results;
+        
         const out = [], seen = new Set();
 
         for (const item of dataA) {
