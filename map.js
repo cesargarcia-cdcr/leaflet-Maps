@@ -32,29 +32,21 @@
     /* ---------- Data Load ---------- */
     async function loadData() {
     try {
-        // Explicitly use your corporate SharePoint domain and site path
-        const baseUrl = "https://clinicasdelcaminoreal.sharepoint.com";
-        const sitePath = "/sites/CDCROperationsHub";
+        const flowUrl = "https://default9b73741be2804409a5706e3065ab75.30.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/15/workflows/ace54e143a8a40ab8ffcf95f7723669c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zJJ76sIG9ptVNBeswYx_BX256-pg4arIaDpr7SVxVDg";
 
-        const [listAResponse, listBResponse] = await Promise.all([
-            fetch(`${baseUrl}${sitePath}/_api/web/lists/getbytitle('clinics-list')/items?$select=code,clinicId,name,address,city,state,zipCode,operationHours,offeredServices,plusCode,latitude,longitude`, {
-                headers: { 
-                    "Accept": "application/json;odata=verbose" 
-                }
-            }),
-            fetch(`${baseUrl}${sitePath}/_api/web/lists/getbytitle('clinicsExtensions')/items?$select=section,code,name,front,back,phone,fax`, {
-                headers: { 
-                    "Accept": "application/json;odata=verbose" 
-                }
-            })
-        ]);
+        const response = await fetch(flowUrl);
 
-        if (!listAResponse.ok || !listBResponse.ok) {
-            throw new Error(`SharePoint API request failed: ${listAResponse.status} / ${listBResponse.status}`);
+        if (!response.ok) {
+            throw new Error(`Power Automate request failed with status: ${response.status}`);
         }
 
-        const dataA = (await listAResponse.json()).d.results;
-        const dataB = (await listBResponse.json()).d.results;
+        const result = await response.json();
+        
+        // Your SharePoint list items array for clinics
+        const dataA = result.clinics; 
+        
+        // Your SharePoint list items array for extensions
+        const dataB = result.extensions;
 
         const out = [], seen = new Set();
 
