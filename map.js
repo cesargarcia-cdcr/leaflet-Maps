@@ -32,7 +32,8 @@
     /* ---------- Data Load ---------- */
     async function loadData() {
     try {
-        const baseUrl = window.location.origin;
+        // Explicitly use your corporate SharePoint domain and site path
+        const baseUrl = "https://clinicasdelcaminoreal.sharepoint.com";
         const sitePath = "/sites/CDCROperationsHub";
 
         const [listAResponse, listBResponse] = await Promise.all([
