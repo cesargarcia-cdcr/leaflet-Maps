@@ -32,30 +32,29 @@
     /* ---------- Data Load ---------- */
     async function loadData() {
     try {
-        // Dynamically grab the current SharePoint site root automatically
         const baseUrl = window.location.origin;
-        const sitePath = "/sites/CDCROperationsHub"; // Adjust if your site path differs
+        const sitePath = "/sites/CDCROperationsHub";
 
         const [listAResponse, listBResponse] = await Promise.all([
             fetch(`${baseUrl}${sitePath}/_api/web/lists/getbytitle('clinics-list')/items?$select=code,clinicId,name,address,city,state,zipCode,operationHours,offeredServices,plusCode,latitude,longitude`, {
                 headers: { 
-                    "Accept": "application/json;odata=verbose"
+                    "Accept": "application/json;odata=verbose" 
                 }
             }),
             fetch(`${baseUrl}${sitePath}/_api/web/lists/getbytitle('clinicsExtensions')/items?$select=section,code,name,front,back,phone,fax`, {
                 headers: { 
-                    "Accept": "application/json;odata=verbose"
+                    "Accept": "application/json;odata=verbose" 
                 }
             })
         ]);
 
         if (!listAResponse.ok || !listBResponse.ok) {
-            throw new Error(`SharePoint API error: ${listAResponse.status} / ${listBResponse.status}`);
+            throw new Error(`SharePoint API request failed: ${listAResponse.status} / ${listBResponse.status}`);
         }
 
         const dataA = (await listAResponse.json()).d.results;
         const dataB = (await listBResponse.json()).d.results;
-        
+
         const out = [], seen = new Set();
 
         for (const item of dataA) {
