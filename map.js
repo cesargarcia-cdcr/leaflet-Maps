@@ -57,7 +57,8 @@ async function loadData() {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
-            }
+            },
+            body: JSON.stringify({}) // Required by Power Automate direct triggers to validate the POST body
         });
 
         if (!response.ok) {
