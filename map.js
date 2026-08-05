@@ -33,7 +33,20 @@
     /* ---------- Data Load ---------- */
 async function loadData() {
     try {
-        const flowUrl = "https://default9b73741be2804409a5706e3065ab75.30.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/15/workflows/ace54e143a8a40ab8ffcf95f7723669c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zJJ76sIG9ptVNBeswYx_BX256-pg4arIaDpr7SVxVDg";
+        // Intenta obtener la flowUrl desde el atributo data- del iframe padre, o usa un fallback seguro
+        let flowUrl = "";
+        try {
+            const iframeElement = window.parent.document.getElementById("clinicMapFrame");
+            if (iframeElement) {
+                flowUrl = iframeElement.getAttribute("data-flow-url");
+            }
+        } catch (e) {
+            console.warn("No se pudo leer el atributo del iframe parent (posible política de origen cruzado), usando respaldo o configuración local.");
+        }
+
+        if (!flowUrl) {
+            throw new Error("No se encontró la flowUrl en el atributo data- del iframe.");
+        }
 
         const response = await fetch(flowUrl, {
             method: "POST",
