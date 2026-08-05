@@ -98,14 +98,6 @@ async function loadData() {
         console.error("Error fetching clinic data via Power Automate:", error);
     }
 }
-
-        CLINICS = out;
-        console.log("Successfully loaded CLINICS from Dataverse table:", CLINICS.length);
-
-    } catch (error) {
-        console.error("Error fetching clinic data from Dataverse:", error);
-    }
-}
    
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items)) return [];
