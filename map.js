@@ -33,29 +33,26 @@
     /* ---------- Data Load ---------- */
 async function loadData() {
     try {
-        const apiUrl = "https://orgfaab9bde.crm.dynamics.com/api/data/v9.2/crbab_healthcenters";
+        const flowUrl = "https://default9b73741be2804409a5706e3065ab75.30.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/15/workflows/ace54e143a8a40ab8ffcf95f7723669c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zJJ76sIG9ptVNBeswYx_BX256-pg4arIaDpr7SVxVDg";
 
-        const response = await fetch(apiUrl, {
-            method: "GET",
+        const response = await fetch(flowUrl, {
+            method: "POST",
             headers: {
-                "Accept": "application/json",
-                "OData-MaxVersion": "4.0",
-                "OData-Version": "4.0",
-                "Content-Type": "application/json; charset=utf-8"
+                "Content-Type": "application/json"
             }
         });
 
         if (!response.ok) {
-            throw new Error(`Dataverse request failed with status: ${response.status}`);
+            throw new Error(`Flow request failed with status: ${response.status}`);
         }
 
         const result = await response.json();
-        const records = result.value || [];
+        const records = result.clinics || [];
+        const extensions = result.extensions || [];
 
         const out = [], seen = new Set();
 
         for (const item of records) {
-            // Map your Dataverse column logical names here
             const code = item.crbab_code || item.code;
             const name = item.crbab_name || item.name;
             const plusCode = item.crbab_pluscode || item.plusCode;
@@ -93,6 +90,14 @@ async function loadData() {
                 seen.add(code);
             }
         }
+
+        CLINICS = out;
+        console.log(`Successfully loaded ${CLINICS.length} clinics and ${extensions.length} extensions via Power Automate!`);
+
+    } catch (error) {
+        console.error("Error fetching clinic data via Power Automate:", error);
+    }
+}
 
         CLINICS = out;
         console.log("Successfully loaded CLINICS from Dataverse table:", CLINICS.length);
