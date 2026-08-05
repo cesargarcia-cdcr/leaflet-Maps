@@ -33,20 +33,21 @@ async function loadData() {
     try {
         let flowUrl = "";
 
-        // 1. Check for URL query parameter first (e.g., ?flowUrl=...) for local testing
         const urlParams = new URLSearchParams(window.location.search);
-        flowUrl = urlParams.get('flowUrl');
-
-        // 2. If not in URL, read it securely from the parent iframe's data attribute in SharePoint
-        if (!flowUrl) {
+        
+        // 1. Check for the Base64 'data' parameter first
+    const encodedData = urlParams.get('data');
+        if (encodedData) {
             try {
-                const iframeElement = window.parent.document.getElementById("clinicMapFrame");
-                if (iframeElement) {
-                    flowUrl = iframeElement.getAttribute("data-flow-url");
-                }
+                flowUrl = atob(encodedData);
             } catch (e) {
-                console.warn("Cross-origin restriction prevented reading parent iframe attribute.");
+                console.error("Failed to decode base64 data parameter:", e);
             }
+        }
+
+        // 2. Fallback to standard flowUrl query parameter if needed
+        if (!flowUrl) {
+            flowUrl = urlParams.get('flowUrl');
         }
 
         if (!flowUrl) {
@@ -58,7 +59,7 @@ async function loadData() {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({}) // Required by Power Automate direct triggers to validate the POST body
+            body: JSON.stringify({}) // Required by Power Automate direct triggers
         });
 
         if (!response.ok) {
