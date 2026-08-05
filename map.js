@@ -33,19 +33,26 @@
     /* ---------- Data Load ---------- */
 async function loadData() {
     try {
-        // Intenta obtener la flowUrl desde el atributo data- del iframe padre, o usa un fallback seguro
         let flowUrl = "";
-        try {
-            const iframeElement = window.parent.document.getElementById("clinicMapFrame");
-            if (iframeElement) {
-                flowUrl = iframeElement.getAttribute("data-flow-url");
+
+        // 1. Check for URL query parameter first (e.g., ?flowUrl=...)
+        const urlParams = new URLSearchParams(window.location.search);
+        flowUrl = urlParams.get('flowUrl');
+
+        // 2. If not in the URL, try reading it from the parent iframe's data attribute
+        if (!flowUrl) {
+            try {
+                const iframeElement = window.parent.document.getElementById("clinicMapFrame");
+                if (iframeElement) {
+                    flowUrl = iframeElement.getAttribute("data-flow-url");
+                }
+            } catch (e) {
+                console.warn("Cross-origin restriction prevented reading parent iframe attribute.");
             }
-        } catch (e) {
-            console.warn("No se pudo leer el atributo del iframe parent (posible política de origen cruzado), usando respaldo o configuración local.");
         }
 
         if (!flowUrl) {
-            throw new Error("No se encontró la flowUrl en el atributo data- del iframe.");
+            throw new Error("No se encontró la flowUrl ni en los parámetros de la URL ni en el atributo data- del iframe.");
         }
 
         const response = await fetch(flowUrl, {
