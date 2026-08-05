@@ -29,17 +29,15 @@
         }
     };
 
-    /* ---------- Data Load ---------- */
-    /* ---------- Data Load ---------- */
 async function loadData() {
     try {
         let flowUrl = "";
 
-        // 1. Check for URL query parameter first (e.g., ?flowUrl=...)
+        // 1. Check for URL query parameter first (e.g., ?flowUrl=...) for local testing
         const urlParams = new URLSearchParams(window.location.search);
         flowUrl = urlParams.get('flowUrl');
 
-        // 2. If not in the URL, try reading it from the parent iframe's data attribute
+        // 2. If not in URL, read it securely from the parent iframe's data attribute in SharePoint
         if (!flowUrl) {
             try {
                 const iframeElement = window.parent.document.getElementById("clinicMapFrame");
@@ -73,22 +71,23 @@ async function loadData() {
         const out = [], seen = new Set();
 
         for (const item of records) {
-            const code = item.crbab_code || item.code;
-            const name = item.crbab_name || item.name;
-            const plusCode = item.crbab_pluscode || item.plusCode;
+            // Map SharePoint fields precisely (Title for code/ID, field_12 for plusCode)
+            const code = item.Title || item.crbab_code || item.code;
+            const plusCode = item.field_12 || item.crbab_pluscode || item.plusCode;
+            const name = item.field_2 || item.crbab_name || item.name;
 
             const addr = [
-                item.crbab_address || item.address,
-                item.crbab_city || item.city,
-                item.crbab_state || item.state,
-                item.crbab_zipcode || item.zipCode
+                item.field_3 || item.crbab_address || item.address,
+                item.field_4 || item.crbab_city || item.city,
+                item.field_5 || item.crbab_state || item.state,
+                item.field_6 || item.crbab_zipcode || item.zipCode
             ].filter(Boolean).join(', ');
 
-            const lat = parseFloat(item.crbab_latitude || item.latitude);
-            const lng = parseFloat(item.crbab_longitude || item.longitude);
+            const lat = parseFloat(item.field_13 || item.crbab_latitude || item.latitude);
+            const lng = parseFloat(item.field_14 || item.crbab_longitude || item.longitude);
 
             const clinic = {
-                clinicId: item.crbab_clinicid || item.clinicId || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
+                clinicId: item.ItemInternalId || item.ID || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
                 code: code,
                 name: name,
                 plusCode: plusCode,
@@ -96,13 +95,13 @@ async function loadData() {
                 lat: isNaN(lat) ? null : lat,
                 lng: isNaN(lng) ? null : lng,
                 medical: {
-                    front: item.crbab_medicalfront || '',
-                    back: item.crbab_medicalback || '',
-                    phone: item.crbab_phone || '',
+                    front: item.field_10 || item.crbab_medicalfront || '',
+                    back: item.field_8 || item.crbab_medicalback || '',
+                    phone: item.field_7 || item.crbab_phone || '',
                     fax: item.crbab_fax || ''
                 },
-                operationHours: item.crbab_operationhours || '',
-                offeredServices: item.crbab_offeredservices || ''
+                operationHours: item.field_8 || item.crbab_operationhours || '',
+                offeredServices: item.field_10 || item.crbab_offeredservices || ''
             };
 
             if (code && !seen.has(code)) {
