@@ -36,7 +36,7 @@ async function loadData() {
         const urlParams = new URLSearchParams(window.location.search);
         
         // 1. Check for the Base64 'data' parameter first
-    const encodedData = urlParams.get('data');
+        const encodedData = urlParams.get('data');
         if (encodedData) {
             try {
                 flowUrl = atob(encodedData);
@@ -73,37 +73,55 @@ async function loadData() {
         const out = [], seen = new Set();
 
         for (const item of records) {
-            // Map SharePoint fields precisely (Title for code/ID, field_12 for plusCode)
-            const code = item.Title || item.crbab_code || item.code;
-            const plusCode = item.field_12 || item.crbab_pluscode || item.plusCode;
-            const name = item.field_2 || item.crbab_name || item.name;
+            // Map SharePoint fields precisely based on your clinics-list headers
+            const code = item.code || item.Title || item.crbab_code;
+            const plusCode = item.plusCode || item.field_12 || item.crbab_pluscode || "";
+            const name = item.name || item.field_2 || item.crbab_name || "";
 
             const addr = [
-                item.field_3 || item.crbab_address || item.address,
-                item.field_4 || item.crbab_city || item.city,
-                item.field_5 || item.crbab_state || item.state,
-                item.field_6 || item.crbab_zipcode || item.zipCode
+                item.address || item.field_3 || item.crbab_address,
+                item.city || item.field_4 || item.crbab_city,
+                item.state || item.field_5 || item.crbab_state,
+                item.zipCode || item.field_6 || item.crbab_zipcode
             ].filter(Boolean).join(', ');
 
-            const lat = parseFloat(item.field_13 || item.crbab_latitude || item.latitude);
-            const lng = parseFloat(item.field_14 || item.crbab_longitude || item.longitude);
+            const lat = parseFloat(item.latitude || item.field_13 || item.crbab_latitude);
+            const lng = parseFloat(item.longitude || item.field_14 || item.crbab_longitude);
+
+            // Find all extension entries for this specific clinic code
+            const clinicExtensions = extensions.filter(e => (e.code === code) || (e.Title === code));
+
+            // Dynamically map extensions by section (e.g., medical, mh, dental, optical)
+            const sectionsMap = {};
+            clinicExtensions.forEach(ext => {
+                const sectionKey = (ext.section || "").toLowerCase().trim();
+                if (sectionKey) {
+                    sectionsMap[sectionKey] = {
+                        name: ext.name || "",
+                        front: ext.front || "",
+                        back: ext.back || "",
+                        phone: ext.phone || "",
+                        fax: ext.fax || ""
+                    };
+                }
+            });
 
             const clinic = {
-                clinicId: item.ItemInternalId || item.ID || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
+                clinicId: item.clinicId || item.ItemInternalId || item.ID || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
                 code: code,
                 name: name,
                 plusCode: plusCode,
                 address: addr,
+                nicknames: item.nicknames || "",
                 lat: isNaN(lat) ? null : lat,
                 lng: isNaN(lng) ? null : lng,
-                medical: {
-                    front: item.field_10 || item.crbab_medicalfront || '',
-                    back: item.field_8 || item.crbab_medicalback || '',
-                    phone: item.field_7 || item.crbab_phone || '',
-                    fax: item.crbab_fax || ''
-                },
-                operationHours: item.field_8 || item.crbab_operationhours || '',
-                offeredServices: item.field_10 || item.crbab_offeredservices || ''
+                operationHours: item.operationHours || "",
+                crossStreets: item.crossStreets || "",
+                offeredServices: item.offeredServices || "",
+                extName: item.extName || "",
+                sections: sectionsMap,
+                // Backward compatibility fallback if your UI code reads directly from clinic.medical
+                medical: sectionsMap['medical'] || { front: '', back: '', phone: '', fax: '' }
             };
 
             if (code && !seen.has(code)) {
