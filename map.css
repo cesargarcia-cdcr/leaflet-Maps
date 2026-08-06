@@ -1,40 +1,50 @@
 /* ==========================================================================
-   CONFIGURACIÓN GLOBAL Y MAPA 100% PARA IFRAME
+   UNIFIED STYLES FOR LEAFLET MAPS APPLICATION
+   Optimized and merged stylesheet
    ========================================================================== */
-html, body, #map {
+
+/* ========== GLOBAL BASE STYLES ========== */
+html, body {
     width: 100%;
     height: 100%;
     margin: 0;
     padding: 0;
     overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    position: relative;
+    background: #f8fafc;
 }
 
-/* Soportes defensivos de altura */
-body.page-map #map-section .map-viewport { 
+#map {
+    width: 100%;
+    height: 100%;
+}
+
+/* ========== MAP SECTION ========== */
+#map-section {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    z-index: 0;
+}
+
+/* Defensive height support */
+#map-section .map-viewport { 
     height: 100dvh; 
 }
 @supports not (height: 100dvh) { 
-    body.page-map #map-section .map-viewport { 
-        height: 100vh; 
-    } 
-}
-body.page-map #map-section #map { 
-    height: 100%; 
-}
-
-#map.map-viewport { 
-    height: 100dvh; 
-}
-@supports not (height: 100dvh) { 
-    #map.map-viewport { 
+    #map-section .map-viewport { 
         height: 100vh; 
     } 
 }
 
-/* ==========================================================================
-   BARRA DE BÚSQUEDA FLOTANTE SUPERIOR CENTRADA
-   ========================================================================== */
+/* ========== SEARCH BAR ========== */
 #search-container {
     position: absolute;
     top: 15px;
@@ -92,9 +102,7 @@ body.page-map #map-section #map {
     background: #d1d5db;
 }
 
-/* ==========================================================================
-   ETIQUETAS DE CLÍNICA EN EL MAPA
-   ========================================================================== */
+/* ========== CLINIC LABELS ON MAP ========== */
 .leaflet-tooltip.clinic-label {
     background: rgba(255, 255, 255, 0.9);
     border: 1px solid #cbd5e1;
@@ -103,5 +111,216 @@ body.page-map #map-section #map {
     font-weight: 700;
     font-size: 11px;
     color: #1e293b;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ========== CLINIC DETAILS PANEL ========== */
+#clinic-details-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 350px;
+    max-height: 500px;
+    display: none;
+    flex-direction: column;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 999;
+    overflow: hidden;
+}
+
+#clinic-details-panel.visible {
+    display: flex;
+}
+
+#clinic-panel-header {
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: white;
+    border-bottom: 1px solid #0f172a;
+    flex-shrink: 0;
+    cursor: move;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#clinic-panel-header-content {
+    flex: 1;
+}
+
+#clinic-panel-header h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.clinic-panel-code {
+    font-size: 11px;
+    opacity: 0.8;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.clinic-panel-close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.clinic-panel-close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+#clinic-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+}
+
+.clinic-info-section {
+    margin-bottom: 16px;
+}
+
+.clinic-info-section:last-child {
+    margin-bottom: 0;
+}
+
+.clinic-info-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+}
+
+.clinic-address-block {
+    background: #f1f5f9;
+    padding: 8px;
+    border-radius: 4px;
+    border-left: 3px solid #2563eb;
+    line-height: 1.4;
+    color: #334155;
+    font-size: 12px;
+}
+
+.clinic-pluscode-item {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.clinic-pluscode-value {
+    font-weight: 600;
+    color: #2563eb;
+    font-family: monospace;
+}
+
+.clinic-department-block {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 8px;
+}
+
+.clinic-department-block:last-child {
+    margin-bottom: 0;
+}
+
+.clinic-department-title {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 6px;
+    text-transform: capitalize;
+    font-size: 12px;
+}
+
+.clinic-department-detail {
+    font-size: 11px;
+    color: #475569;
+    margin-bottom: 3px;
+}
+
+.clinic-department-detail strong {
+    color: #1e293b;
+}
+
+.clinic-contact-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.clinic-contact-item {
+    flex: 1;
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 6px;
+    border-radius: 3px;
+    text-align: center;
+}
+
+.clinic-contact-label {
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 10px;
+}
+
+.clinic-contact-value {
+    color: #2563eb;
+    font-weight: 500;
+    margin-top: 3px;
+    word-break: break-all;
+    font-size: 11px;
+}
+
+/* ========== SCROLLBAR STYLING ========== */
+#clinic-panel-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+#clinic-panel-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+#clinic-panel-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+#clinic-panel-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* ========== RESPONSIVE DESIGN ========== */
+@media (max-width: 480px) {
+    #searchInput { 
+        width: 140px; 
+    }
+
+    #clinic-details-panel {
+        width: 300px;
+        bottom: 10px;
+        right: 10px;
+        max-height: 60vh;
+    }
+
+    #clinic-panel-header h2 {
+        font-size: 14px;
+    }
+
+    .clinic-contact-row {
+        flex-direction: column;
+    }
 }
