@@ -409,19 +409,19 @@ async function loadData() {
     }
 
     function selectClinic(c) {
-        if (!c) {
-            // User clicked on map background (non-marker area)
-            // Notify parent that selection has been cleared
-            const clearMessage = {
-                type: 'CLINIC_DESELECTED',
-                clinic: null,
-                timestamp: new Date().toISOString(),
-                action: 'map_background_click'
-            };
-            console.log('Sending CLINIC_DESELECTED message to parent:', clearMessage);
-            window.parent.postMessage(clearMessage, '*');
-            return;
+    if (!c) {
+        // Clear selection locally
+        if (typeof window.selectClinicPanel === 'function') {
+            window.selectClinicPanel(null);
         }
+        return;
+    }
+
+    // Call the local panel display function directly instead of postMessage
+    if (typeof window.selectClinicPanel === 'function') {
+        window.selectClinicPanel(c);
+    }
+}
         
         // User selected a clinic marker
         // Prepare message to send to Power Apps via iframe postMessage
