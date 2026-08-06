@@ -440,7 +440,6 @@ async function loadData() {
             animate: true,
             duration: 0.5
         });
-    }
 
     /* ---------- Search & Routing ---------- */
     function getClinicByCode(code) {
