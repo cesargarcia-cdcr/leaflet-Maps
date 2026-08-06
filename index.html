@@ -4,93 +4,190 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Clinic Map Locator</title>
-    <!-- CSS de Leaflet -->
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Tus estilos actualizados -->
+    <!-- Unified Styles -->
     <link rel="stylesheet" href="map.css">
-    <style>
-        /* Forzar comportamiento full-screen: ocupar toda la ventana del navegador */
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-            position: relative;
-            font-size: 16px;
-        }
-
-        /* Contenedor del mapa fijado a toda la ventana (fullscreen) */
-        #map-section {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            z-index: 0;
-        }
-
-        /* Mapa ocupa todo el contenedor */
-        #map {
-            width: 100%;
-            height: 100%;
-        }
-
-        /* Ajustes para la barra de búsqueda en pantallas pequeñas */
-        @media (max-width: 480px) {
-            #searchInput { width: 140px; }
-        }
-    </style>
 </head>
 <body>
 
-    <!-- Barra de búsqueda flotante superior centrada -->
+    <!-- Search Bar -->
     <div id="search-container">
         <input type="text" id="searchInput" placeholder="Buscar dirección o Plus Code..." onkeydown="if(event.key === 'Enter') findNearest();" />
         <button onclick="findNearest()">Buscar</button>
         <button onclick="clearSearch()" title="Limpiar">✕</button>
     </div>
 
-    <!-- Contenedor único del mapa -->
+    <!-- Map Container -->
     <div id="map-section">
         <div id="map"></div>
     </div>
 
-    <!-- Script de Leaflet -->
+    <!-- Clinic Details Panel -->
+    <div id="clinic-details-panel">
+        <div id="clinic-panel-header">
+            <div id="clinic-panel-header-content">
+                <h2 id="clinic-panel-name"></h2>
+                <div class="clinic-panel-code" id="clinic-panel-code"></div>
+            </div>
+            <button class="clinic-panel-close-btn" onclick="closeClinicPanel()">✕</button>
+        </div>
+        <div id="clinic-panel-content"></div>
+    </div>
+
+    <!-- Leaflet -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Tu lógica -->
+    <!-- Map Logic -->
     <script src="map.js"></script>
+    
     <script>
-        // Aseguramos que no se reimpongan restricciones de tamaño desde este archivo.
+        'use strict';
+
+        let currentClinic = null;
+        let isDragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        const panel = document.getElementById('clinic-details-panel');
+        const panelHeader = document.getElementById('clinic-panel-header');
+
+        // === MAKE PANEL DRAGGABLE ===
+        panelHeader.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            const rect = panel.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                panel.style.right = 'auto';
+                panel.style.bottom = 'auto';
+                panel.style.left = (e.clientX - offsetX) + 'px';
+                panel.style.top = (e.clientY - offsetY) + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // === EXPOSE CLINIC SELECTION TO MAP.JS ===
+        window.selectClinicPanel = function(clinic) {
+            if (!clinic) {
+                closeClinicPanel();
+                return;
+            }
+            currentClinic = clinic;
+            displayClinicDetails(clinic);
+        };
+
+        // === DISPLAY CLINIC DETAILS ===
+        function displayClinicDetails(clinic) {
+            if (!clinic) {
+                closeClinicPanel();
+                return;
+            }
+
+            document.getElementById('clinic-panel-name').textContent = escapeHtml(clinic.name || 'Sin nombre');
+            document.getElementById('clinic-panel-code').textContent = 'Código: ' + escapeHtml(clinic.code || 'N/A');
+
+            let contentHtml = '';
+
+            // Address section
+            if (clinic.address || clinic.plusCode) {
+                contentHtml += `
+                    <div class="clinic-info-section">
+                        <div class="clinic-info-title">📍 Ubicación</div>
+                        <div class="clinic-address-block">
+                            ${clinic.address ? `<div>${escapeHtml(clinic.address)}</div>` : ''}
+                            ${clinic.plusCode ? `<div class="clinic-pluscode-item">Plus Code: <span class="clinic-pluscode-value">${escapeHtml(clinic.plusCode)}</span></div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Departments section
+            if (clinic.sections && Object.keys(clinic.sections).length > 0) {
+                contentHtml += `<div class="clinic-info-section"><div class="clinic-info-title">🏥 Departamentos</div>`;
+
+                for (const [sectionKey, sectionData] of Object.entries(clinic.sections)) {
+                    if (!sectionData) continue;
+
+                    contentHtml += `<div class="clinic-department-block">`;
+                    contentHtml += `<div class="clinic-department-title">${escapeHtml(sectionKey)}</div>`;
+
+                    if (sectionData.name) {
+                        contentHtml += `<div class="clinic-department-detail"><strong>Departamento:</strong> ${escapeHtml(sectionData.name)}</div>`;
+                    }
+
+                    // Contact information
+                    const hasPhone = sectionData.phone || false;
+                    const hasFax = sectionData.fax || false;
+
+                    if (hasPhone || hasFax) {
+                        contentHtml += `<div class="clinic-contact-row">`;
+                        if (hasPhone) {
+                            contentHtml += `
+                                <div class="clinic-contact-item">
+                                    <div class="clinic-contact-label">📞 Teléfono</div>
+                                    <div class="clinic-contact-value">${escapeHtml(sectionData.phone)}</div>
+                                </div>
+                            `;
+                        }
+                        if (hasFax) {
+                            contentHtml += `
+                                <div class="clinic-contact-item">
+                                    <div class="clinic-contact-label">📠 Fax</div>
+                                    <div class="clinic-contact-value">${escapeHtml(sectionData.fax)}</div>
+                                </div>
+                            `;
+                        }
+                        contentHtml += `</div>`;
+                    }
+
+                    contentHtml += `</div>`;
+                }
+
+                contentHtml += `</div>`;
+            }
+
+            document.getElementById('clinic-panel-content').innerHTML = contentHtml;
+            panel.classList.add('visible');
+        }
+
+        // === CLOSE PANEL ===
+        function closeClinicPanel() {
+            panel.classList.remove('visible');
+            currentClinic = null;
+        }
+
+        // === ESCAPE HTML ===
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // === PAGE LOAD ===
         window.addEventListener('load', () => {
             const mapSection = document.getElementById('map-section');
             if (mapSection) {
-                // Eliminar cualquier restricción de tamaño aplicada externamente
                 mapSection.style.maxWidth = '';
                 mapSection.style.maxHeight = '';
                 mapSection.style.width = '100%';
                 mapSection.style.height = '100%';
             }
 
-            // Forzar re-cálculo de tamaño del mapa si la librería ya está cargada
             setTimeout(() => { try { window.AppMap?.invalidate?.(); } catch (_) {} }, 150);
             setTimeout(() => { try { window.AppMap?.invalidate?.(); } catch (_) {} }, 500);
         });
-
-        // Comunicar al contenedor padre que el mapa está listo (puede seguir enviando recomendaciones)
-        if (window.parent !== window) {
-            window.parent.postMessage({
-                type: 'MAP_READY',
-                recommendedWidth: 1366,
-                recommendedHeight: 768,
-                aspectRatio: '16:9',
-                displayMode: 'desktop'
-            }, '*');
-        }
     </script>
 </body>
 </html>
