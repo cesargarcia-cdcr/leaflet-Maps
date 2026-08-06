@@ -89,30 +89,14 @@
             letter-spacing: 0.5px;
         }
 
-        .info-item {
-            margin-bottom: 12px;
-            font-size: 13px;
-            line-height: 1.5;
-            color: #334155;
-        }
-
-        .info-item-label {
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 2px;
-        }
-
-        .info-item-value {
-            color: #475569;
-            word-break: break-word;
-            margin-left: 0;
-        }
-
         .address-block {
             background: #f1f5f9;
             padding: 10px;
             border-radius: 6px;
             border-left: 3px solid #2563eb;
+            line-height: 1.5;
+            color: #334155;
+            font-size: 13px;
         }
 
         .section-block {
@@ -135,20 +119,12 @@
             font-size: 12px;
             color: #475569;
             margin-bottom: 4px;
-            display: flex;
-            gap: 8px;
-        }
-
-        .section-detail strong {
-            color: #1e293b;
-            min-width: 60px;
         }
 
         .contact-row {
             display: flex;
             gap: 12px;
             margin-top: 8px;
-            font-size: 12px;
         }
 
         .contact-item {
@@ -171,12 +147,42 @@
             font-weight: 500;
             margin-top: 4px;
             word-break: break-all;
+            font-size: 12px;
         }
 
-        .no-data {
-            color: #94a3b8;
-            font-style: italic;
+        .button-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
             font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e1;
         }
 
         /* Scrollbar styling */
@@ -212,6 +218,10 @@
             }
 
             .contact-row {
+                flex-direction: column;
+            }
+
+            .button-row {
                 flex-direction: column;
             }
         }
@@ -268,83 +278,52 @@
                     </div>
                     <div class="clinic-content">
                         ${renderAddressSection(clinic)}
-                        ${renderOperationInfo(clinic)}
-                        ${renderServicesSection(clinic)}
-                        ${renderSectionsInfo(clinic)}
-                        ${renderCoordinates(clinic)}
+                        ${renderDepartmentsSection(clinic)}
+                        ${renderActionButtons(clinic)}
                     </div>
                 </div>
             `;
         }
 
         /**
-         * Render address section
+         * Render address section with Plus Code option
          */
         function renderAddressSection(clinic) {
-            if (!clinic.address) return '';
+            if (!clinic.address && !clinic.plusCode) return '';
             
-            return `
+            let html = `
                 <div class="info-section">
                     <div class="info-section-title">📍 Ubicación</div>
                     <div class="address-block">
-                        <div class="info-item-value">${escapeHtml(clinic.address)}</div>
-                        ${clinic.plusCode ? `<div class="info-item-value" style="margin-top: 6px; font-size: 12px; color: #64748b;">Plus Code: ${escapeHtml(clinic.plusCode)}</div>` : ''}
+            `;
+
+            if (clinic.address) {
+                html += `<div>${escapeHtml(clinic.address)}</div>`;
+            }
+
+            if (clinic.plusCode) {
+                html += `<div style="margin-top: 8px; font-size: 12px; color: #64748b;">Plus Code: <strong>${escapeHtml(clinic.plusCode)}</strong></div>`;
+            }
+
+            html += `
                     </div>
+                    ${clinic.plusCode ? `
+                        <div class="button-row" style="margin-top: 10px;">
+                            <button class="btn btn-primary" onclick="placePinOnMap('${escapeAttribute(clinic.plusCode)}')">
+                                📌 Ubicar en Mapa
+                            </button>
+                        </div>
+                    ` : ''}
                 </div>
             `;
-        }
-
-        /**
-         * Render operation hours and cross streets
-         */
-        function renderOperationInfo(clinic) {
-            let html = '';
-
-            if (clinic.operationHours) {
-                html += `
-                    <div class="info-section">
-                        <div class="info-section-title">🕐 Horario de Operación</div>
-                        <div class="info-item">
-                            <div class="info-item-value">${escapeHtml(clinic.operationHours)}</div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            if (clinic.crossStreets) {
-                html += `
-                    <div class="info-section">
-                        <div class="info-section-title">🛣️ Calles Principales</div>
-                        <div class="info-item">
-                            <div class="info-item-value">${escapeHtml(clinic.crossStreets)}</div>
-                        </div>
-                    </div>
-                `;
-            }
 
             return html;
         }
 
         /**
-         * Render offered services
+         * Render departments/sections with contact info
          */
-        function renderServicesSection(clinic) {
-            if (!clinic.offeredServices) return '';
-            
-            return `
-                <div class="info-section">
-                    <div class="info-section-title">💊 Servicios Ofrecidos</div>
-                    <div class="info-item">
-                        <div class="info-item-value">${escapeHtml(clinic.offeredServices)}</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        /**
-         * Render clinic sections (departments) with phone/fax
-         */
-        function renderSectionsInfo(clinic) {
+        function renderDepartmentsSection(clinic) {
             if (!clinic.sections || Object.keys(clinic.sections).length === 0) {
                 return '';
             }
@@ -358,15 +337,7 @@
                 html += `<div class="section-block-title">${escapeHtml(sectionKey)}</div>`;
 
                 if (sectionData.name) {
-                    html += `<div class="section-detail"><strong>Nombre:</strong> <span>${escapeHtml(sectionData.name)}</span></div>`;
-                }
-
-                if (sectionData.front) {
-                    html += `<div class="section-detail"><strong>Front:</strong> <span>${escapeHtml(sectionData.front)}</span></div>`;
-                }
-
-                if (sectionData.back) {
-                    html += `<div class="section-detail"><strong>Back:</strong> <span>${escapeHtml(sectionData.back)}</span></div>`;
+                    html += `<div class="section-detail"><strong>Departamento:</strong> ${escapeHtml(sectionData.name)}</div>`;
                 }
 
                 // Contact information row
@@ -402,20 +373,46 @@
         }
 
         /**
-         * Render coordinates
+         * Render action buttons
          */
-        function renderCoordinates(clinic) {
+        function renderActionButtons(clinic) {
             if (!clinic.lat || !clinic.lng) return '';
             
             return `
                 <div class="info-section">
-                    <div class="info-section-title">📡 Coordenadas</div>
-                    <div class="info-item">
-                        <div class="section-detail"><strong>Lat:</strong> <span>${clinic.lat.toFixed(6)}</span></div>
-                        <div class="section-detail"><strong>Lng:</strong> <span>${clinic.lng.toFixed(6)}</span></div>
+                    <div class="button-row">
+                        <button class="btn btn-secondary" onclick="copyCoordinates(${clinic.lat}, ${clinic.lng})">
+                            📋 Copiar Coordenadas
+                        </button>
                     </div>
                 </div>
             `;
+        }
+
+        /**
+         * Place pin on map using Plus Code
+         */
+        function placePinOnMap(plusCode) {
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'PLACE_PIN',
+                    plusCode: plusCode,
+                    timestamp: new Date().toISOString()
+                }, '*');
+            }
+            console.log('Sending PLACE_PIN message with Plus Code:', plusCode);
+        }
+
+        /**
+         * Copy coordinates to clipboard
+         */
+        function copyCoordinates(lat, lng) {
+            const coords = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            navigator.clipboard.writeText(coords).then(() => {
+                alert('Coordenadas copiadas: ' + coords);
+            }).catch(err => {
+                console.error('Error copying coordinates:', err);
+            });
         }
 
         /**
@@ -443,6 +440,14 @@
                 "'": '&#039;'
             };
             return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        /**
+         * Escape attribute values for onclick handlers
+         */
+        function escapeAttribute(text) {
+            if (!text) return '';
+            return String(text).replace(/'/g, "\\'").replace(/"/g, "&quot;");
         }
 
         // Notify parent that details panel is ready
