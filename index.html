@@ -175,6 +175,33 @@
             return String(text).replace(/[&<>"']/g, m => map[m]);
         }
 
+        // === MESSAGE BRIDGE FOR map.js ===
+        window.addEventListener('message', (event) => {
+            try {
+                const data = event.data;
+                if (!data || typeof data !== 'object') return;
+
+                if (data.type === 'CLINIC_SELECTED') {
+                    // Map posts selection via postMessage — display it here
+                    currentClinic = data.clinic;
+                    displayClinicDetails(currentClinic);
+                } else if (data.type === 'CLINIC_DESELECTED') {
+                    currentClinic = null;
+                    closeClinicPanel();
+                }
+            } catch (error) {
+                console.error('Error handling message:', error);
+            }
+        });
+
+        // Notify parent (or other frames) that details panel is ready
+        if (window.parent !== window) {
+            window.parent.postMessage({
+                type: 'CLINIC_DETAILS_READY',
+                timestamp: new Date().toISOString()
+            }, '*');
+        }
+
         // === PAGE LOAD ===
         window.addEventListener('load', () => {
             const mapSection = document.getElementById('map-section');
