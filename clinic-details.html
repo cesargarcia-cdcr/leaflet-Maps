@@ -15,179 +15,182 @@
             width: 100%;
             height: 100%;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #f8fafc;
+            background: transparent;
         }
 
         #details-container {
-            width: 100%;
-            height: 100%;
-            display: flex;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            max-height: 500px;
+            display: none;
             flex-direction: column;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
             overflow: hidden;
         }
 
-        #empty-state {
-            flex: 1;
+        #details-container.visible {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            color: #94a3b8;
-            padding: 20px;
-        }
-
-        #empty-state p {
-            font-size: 14px;
-        }
-
-        .clinic-panel {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            background: #ffffff;
-            border-top: 1px solid #e2e8f0;
         }
 
         .clinic-header {
-            padding: 16px;
+            padding: 12px 16px;
             background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
             color: white;
-            border-bottom: 2px solid #0f172a;
+            border-bottom: 1px solid #0f172a;
             flex-shrink: 0;
+            cursor: move;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .clinic-header-content {
+            flex: 1;
         }
 
         .clinic-header h2 {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
-        .clinic-header .clinic-code {
-            font-size: 12px;
+        .clinic-code {
+            font-size: 11px;
             opacity: 0.8;
             font-weight: 500;
             letter-spacing: 0.5px;
         }
 
+        .close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            flex-shrink: 0;
+            margin-left: 8px;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
         .clinic-content {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 12px 16px;
         }
 
         .info-section {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
+        }
+
+        .info-section:last-child {
+            margin-bottom: 0;
         }
 
         .info-section-title {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
             color: #64748b;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             letter-spacing: 0.5px;
         }
 
         .address-block {
             background: #f1f5f9;
-            padding: 10px;
-            border-radius: 6px;
+            padding: 8px;
+            border-radius: 4px;
             border-left: 3px solid #2563eb;
-            line-height: 1.5;
+            line-height: 1.4;
             color: #334155;
-            font-size: 13px;
+            font-size: 12px;
+        }
+
+        .pluscode-item {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .pluscode-value {
+            font-weight: 600;
+            color: #2563eb;
+            font-family: monospace;
         }
 
         .section-block {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 10px;
-            margin-bottom: 10px;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+
+        .section-block:last-child {
+            margin-bottom: 0;
         }
 
         .section-block-title {
             font-weight: 600;
             color: #1e293b;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             text-transform: capitalize;
-            font-size: 13px;
+            font-size: 12px;
         }
 
         .section-detail {
-            font-size: 12px;
+            font-size: 11px;
             color: #475569;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
+        }
+
+        .section-detail strong {
+            color: #1e293b;
         }
 
         .contact-row {
             display: flex;
-            gap: 12px;
-            margin-top: 8px;
+            gap: 8px;
+            margin-top: 6px;
         }
 
         .contact-item {
             flex: 1;
             background: white;
             border: 1px solid #e2e8f0;
-            padding: 8px;
-            border-radius: 4px;
+            padding: 6px;
+            border-radius: 3px;
             text-align: center;
         }
 
         .contact-label {
             font-weight: 600;
             color: #1e293b;
-            font-size: 11px;
+            font-size: 10px;
         }
 
         .contact-value {
             color: #2563eb;
             font-weight: 500;
-            margin-top: 4px;
+            margin-top: 3px;
             word-break: break-all;
-            font-size: 12px;
-        }
-
-        .button-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 12px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .btn-primary {
-            background: #2563eb;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #1d4ed8;
-        }
-
-        .btn-secondary {
-            background: #e2e8f0;
-            color: #1e293b;
-        }
-
-        .btn-secondary:hover {
-            background: #cbd5e1;
+            font-size: 11px;
         }
 
         /* Scrollbar styling */
         .clinic-content::-webkit-scrollbar {
-            width: 6px;
+            width: 4px;
         }
 
         .clinic-content::-webkit-scrollbar-track {
@@ -196,7 +199,7 @@
 
         .clinic-content::-webkit-scrollbar-thumb {
             background: #cbd5e1;
-            border-radius: 3px;
+            border-radius: 2px;
         }
 
         .clinic-content::-webkit-scrollbar-thumb:hover {
@@ -205,23 +208,18 @@
 
         /* Responsive adjustments */
         @media (max-width: 480px) {
-            .clinic-header {
-                padding: 12px;
+            #details-container {
+                width: 300px;
+                bottom: 10px;
+                right: 10px;
+                max-height: 60vh;
             }
 
             .clinic-header h2 {
-                font-size: 16px;
-            }
-
-            .clinic-content {
-                padding: 12px;
+                font-size: 14px;
             }
 
             .contact-row {
-                flex-direction: column;
-            }
-
-            .button-row {
                 flex-direction: column;
             }
         }
@@ -229,8 +227,14 @@
 </head>
 <body>
     <div id="details-container">
-        <div id="empty-state">
-            <p>📍 Selecciona una clínica en el mapa para ver los detalles</p>
+        <div class="clinic-header" id="drag-handle">
+            <div class="clinic-header-content">
+                <h2 id="clinic-name"></h2>
+                <div class="clinic-code" id="clinic-code"></div>
+            </div>
+            <button class="close-btn" onclick="closePanel()">✕</button>
+        </div>
+        <div class="clinic-content" id="clinic-content">
         </div>
     </div>
 
@@ -238,6 +242,35 @@
         'use strict';
 
         let currentClinic = null;
+        let isDragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        const container = document.getElementById('details-container');
+        const dragHandle = document.getElementById('drag-handle');
+
+        /**
+         * Make panel draggable
+         */
+        dragHandle.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            const rect = container.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                container.style.right = 'auto';
+                container.style.bottom = 'auto';
+                container.style.left = (e.clientX - offsetX) + 'px';
+                container.style.top = (e.clientY - offsetY) + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
 
         /**
          * Listen for messages from the map iframe
@@ -253,7 +286,7 @@
                 } else if (data.type === 'CLINIC_DESELECTED') {
                     currentClinic = null;
                     console.log('Clinic deselected');
-                    displayEmptyState();
+                    closePanel();
                 }
             } catch (error) {
                 console.error('Error handling message:', error);
@@ -265,166 +298,83 @@
          */
         function displayClinicDetails(clinic) {
             if (!clinic) {
-                displayEmptyState();
+                closePanel();
                 return;
             }
 
-            const container = document.getElementById('details-container');
-            container.innerHTML = `
-                <div class="clinic-panel">
-                    <div class="clinic-header">
-                        <h2>${escapeHtml(clinic.name || 'Sin nombre')}</h2>
-                        <div class="clinic-code">Código: ${escapeHtml(clinic.code || 'N/A')}</div>
-                    </div>
-                    <div class="clinic-content">
-                        ${renderAddressSection(clinic)}
-                        ${renderDepartmentsSection(clinic)}
-                        ${renderActionButtons(clinic)}
-                    </div>
-                </div>
-            `;
-        }
+            document.getElementById('clinic-name').textContent = escapeHtml(clinic.name || 'Sin nombre');
+            document.getElementById('clinic-code').textContent = 'Código: ' + escapeHtml(clinic.code || 'N/A');
 
-        /**
-         * Render address section with Plus Code option
-         */
-        function renderAddressSection(clinic) {
-            if (!clinic.address && !clinic.plusCode) return '';
-            
-            let html = `
-                <div class="info-section">
-                    <div class="info-section-title">📍 Ubicación</div>
-                    <div class="address-block">
-            `;
+            let contentHtml = '';
 
-            if (clinic.address) {
-                html += `<div>${escapeHtml(clinic.address)}</div>`;
-            }
-
-            if (clinic.plusCode) {
-                html += `<div style="margin-top: 8px; font-size: 12px; color: #64748b;">Plus Code: <strong>${escapeHtml(clinic.plusCode)}</strong></div>`;
-            }
-
-            html += `
-                    </div>
-                    ${clinic.plusCode ? `
-                        <div class="button-row" style="margin-top: 10px;">
-                            <button class="btn btn-primary" onclick="placePinOnMap('${escapeAttribute(clinic.plusCode)}')">
-                                📌 Ubicar en Mapa
-                            </button>
+            // Address section
+            if (clinic.address || clinic.plusCode) {
+                contentHtml += `
+                    <div class="info-section">
+                        <div class="info-section-title">📍 Ubicación</div>
+                        <div class="address-block">
+                            ${clinic.address ? `<div>${escapeHtml(clinic.address)}</div>` : ''}
+                            ${clinic.plusCode ? `<div class="pluscode-item">Plus Code: <span class="pluscode-value">${escapeHtml(clinic.plusCode)}</span></div>` : ''}
                         </div>
-                    ` : ''}
-                </div>
-            `;
-
-            return html;
-        }
-
-        /**
-         * Render departments/sections with contact info
-         */
-        function renderDepartmentsSection(clinic) {
-            if (!clinic.sections || Object.keys(clinic.sections).length === 0) {
-                return '';
-            }
-
-            let html = `<div class="info-section"><div class="info-section-title">🏥 Departamentos</div>`;
-
-            for (const [sectionKey, sectionData] of Object.entries(clinic.sections)) {
-                if (!sectionData) continue;
-
-                html += `<div class="section-block">`;
-                html += `<div class="section-block-title">${escapeHtml(sectionKey)}</div>`;
-
-                if (sectionData.name) {
-                    html += `<div class="section-detail"><strong>Departamento:</strong> ${escapeHtml(sectionData.name)}</div>`;
-                }
-
-                // Contact information row
-                const hasPhone = sectionData.phone || false;
-                const hasFax = sectionData.fax || false;
-
-                if (hasPhone || hasFax) {
-                    html += `<div class="contact-row">`;
-                    if (hasPhone) {
-                        html += `
-                            <div class="contact-item">
-                                <div class="contact-label">📞 Teléfono</div>
-                                <div class="contact-value">${escapeHtml(sectionData.phone)}</div>
-                            </div>
-                        `;
-                    }
-                    if (hasFax) {
-                        html += `
-                            <div class="contact-item">
-                                <div class="contact-label">📠 Fax</div>
-                                <div class="contact-value">${escapeHtml(sectionData.fax)}</div>
-                            </div>
-                        `;
-                    }
-                    html += `</div>`;
-                }
-
-                html += `</div>`;
-            }
-
-            html += `</div>`;
-            return html;
-        }
-
-        /**
-         * Render action buttons
-         */
-        function renderActionButtons(clinic) {
-            if (!clinic.lat || !clinic.lng) return '';
-            
-            return `
-                <div class="info-section">
-                    <div class="button-row">
-                        <button class="btn btn-secondary" onclick="copyCoordinates(${clinic.lat}, ${clinic.lng})">
-                            📋 Copiar Coordenadas
-                        </button>
                     </div>
-                </div>
-            `;
-        }
-
-        /**
-         * Place pin on map using Plus Code
-         */
-        function placePinOnMap(plusCode) {
-            if (window.parent !== window) {
-                window.parent.postMessage({
-                    type: 'PLACE_PIN',
-                    plusCode: plusCode,
-                    timestamp: new Date().toISOString()
-                }, '*');
+                `;
             }
-            console.log('Sending PLACE_PIN message with Plus Code:', plusCode);
+
+            // Departments section
+            if (clinic.sections && Object.keys(clinic.sections).length > 0) {
+                contentHtml += `<div class="info-section"><div class="info-section-title">🏥 Departamentos</div>`;
+
+                for (const [sectionKey, sectionData] of Object.entries(clinic.sections)) {
+                    if (!sectionData) continue;
+
+                    contentHtml += `<div class="section-block">`;
+                    contentHtml += `<div class="section-block-title">${escapeHtml(sectionKey)}</div>`;
+
+                    if (sectionData.name) {
+                        contentHtml += `<div class="section-detail"><strong>Departamento:</strong> ${escapeHtml(sectionData.name)}</div>`;
+                    }
+
+                    // Contact information row
+                    const hasPhone = sectionData.phone || false;
+                    const hasFax = sectionData.fax || false;
+
+                    if (hasPhone || hasFax) {
+                        contentHtml += `<div class="contact-row">`;
+                        if (hasPhone) {
+                            contentHtml += `
+                                <div class="contact-item">
+                                    <div class="contact-label">📞 Teléfono</div>
+                                    <div class="contact-value">${escapeHtml(sectionData.phone)}</div>
+                                </div>
+                            `;
+                        }
+                        if (hasFax) {
+                            contentHtml += `
+                                <div class="contact-item">
+                                    <div class="contact-label">📠 Fax</div>
+                                    <div class="contact-value">${escapeHtml(sectionData.fax)}</div>
+                                </div>
+                            `;
+                        }
+                        contentHtml += `</div>`;
+                    }
+
+                    contentHtml += `</div>`;
+                }
+
+                contentHtml += `</div>`;
+            }
+
+            document.getElementById('clinic-content').innerHTML = contentHtml;
+            container.classList.add('visible');
         }
 
         /**
-         * Copy coordinates to clipboard
+         * Close panel
          */
-        function copyCoordinates(lat, lng) {
-            const coords = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-            navigator.clipboard.writeText(coords).then(() => {
-                alert('Coordenadas copiadas: ' + coords);
-            }).catch(err => {
-                console.error('Error copying coordinates:', err);
-            });
-        }
-
-        /**
-         * Display empty state
-         */
-        function displayEmptyState() {
-            const container = document.getElementById('details-container');
-            container.innerHTML = `
-                <div id="empty-state">
-                    <p>📍 Selecciona una clínica en el mapa para ver los detalles</p>
-                </div>
-            `;
+        function closePanel() {
+            container.classList.remove('visible');
+            currentClinic = null;
         }
 
         /**
@@ -442,14 +392,6 @@
             return String(text).replace(/[&<>"']/g, m => map[m]);
         }
 
-        /**
-         * Escape attribute values for onclick handlers
-         */
-        function escapeAttribute(text) {
-            if (!text) return '';
-            return String(text).replace(/'/g, "\\'").replace(/"/g, "&quot;");
-        }
-
         // Notify parent that details panel is ready
         if (window.parent !== window) {
             window.parent.postMessage({
@@ -457,6 +399,8 @@
                 timestamp: new Date().toISOString()
             }, '*');
         }
+
+        console.log('Clinic Details Panel initialized and listening for messages');
     </script>
 </body>
 </html>
