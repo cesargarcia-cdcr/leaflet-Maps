@@ -83,6 +83,7 @@ async function loadData() {
                 ? CSV_rowsToObjects(CSV_parse(data.clinics)) 
                 : data.clinics;
             CLINICS = mapClinicsCsvToObjects(rawClinics);
+            window.APP_DATA.clinics = CLINICS;
         }
 
         // 3. Parse & Store Extensions
@@ -91,6 +92,7 @@ async function loadData() {
                 ? JSON.parse(data.extensions) 
                 : data.extensions;
             buildExtensionsIndex();
+            window.APP_DATA.extensions = EXT;
         }
 
         // 4. Parse & Group Providers Schedule securely with validation
@@ -107,17 +109,33 @@ async function loadData() {
             }, {});
         }
 
-        // 5. Store remaining tables globally and map Main_Providers_csv for compliance popover
-        window.APP_DATA.clinicsDirectory = data.clinicsDirectory;
+        // 5. Parse & Store Clinics Directory
+        if (data.clinicsDirectory) {
+            window.APP_DATA.clinicsDirectory = typeof data.clinicsDirectory === 'string'
+                ? CSV_rowsToObjects(CSV_parse(data.clinicsDirectory))
+                : data.clinicsDirectory;
+        }
+
+        // 6. Parse & Store Main Providers (Compliance Popover)
         window.APP_DATA.mainProviders = data.mainProviders;
         if (data.mainProviders) {
-            const mainProvRows = typeof data.mainProviders === 'string'
+            window.APP_DATA.Main_Providers_csv = typeof data.mainProviders === 'string'
                 ? CSV_rowsToObjects(CSV_parse(data.mainProviders))
                 : (Array.isArray(data.mainProviders) ? data.mainProviders : []);
-            window.APP_DATA.Main_Providers_csv = mainProvRows;
         }
-        window.APP_DATA.providerClinicDates = data.providerClinicDates;
-        window.APP_DATA.providersNpi = data.providersNpi;
+
+        // 7. Parse & Store Provider Clinic Dates & NPIs
+        if (data.providerClinicDates) {
+            window.APP_DATA.providerClinicDates = typeof data.providerClinicDates === 'string'
+                ? CSV_rowsToObjects(CSV_parse(data.providerClinicDates))
+                : data.providerClinicDates;
+        }
+
+        if (data.providersNpi) {
+            window.APP_DATA.providersNpi = typeof data.providersNpi === 'string'
+                ? CSV_rowsToObjects(CSV_parse(data.providersNpi))
+                : data.providersNpi;
+        }
 
         console.log("✅ Datos centralizados cargados y mapeados exitosamente en window.APP_DATA.");
 
@@ -125,7 +143,6 @@ async function loadData() {
         console.error("❌ Error fetching data from flow URL:", err);
     }
 }
-
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items))
             return [];
