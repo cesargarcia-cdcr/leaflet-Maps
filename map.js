@@ -32,20 +32,16 @@
 async function loadData() {
     try {
         let flowUrl = "";
+
         const urlParams = new URLSearchParams(window.location.search);
         
         // 1. Check for the Base64 'data' parameter first
         const encodedData = urlParams.get('data');
         if (encodedData) {
             try {
-                if (encodedData.startsWith('http://') || encodedData.startsWith('https://')) {
-                    flowUrl = encodedData;
-                } else {
-                    flowUrl = atob(encodedData);
-                }
+                flowUrl = atob(encodedData);
             } catch (e) {
-                console.error("Failed to decode base64 data parameter, treating as raw string:", e);
-                flowUrl = encodedData;
+                console.error("Failed to decode base64 data parameter:", e);
             }
         }
 
@@ -55,7 +51,7 @@ async function loadData() {
         }
 
         if (!flowUrl) {
-            throw new Error("No se encontró la flowUrl en los parámetros de la URL.");
+            throw new Error("No se encontró la flowUrl ni en los parámetros de la URL ni en el atributo data- del iframe.");
         }
 
         const response = await fetch(flowUrl, {
@@ -71,107 +67,76 @@ async function loadData() {
         }
 
         const result = await response.json();
-        
-        // Flexible fallback to catch records whether wrapped in .clinics, .value, or returned as an array directly
-        const records = Array.isArray(result) ? result : (result.clinics || result.value || result.data || []);
+        const records = result.clinics || [];
+        const extensions = result.extensions || [];
 
         const out = [], seen = new Set();
 
         for (const item of records) {
-            const code = item.code || "";
-            const plusCode = item.plusCode || "";
-            const name = item.name || "";
+            // Map SharePoint fields precisely based on your clinics-list headers
+            const code = item.code || item.Title || item.crbab_code;
+            const plusCode = item.plusCode || item.field_12 || item.crbab_pluscode || "";
+            const name = item.name || item.field_2 || item.crbab_name || "";
 
             const addr = [
-                item.address,
-                item.city,
-                item.state,
-                item.zip
+                item.address || item.field_3 || item.crbab_address,
+                item.city || item.field_4 || item.crbab_city,
+                item.state || item.field_5 || item.crbab_state,
+                item.zipCode || item.field_6 || item.crbab_zipcode
             ].filter(Boolean).join(', ');
 
-            const lat = parseFloat(item.latitude);
-            const lng = parseFloat(item.longitude);
+            const lat = parseFloat(item.latitude || item.field_13 || item.crbab_latitude);
+            const lng = parseFloat(item.longitude || item.field_14 || item.crbab_longitude);
+
+            // Find all extension entries for this specific clinic code
+            const clinicExtensions = extensions.filter(e => (e.code === code) || (e.Title === code));
+
+            // Dynamically map extensions by section (e.g., medical, mh, dental, optical)
+            const sectionsMap = {};
+            clinicExtensions.forEach(ext => {
+                const sectionKey = (ext.section || "").toLowerCase().trim();
+                if (sectionKey) {
+                    sectionsMap[sectionKey] = {
+                        name: ext.name || "",
+                        front: ext.front || "",
+                        back: ext.back || "",
+                        phone: ext.phone || "",
+                        fax: ext.fax || ""
+                    };
+                }
+            });
 
             const clinic = {
-                clinicId: name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
+                clinicId: item.clinicId || item.ItemInternalId || item.ID || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
                 code: code,
-                plusCode: plusCode,
                 name: name,
+                plusCode: plusCode,
                 address: addr,
+                nicknames: item.nicknames || "",
                 lat: isNaN(lat) ? null : lat,
                 lng: isNaN(lng) ? null : lng,
-                
-                medical: {
-                    front: item.medical?.front || "",
-                    back: item.medical?.back || "",
-                    phone: item.medical?.phone || "",
-                    fax: item.medical?.fax || ""
-                },
-                optical: {
-                    ext: item.optical?.ext || "",
-                    phone: item.optical?.phone || ""
-                },
-                dental: {
-                    ext: item.dental?.ext || "",
-                    phone: item.dental?.phone || ""
-                },
-                mh: {
-                    ext: item.mh?.ext || "",
-                    phone: item.mh?.phone || ""
-                }
+                operationHours: item.operationHours || "",
+                crossStreets: item.crossStreets || "",
+                offeredServices: item.offeredServices || "",
+                extName: item.extName || "",
+                sections: sectionsMap,
+                // Backward compatibility fallback if your UI code reads directly from clinic.medical
+                medical: sectionsMap['medical'] || { front: '', back: '', phone: '', fax: '' }
             };
 
-            if (name && !seen.has(name)) {
+            if (code && !seen.has(code)) {
                 out.push(clinic);
-                seen.add(name);
+                seen.add(code);
             }
         }
 
         CLINICS = out;
-        window.CLINICS = out;
-        
-        console.log(`Successfully loaded ${CLINICS.length} clinics!`);
-        initMap();
+        console.log(`Successfully loaded ${CLINICS.length} clinics and ${extensions.length} extensions via Power Automate!`);
 
     } catch (error) {
-        console.error("Error fetching clinic data:", error);
+        console.error("Error fetching clinic data via Power Automate:", error);
     }
 }
-
-function initMap() {
-    // Initialize map container once
-    if (!map) {
-        map = L.map('map').setView([34.22, -119.15], 11);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-    }
-
-    // Ensure markersLayer exists safely before calling methods on it
-    if (!markersLayer) {
-        markersLayer = L.layerGroup().addTo(map);
-    } else {
-        markersLayer.clearLayers();
-    }
-
-    CLINICS.forEach(clinic => {
-        if (clinic.lat && clinic.lng) {
-            const marker = L.marker([clinic.lat, clinic.lng]);
-            marker.on('click', () => {
-                if (typeof window.selectClinicPanel === 'function') {
-                    window.selectClinicPanel(clinic);
-                }
-            });
-            marker.addTo(markersLayer);
-        }
-    });
-}
-
-// Auto-load on startup
-window.addEventListener('DOMContentLoaded', () => {
-    loadData();
-});
    
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items)) return [];
