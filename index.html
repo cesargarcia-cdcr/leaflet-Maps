@@ -6,10 +6,10 @@
     <title>Clinic Map Locator</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Unified Styles -->
+    <!-- Unified Stylesheet -->
     <link rel="stylesheet" href="map.css">
     <style>
-        /* Fixed right-side centered panel styling to override floating draggability bugs */
+        /* === Fixed Right-Side Vertically Centered Panel Override === */
         #clinic-details-panel {
             position: fixed;
             top: 50%;
@@ -19,48 +19,108 @@
             max-height: 85vh;
             background: #ffffff;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-            border-radius: 12px;
+            border-radius: 8px;
             display: flex;
             flex-direction: column;
-            z-index: 1000;
+            z-index: 999;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s ease, transform 0.3s ease;
+            overflow: hidden;
         }
 
         #clinic-details-panel.visible {
             opacity: 1;
             pointer-events: auto;
             transform: translateY(-50%);
+            display: flex;
         }
 
         #clinic-panel-header {
-            padding: 16px;
-            border-bottom: 1px solid #e5e7eb;
+            padding: 14px 16px;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            border-bottom: 1px solid #0f172a;
+            flex-shrink: 0;
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            background: #f9fafb;
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
+            align-items: center;
         }
 
-        #clinic-panel-content {
-            padding: 16px;
-            overflow-y: auto;
+        #clinic-panel-header-content {
             flex: 1;
         }
 
+        #clinic-panel-header h2 {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0 0 2px 0;
+        }
+
+        .clinic-panel-location-sub {
+            font-size: 12px;
+            opacity: 0.85;
+            font-weight: 400;
+        }
+
         .clinic-panel-close-btn {
-            background: none;
+            background: rgba(255, 255, 255, 0.2);
             border: none;
-            font-size: 18px;
+            color: white;
             cursor: pointer;
-            color: #6b7280;
+            font-size: 16px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            flex-shrink: 0;
+            margin-left: 8px;
         }
 
         .clinic-panel-close-btn:hover {
-            color: #111827;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #clinic-panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 16px;
+        }
+
+        /* Structured data items */
+        .clinic-info-section {
+            margin-bottom: 14px;
+        }
+        .clinic-info-section:last-child {
+            margin-bottom: 0;
+        }
+        .clinic-info-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4px;
+        }
+        .clinic-data-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 4px 0;
+            color: #334155;
+            border-bottom: 1px dashed #f1f5f9;
+        }
+        .clinic-data-row:last-child {
+            border-bottom: none;
+        }
+        .clinic-data-label {
+            color: #64748b;
+            font-weight: 500;
+        }
+        .clinic-data-val {
+            font-weight: 600;
+            color: #0f172a;
         }
     </style>
 </head>
@@ -83,16 +143,16 @@
         <div id="clinic-panel-header">
             <div id="clinic-panel-header-content">
                 <h2 id="clinic-panel-name"></h2>
-                <div class="clinic-panel-code" id="clinic-panel-code"></div>
+                <div class="clinic-panel-location-sub" id="clinic-panel-location"></div>
             </div>
-            <button class="clinic-panel-close-btn" onclick="closeClinicPanel()">✕</button>
+            <button class="clinic-panel-close-btn" onclick="clearSearch()">✕</button>
         </div>
         <div id="clinic-panel-content"></div>
     </div>
 
-    <!-- Leaflet -->
+    <!-- Leaflet Script -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Map Logic -->
+    <!-- Map Logic Script -->
     <script src="map.js"></script>
     
     <script>
@@ -101,7 +161,7 @@
         let currentClinic = null;
         const panel = document.getElementById('clinic-details-panel');
 
-        // === EXPOSE CLINIC SELECTION TO MAP.JS ===
+        // === BRIDGE HOOK FOR map.js ===
         window.selectClinicPanel = function(clinic) {
             if (!clinic) {
                 closeClinicPanel();
@@ -111,7 +171,7 @@
             displayClinicDetails(clinic);
         };
 
-        // === DISPLAY CLINIC DETAILS ===
+        // === RENDER CLINIC DETAILS MATCHING THE EXACT SCHEMA ===
         function displayClinicDetails(clinic) {
             if (!clinic) {
                 closeClinicPanel();
@@ -119,78 +179,87 @@
             }
 
             document.getElementById('clinic-panel-name').textContent = escapeHtml(clinic.name || 'Sin nombre');
-            document.getElementById('clinic-panel-code').textContent = 'Código: ' + escapeHtml(clinic.code || 'N/A');
+            
+            // Format city, state, zip cleanly in the header sub-text
+            const cityStateZip = [clinic.city, clinic.state, clinic.zip].filter(Boolean).join(', ');
+            document.getElementById('clinic-panel-location').textContent = cityStateZip;
 
             let contentHtml = '';
 
-            // Address section
-            if (clinic.address || clinic.plusCode) {
+            // 1. Address Section
+            if (clinic.address || cityStateZip) {
                 contentHtml += `
                     <div class="clinic-info-section">
                         <div class="clinic-info-title">📍 Ubicación</div>
-                        <div class="clinic-address-block">
-                            ${clinic.address ? `<div>${escapeHtml(clinic.address)}</div>` : ''}
-                            ${clinic.plusCode ? `<div class="clinic-pluscode-item">Plus Code: <span class="clinic-pluscode-value">${escapeHtml(clinic.plusCode)}</span></div>` : ''}
-                        </div>
+                        ${clinic.address ? `<div class="clinic-data-row"><span class="clinic-data-label">Dirección</span><span class="clinic-data-val">${escapeHtml(clinic.address)}</span></div>` : ''}
+                        ${clinic.city ? `<div class="clinic-data-row"><span class="clinic-data-label">Ciudad</span><span class="clinic-data-val">${escapeHtml(clinic.city)}</span></div>` : ''}
+                        ${clinic.state ? `<div class="clinic-data-row"><span class="clinic-data-label">Estado</span><span class="clinic-data-val">${escapeHtml(clinic.state)}</span></div>` : ''}
+                        ${clinic.zip ? `<div class="clinic-data-row"><span class="clinic-data-label">ZIP</span><span class="clinic-data-val">${escapeHtml(clinic.zip)}</span></div>` : ''}
                     </div>
                 `;
             }
 
-            // Departments section
-            if (clinic.sections && Object.keys(clinic.sections).length > 0) {
-                contentHtml += `<div class="clinic-info-section"><div class="clinic-info-title">🏥 Departamentos</div>`;
+            // 2. Medical Section
+            if (clinic.medical) {
+                const med = clinic.medical;
+                contentHtml += `
+                    <div class="clinic-info-section">
+                        <div class="clinic-info-title">🩺 Medical</div>
+                        ${med.front ? `<div class="clinic-data-row"><span class="clinic-data-label">Front</span><span class="clinic-data-val">${escapeHtml(med.front)}</span></div>` : ''}
+                        ${med.back ? `<div class="clinic-data-row"><span class="clinic-data-label">Back</span><span class="clinic-data-val">${escapeHtml(med.back)}</span></div>` : ''}
+                        ${med.phone ? `<div class="clinic-data-row"><span class="clinic-data-label">Teléfono</span><span class="clinic-data-val">${escapeHtml(med.phone)}</span></div>` : ''}
+                        ${med.fax ? `<div class="clinic-data-row"><span class="clinic-data-label">Fax</span><span class="clinic-data-val">${escapeHtml(med.fax)}</span></div>` : ''}
+                    </div>
+                `;
+            }
 
-                for (const [sectionKey, sectionData] of Object.entries(clinic.sections)) {
-                    if (!sectionData) continue;
+            // 3. Optical Section
+            if (clinic.optical) {
+                const opt = clinic.optical;
+                contentHtml += `
+                    <div class="clinic-info-section">
+                        <div class="clinic-info-title">👓 Optical</div>
+                        ${opt.ext ? `<div class="clinic-data-row"><span class="clinic-data-label">Ext</span><span class="clinic-data-val">${escapeHtml(opt.ext)}</span></div>` : ''}
+                        ${opt.phone ? `<div class="clinic-data-row"><span class="clinic-data-label">Teléfono</span><span class="clinic-data-val">${escapeHtml(opt.phone)}</span></div>` : ''}
+                    </div>
+                `;
+            }
 
-                    contentHtml += `<div class="clinic-department-block">`;
-                    contentHtml += `<div class="clinic-department-title">${escapeHtml(sectionKey)}</div>`;
+            // 4. Dental Section
+            if (clinic.dental) {
+                const den = clinic.dental;
+                contentHtml += `
+                    <div class="clinic-info-section">
+                        <div class="clinic-info-title">🦷 Dental</div>
+                        ${den.ext ? `<div class="clinic-data-row"><span class="clinic-data-label">Ext</span><span class="clinic-data-val">${escapeHtml(den.ext)}</span></div>` : ''}
+                        ${den.phone ? `<div class="clinic-data-row"><span class="clinic-data-label">Teléfono</span><span class="clinic-data-val">${escapeHtml(den.phone)}</span></div>` : ''}
+                    </div>
+                `;
+            }
 
-                    if (sectionData.name) {
-                        contentHtml += `<div class="clinic-department-detail"><strong>Departamento:</strong> ${escapeHtml(sectionData.name)}</div>`;
-                    }
-
-                    const hasPhone = sectionData.phone || false;
-                    const hasFax = sectionData.fax || false;
-
-                    if (hasPhone || hasFax) {
-                        contentHtml += `<div class="clinic-contact-row">`;
-                        if (hasPhone) {
-                            contentHtml += `
-                                <div class="clinic-contact-item">
-                                    <div class="clinic-contact-label">📞 Teléfono</div>
-                                    <div class="clinic-contact-value">${escapeHtml(sectionData.phone)}</div>
-                                </div>
-                            `;
-                        }
-                        if (hasFax) {
-                            contentHtml += `
-                                <div class="clinic-contact-item">
-                                    <div class="clinic-contact-label">📠 Fax</div>
-                                    <div class="clinic-contact-value">${escapeHtml(sectionData.fax)}</div>
-                                </div>
-                            `;
-                        }
-                        contentHtml += `</div>`;
-                    }
-
-                    contentHtml += `</div>`;
-                }
-
-                contentHtml += `</div>`;
+            // 5. Mental Health (MH) Section
+            if (clinic.mh) {
+                const mh = clinic.mh;
+                contentHtml += `
+                    <div class="clinic-info-section">
+                        <div class="clinic-info-title">🧠 Mental Health (MH)</div>
+                        ${mh.ext ? `<div class="clinic-data-row"><span class="clinic-data-label">Ext</span><span class="clinic-data-val">${escapeHtml(mh.ext)}</span></div>` : ''}
+                        ${mh.phone ? `<div class="clinic-data-row"><span class="clinic-data-label">Teléfono</span><span class="clinic-data-val">${escapeHtml(mh.phone)}</span></div>` : ''}
+                    </div>
+                `;
             }
 
             document.getElementById('clinic-panel-content').innerHTML = contentHtml;
             panel.classList.add('visible');
         }
 
-        // === CLOSE PANEL ===
+        // === CLOSE / HIDE PANEL ===
         function closeClinicPanel() {
             panel.classList.remove('visible');
             currentClinic = null;
         }
 
-        // === ESCAPE HTML ===
+        // === XSS SANITIZER ===
         function escapeHtml(text) {
             if (!text) return '';
             const map = {
@@ -203,34 +272,20 @@
             return String(text).replace(/[&<>"']/g, m => map[m]);
         }
 
-        // === MESSAGE BRIDGE FOR map.js ===
+        // === IFRAME POSTMESSAGE LISTENER ===
         window.addEventListener('message', (event) => {
             try {
                 const data = event.data;
                 if (!data || typeof data !== 'object') return;
 
                 if (data.type === 'CLINIC_SELECTED') {
-                    currentClinic = data.clinic;
-                    displayClinicDetails(currentClinic);
-                } else if (data.type === 'CLINIC_DES') {
-                    currentClinic = null;
+                    window.selectClinicPanel(data.clinic);
+                } else if (data.type === 'CLINIC_DESELECTED') {
                     closeClinicPanel();
                 }
             } catch (error) {
                 console.error('Error handling message:', error);
             }
-        });
-
-        // === PAGE LOAD ===
-        window.addEventListener('load', () => {
-            const mapSection = document.getElementById('map-section');
-            if (mapSection) {
-                mapSection.style.width = '100%';
-                mapSection.style.height = '100%';
-            }
-
-            setTimeout(() => { try { window.AppMap?.invalidate?.(); } catch (_) {} }, 150);
-            setTimeout(() => { try { window.AppMap?.invalidate?.(); } catch (_) {} }, 500);
         });
     </script>
 </body>
