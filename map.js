@@ -39,19 +39,85 @@
     };
 
     /* ---------- Flow URL & Parameter Extraction ---------- */
-    function getFlowUrl() {
-        const params = new URLSearchParams(window.location.search);
-        const encoded = params.get('data');
-        if (!encoded) return null;
-        try {
-            // Decode base64 URL parameter
-            return atob(encoded);
-        } catch (e) {
-            console.error("⚠️ Error decoding flow URL parameter:", e);
-            return null;
-        }
+    /* ---------- Data Load via Power Automate Flow ---------- */
+function getFlowUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get('data');
+    if (!encoded) return null;
+    try {
+        return atob(encoded);
+    } catch (e) {
+        console.error("⚠️ Error decoding flow URL parameter:", e);
+        return null;
     }
+}
+
+async function loadData() {
+    console.log("📡 Cargando datos desde Power Automate Flow...");
     
+    const flowUrl = getFlowUrl();
+    if (!flowUrl) {
+        console.warn("⚠️ No flow URL provided in query parameters (?data=...).");
+        return;
+    }
+
+    try {
+        const response = await fetch(flowUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // 1. Initialize global APP_DATA container
+        window.APP_DATA = window.APP_DATA || {};
+
+        // 2. Parse & Store Clinics
+        if (data.clinics) {
+            const rawClinics = typeof data.clinics === 'string' 
+                ? CSV_rowsToObjects(CSV_parse(data.clinics)) 
+                : data.clinics;
+            CLINICS = mapClinicsCsvToObjects(rawClinics);
+        }
+
+        // 3. Parse & Store Extensions
+        if (data.extensions) {
+            EXT = typeof data.extensions === 'string' 
+                ? JSON.parse(data.extensions) 
+                : data.extensions;
+            buildExtensionsIndex();
+        }
+
+        // 4. Parse & Group Providers Schedule
+        if (data.providersSched) {
+            const provRows = typeof data.providersSched === 'string'
+                ? CSV_rowsToObjects(CSV_parse(data.providersSched))
+                : data.providersSched;
+
+            window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
+                const code = String(row['Health Center'] || '').trim().toUpperCase();
+                if (!acc[code]) acc[code] = [];
+                acc[code].push(row);
+                return acc;
+            }, {});
+        }
+
+        // 5. Store remaining tables so other scripts can access them without 404 local fetches
+        window.APP_DATA.clinicsDirectory = data.clinicsDirectory;
+        window.APP_DATA.mainProviders = data.mainProviders;
+        window.APP_DATA.providerClinicDates = data.providerClinicDates;
+        window.APP_DATA.providersNpi = data.providersNpi;
+
+        console.log("✅ Datos centralizados cargados exitosamente en window.APP_DATA.");
+
+    } catch (err) {
+        console.error("❌ Error fetching data from flow URL:", err);
+    }
+}    
     /* ---------- Data Load ---------- */
     /* ---------- Data Load via Power Automate Flow ---------- */
 async function loadData() {
