@@ -82,7 +82,14 @@
         }
 
         try {
-            const r = await fetch(flowUrl, { cache: 'no-cache' });
+            const r = await fetch(flowUrl, {
+                method: "POST", // Must be POST for manual/HTTP triggers
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({}) // ⚠️ Crucial: Power Automate requires a JSON body payload
+            });
+
             if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`);
             EXT = await r.json();
             buildClinicsFromJSON();
