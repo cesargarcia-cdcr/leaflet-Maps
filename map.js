@@ -29,10 +29,6 @@
         }
     };
 
-    
-let CLINICS = [];
-let map, markersLayer;
-
 async function loadData() {
     try {
         let flowUrl = "";
