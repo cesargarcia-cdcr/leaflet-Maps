@@ -30,19 +30,27 @@
     };
 
     
+let CLINICS = [];
+let map, markersLayer;
+
 async function loadData() {
     try {
         let flowUrl = "";
-
         const urlParams = new URLSearchParams(window.location.search);
         
         // 1. Check for the Base64 'data' parameter first
         const encodedData = urlParams.get('data');
         if (encodedData) {
             try {
-                flowUrl = atob(encodedData);
+                // If the user pastes a raw URL directly for testing instead of Base64, handle it gracefully
+                if (encodedData.startsWith('http://') || encodedData.startsWith('https://')) {
+                    flowUrl = encodedData;
+                } else {
+                    flowUrl = atob(encodedData);
+                }
             } catch (e) {
-                console.error("Failed to decode base64 data parameter:", e);
+                console.error("Failed to decode base64 data parameter, treating as raw string:", e);
+                flowUrl = encodedData;
             }
         }
 
@@ -51,8 +59,16 @@ async function loadData() {
             flowUrl = urlParams.get('flowUrl');
         }
 
+        // 3. Fallback check for iframe data- attribute or direct local testing injection
         if (!flowUrl) {
-            throw new Error("No se encontró la flowUrl ni en los parámetros de la URL ni en el atributo data-.");
+            const iframeElement = window.parentElement?.querySelector('iframe') || document.querySelector('[data-flow-url]');
+            if (iframeElement) {
+                flowUrl = iframeElement.getAttribute('data-flow-url');
+            }
+        }
+
+        if (!flowUrl) {
+            throw new Error("No se encontró la flowUrl en los parámetros de la URL ni en el contexto del iframe.");
         }
 
         const response = await fetch(flowUrl, {
@@ -73,7 +89,7 @@ async function loadData() {
         const out = [], seen = new Set();
 
         for (const item of records) {
-            // Code and plusCode are captured for marker placement/internal keys only
+            // Code and plusCode are stored strictly for marker placement and internal logic
             const code = item.code || "";
             const plusCode = item.plusCode || "";
             const name = item.name || "";
@@ -90,14 +106,14 @@ async function loadData() {
 
             const clinic = {
                 clinicId: name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
-                code: code,          // Used internally for markers/lookup
-                plusCode: plusCode,  // Used internally for mapping
+                code: code,          // Internal tracking/marker reference
+                plusCode: plusCode,  // Internal mapping reference
                 name: name,
                 address: addr,
                 lat: isNaN(lat) ? null : lat,
                 lng: isNaN(lng) ? null : lng,
                 
-                // Mapped department structures matching your exact schema
+                // Nested department schema mapping
                 medical: {
                     front: item.medical?.front || "",
                     back: item.medical?.back || "",
@@ -124,14 +140,46 @@ async function loadData() {
             }
         }
 
-        // Expose globally so your UI panels and console checks can read it instantly
-        window.CLINICS = out;
-        console.log(`Successfully loaded ${window.CLINICS.length} clinics via map.js!`);
+        CLINICS = out;
+        window.CLINICS = out; // Ensure global availability for console/UI inspection
+        
+        console.log(`Successfully loaded ${CLINICS.length} clinics!`);
+        initMap();
 
     } catch (error) {
         console.error("Error fetching clinic data:", error);
     }
 }
+
+function initMap() {
+    if (!map) {
+        map = L.map('map').setView([34.22, -119.15], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+        markersLayer = L.layerGroup().addTo(map);
+    }
+
+    markersLayer.clearLayers();
+
+    CLINICS.forEach(clinic => {
+        if (clinic.lat && clinic.lng) {
+            const marker = L.marker([clinic.lat, clinic.lng]);
+            marker.on('click', () => {
+                if (typeof window.selectClinicPanel === 'function') {
+                    window.selectClinicPanel(clinic);
+                }
+            });
+            marker.addTo(markersLayer);
+        }
+    });
+}
+
+// Auto-load on startup
+window.addEventListener('DOMContentLoaded', () => {
+    loadData();
+});
    
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items)) return [];
