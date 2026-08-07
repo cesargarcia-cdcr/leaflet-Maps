@@ -52,6 +52,7 @@ function getFlowUrl() {
     }
 }
 
+/* ---------- Data Load via Power Automate Flow ---------- */
 async function loadData() {
     console.log("📡 Cargando datos desde Power Automate Flow...");
     
@@ -92,101 +93,12 @@ async function loadData() {
             buildExtensionsIndex();
         }
 
-        // 4. Parse & Group Providers Schedule
+        // 4. Parse & Group Providers Schedule securely with validation
         if (data.providersSched) {
             const provRows = typeof data.providersSched === 'string'
                 ? CSV_rowsToObjects(CSV_parse(data.providersSched))
-                : data.providersSched;
+                : (Array.isArray(data.providersSched) ? data.providersSched : []);
 
-            window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
-                const code = String(row['Health Center'] || '').trim().toUpperCase();
-                if (!acc[code]) acc[code] = [];
-                acc[code].push(row);
-                return acc;
-            }, {});
-
-        // Inside your loadData() function after parsing the response:
-        const data = await response.json();
-        
-        // 1. Create a virtual local file cache in memory
-        window.CSV_CACHE = {
-            "clinics": data.clinics,
-            "extensions": data.extensions,
-            "clinicas-Directory.csv": data.clinicsDirectory,
-            "Main-Providers.csv": data.mainProviders,
-            "provider_clinic_dates.csv": data.providerClinicDates,
-            "Providers-npi.csv": data.providersNpi,
-            "PROVIDERS-Sched.csv": data.providersSched
-        };
-        }
-
-        // 5. Store remaining tables so other scripts can access them without 404 local fetches
-        window.APP_DATA.clinicsDirectory = data.clinicsDirectory;
-        window.APP_DATA.mainProviders = data.mainProviders;
-        window.APP_DATA.providerClinicDates = data.providerClinicDates;
-        window.APP_DATA.providersNpi = data.providersNpi;
-
-        console.log("✅ Datos centralizados cargados exitosamente en window.APP_DATA.");
-
-    } catch (err) {
-        console.error("❌ Error fetching data from flow URL:", err);
-    }
-}    
-    /* ---------- Data Load ---------- */
-    /* ---------- Data Load via Power Automate Flow ---------- */
-async function loadData() {
-    console.log("📡 Cargando datos desde Power Automate Flow...");
-    
-    const flowUrl = getFlowUrl();
-    if (!flowUrl) {
-        console.warn("⚠️ No flow URL provided in query parameters (?data=...). Falling back to local files or empty state.");
-        // Optional fallback logic if needed
-        return;
-    }
-
-    try {
-        const response = await fetch(flowUrl, {
-            method: 'GET', // or 'POST' depending on how your manual trigger is configured
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // 1. Load Clinics (from data.clinics or data.clinicsDirectory based on your flow output)
-        if (data.clinics) {
-            // Assuming your flow returns raw CSV text or parsed objects. 
-            // If it returns CSV text strings, keep your CSV_parse / CSV_rowsToObjects pipeline:
-            const clinicsParsed = typeof data.clinics === 'string' 
-                ? CSV_rowsToObjects(CSV_parse(data.clinics)) 
-                : data.clinics;
-            
-            CLINICS = mapClinicsCsvToObjects(clinicsParsed);
-        }
-
-        // 2. Load Extensions
-        if (data.extensions) {
-            EXT = typeof data.extensions === 'string' 
-                ? JSON.parse(data.extensions) 
-                : data.extensions;
-            buildExtensionsIndex();
-        }
-
-        // 3. Initialize APP_DATA container if not already present
-        window.APP_DATA = window.APP_DATA || {};
-
-        // 4. Load Providers Schedule
-        if (data.providersSched) {
-            const provRows = typeof data.providersSched === 'string'
-                ? CSV_rowsToObjects(CSV_parse(data.providersSched))
-                : data.providersSched;
-
-            // Group providers by their clinic short code (e.g., "ESV", "OXN")
             window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
                 const code = String(row['Health Center'] || '').trim().toUpperCase();
                 if (!acc[code]) acc[code] = [];
@@ -195,13 +107,19 @@ async function loadData() {
             }, {});
         }
 
-        // Store any extra datasets in APP_DATA if your UI needs them elsewhere
+        // 5. Store remaining tables globally and map Main_Providers_csv for compliance popover
         window.APP_DATA.clinicsDirectory = data.clinicsDirectory;
         window.APP_DATA.mainProviders = data.mainProviders;
+        if (data.mainProviders) {
+            const mainProvRows = typeof data.mainProviders === 'string'
+                ? CSV_rowsToObjects(CSV_parse(data.mainProviders))
+                : (Array.isArray(data.mainProviders) ? data.mainProviders : []);
+            window.APP_DATA.Main_Providers_csv = mainProvRows;
+        }
         window.APP_DATA.providerClinicDates = data.providerClinicDates;
         window.APP_DATA.providersNpi = data.providersNpi;
 
-        console.log("✅ Datos cargados y mapeados exitosamente.");
+        console.log("✅ Datos centralizados cargados y mapeados exitosamente en window.APP_DATA.");
 
     } catch (err) {
         console.error("❌ Error fetching data from flow URL:", err);
@@ -1087,20 +1005,17 @@ async function loadData() {
         // 2. Intentar buscar el registro en la memoria global
         let masterList = window.APP_DATA?.Main_Providers_csv || [];
         
-        // Paracaídas: Si la lista de memoria está vacía, hacer un fetch veloz al CSV físico
+        // Paracaídas secundario: Si la lista de memoria está vacía, buscar respaldo local
         if (masterList.length === 0) {
             try {
                 const responseMain = await fetch('/Main-Providers.csv');
                 if (responseMain.ok) {
                     const textMain = await responseMain.text();
-                    // Usamos el parseador nativo que ya tienes integrado en map.js
                     if (typeof CSV_parse === 'function' && typeof CSV_rowsToObjects === 'function') {
                         masterList = CSV_rowsToObjects(CSV_parse(textMain));
                     }
                 }
-            } catch (err) {
-                console.error("❌ Error de comunicación con Main-Providers.csv:", err);
-            }
+            } catch (_) {}
         }
 
         // Buscar coincidencia exacta usando la Clave Primaria (Provider ID) o el Nombre como respaldo
@@ -1113,7 +1028,7 @@ async function loadData() {
 
         if (!doc) {
             console.warn(`⚠️ No se encontraron directrices de cumplimiento para: ${providerName}`);
-            alert(`No se encontraron directrices registradas en Main-Providers.csv para el proveedor: ${providerName}`);
+            alert(`No se encontraron directrices registradas para el proveedor: ${providerName}`);
             return;
         }
 
