@@ -104,6 +104,20 @@ async function loadData() {
                 acc[code].push(row);
                 return acc;
             }, {});
+
+        // Inside your loadData() function after parsing the response:
+        const data = await response.json();
+        
+        // 1. Create a virtual local file cache in memory
+        window.CSV_CACHE = {
+            "clinics": data.clinics,
+            "extensions": data.extensions,
+            "clinicas-Directory.csv": data.clinicsDirectory,
+            "Main-Providers.csv": data.mainProviders,
+            "provider_clinic_dates.csv": data.providerClinicDates,
+            "Providers-npi.csv": data.providersNpi,
+            "PROVIDERS-Sched.csv": data.providersSched
+        };
         }
 
         // 5. Store remaining tables so other scripts can access them without 404 local fetches
