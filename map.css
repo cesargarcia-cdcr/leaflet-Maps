@@ -1,0 +1,219 @@
+/* map.v2.css — scoped + defensive height fallbacks */
+/* Normal scope */
+body.page-map #map-section .map-viewport{ height:100dvh }
+@supports not (height:100dvh){ body.page-map #map-section .map-viewport{ height:100vh } }
+body.page-map #map-section #map{ height:100% }
+
+/* Defensive fallbacks (in case body class or wrapper are late/missing) */
+#map.map-viewport{ height:100dvh }
+@supports not (height:100dvh){ #map.map-viewport{ height:100vh } }
+#map{ min-height:520px }
+
+/* ==========================================================================
+   DISEÑO MODERNO: EXTENSIONES Y PROVEEDORES (ALTA PRODUCTIVIDAD)
+   ========================================================================== */
+
+/* Tarjetas Contenedoras */
+.modern-stack {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+
+.modern-stack.providers-panel {
+  border-left: 5px solid #10b981; /* Verde esmeralda para médicos */
+  background: #f8fafc;
+}
+
+.modern-stack.extensions-panel {
+  border-left: 5px solid #3b82f6; /* Azul corporativo para extensiones */
+}
+
+/* Encabezados de Sección */
+.modern-header {
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.extensions-panel .modern-header { color: #1e3a8a; background: #eff6ff; }
+.providers-panel .modern-header { color: #064e3b; background: #ecfdf5; }
+
+/* Cuerpo y Filas de Contenido */
+.modern-body {
+  padding: 12px 16px;
+}
+
+/* Filas Compactas de Extensiones */
+.modern-ext-group {
+  margin-bottom: 10px;
+}
+.modern-ext-group:last-child {
+  margin-bottom: 0;
+}
+
+.modern-ext-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #334155;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.modern-grid-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  font-size: 0.85rem;
+  padding: 4px 0;
+  border-bottom: 1px dashed #f1f5f9;
+}
+.modern-grid-row:last-child { border-bottom: none; }
+
+.modern-lbl {
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.modern-val {
+  color: #0f172a;
+  font-family: 'Courier New', Courier, monospace; /* Look limpio para números */
+  font-weight: 600;
+}
+
+/* Lista de Proveedores */
+.provider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  padding: 6px 0;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+}
+.provider-row:last-child { border-bottom: none; }
+
+.provider-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   INTERFAZ HOMOLOGADA Y PANEL CORREDIZO (SCROLL INMUTABLE)
+   ========================================================================== */
+
+/* Contenedor fijo para la cabecera de la clínica */
+.sticky-clinic-header {
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  z-index: 10;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 16px;
+}
+
+/* Tarjeta Homologada para Bloques (Extensions y Providers) */
+.homologated-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  overflow: hidden;
+}
+
+/* Encabezados de tarjetas idénticos */
+.card-header-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #334155;
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Cuerpo interno de las tarjetas */
+.card-body-content {
+  padding: 12px 14px;
+}
+
+/* Filas de datos limpias y consistentes */
+.homologated-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  font-size: 0.85rem;
+  padding: 6px 0;
+  border-bottom: 1px dashed #f1f5f9;
+  align-items: center;
+}
+.homologated-row:last-child { 
+  border-bottom: none; 
+}
+
+.homologated-lbl {
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.homologated-val {
+  color: #0f172a;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 600;
+}
+
+/* Ajustes de insignias para los Doctores */
+.provider-badge-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+/* Congelar nombre y dirección arriba al hacer scroll */
+.sticky-clinic-header {
+  position: sticky !important;
+  top: 0 !important;
+  background: #ffffff !important;
+  z-index: 100 !important;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 16px;
+}
+
+/* Homologar el panel de proveedores para que use el mismo color que las extensiones */
+.modern-stack.providers-panel {
+  border-left: 5px solid #64748b !important; /* Gris neutro homologado */
+  background: #ffffff !important;
+}
+
+.providers-panel .modern-header {
+  color: #334155 !important;
+  background: #f8fafc !important; /* Mismo fondo gris claro que las extensiones */
+}

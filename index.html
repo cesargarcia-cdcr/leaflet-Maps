@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Clinic Note Builder & Locator</title>
+    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="12" font-size="12">🗂%EF%B8%8F</text></svg>' />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="layout.css"> <link rel="stylesheet" href="notes.css"> <link rel="stylesheet" href="map.css"> <link rel="stylesheet" href="directory.css"><link rel="stylesheet" href="Guidelines_Info/Guidelines_Info.css"><link rel="stylesheet" href="provider-directory.css">
+    <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
+    
+</head>
+<body>
+    <div class="app-container">
+        <button class="burger" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+        <div class="sidebar-overlay" onclick="toggleMenu()"></div>
+        
+        <aside class="sidebar">
+            <nav style="display:flex; flex-direction:column; height:100%;">
+                <div class="nav-item active" onclick="navigateTo('note')">Note-builder</div>
+                <div class="nav-item" onclick="navigateTo('map')">Map</div>
+                <div class="nav-item" onclick="navigateTo('directory')">Clinic Directory</div>
+                <div class="nav-item" onclick="navigateTo('provider-directory')">Provider Directory</div>
+                <div class="nav-item" onclick="navigateTo('info')">Guidelines & Info</div>
+                <div class="nav-item" onclick="navigateTo('admin')">Admin</div>
+
+                <div style="margin-top:auto;">
+                    <hr style="opacity:0.2;">
+                    <div class="nav-item" onclick="cerrarServidor()" style="color:#ff6b6b;">
+                        🛑 Stop Server
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <div class="page">
+            <header class="brand">
+            </header>
+
+            <section class="card" id="note-section">
+                <div class="card-hd">
+                    <h3>📝 Appointment Note Builder</h3>
+                    <div class="actions">
+                        <button class="btn ghost" onclick="resetForm()">↺ Reset</button>
+                        <button class="btn primary" onclick="copyResult()">📋 Copy Note</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="two-col">
+                        <div class="form-group">
+                            <label>Symptoms / Chief Complaint</label>
+                            <input id="n1" placeholder="e.g., cough, sore throat, fever" oninput="updateNote()" />
+                        </div>
+                        <div class="form-group">
+                            <label>Visit Type</label>
+                            <input id="n2" placeholder="Emergent/Routine (defaults to 'no E/R')" oninput="updateNote()" />
+                        </div>
+                    </div>
+                    <div class="two-col">
+                        <div class="form-group">
+                            <label>Insurance Type</label>
+                            <select id="n3" onchange="updateNote()">
+                                <option value="">-- Select Insurance --</option>
+                                <option>Gold Coast</option>
+                                <option>Medi-Cal</option>
+                                <option>Medicare</option>
+                                <option>PPO</option>
+                                <option>Self-Pay</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Member ID</label>
+                            <input id="n4" placeholder="Insurance member ID" oninput="updateNote()" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Additional Notes</label>
+                        <textarea id="n5" rows="2" placeholder="Allergies, transportation needs, preferred callback times..." oninput="updateNote()"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Generated Note (Copy-Ready Format)</label>
+                        <div id="result" class="note-result"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="map-section" class="map-full" style="display:none">
+                <div id="map" class="map-viewport"></div>
+                <div class="map-controls">
+                    <div class="mc-row">
+                        <div class="mc-card">
+                            <div class="mc-line">
+                                <select id="clinicSelect" class="mc-select" title="Select a clinic"></select>
+                            </div>
+                            <div class="mc-line mc-search">
+                                <input id="searchInput" class="mc-input" list="clinicNameList" placeholder="Address, ZIP, code, nickname, or clinic name" />
+                                <datalist id="clinicNameList"></datalist>
+                                <button class="btn primary" onclick="findNearest()">🔎 Find</button>
+                                <button class="btn ghost" onclick="clearSearch()">✕ Clear</button>
+                            </div>
+                        </div>
+                        <div class="mc-fab-col">
+                            <button class="mc-fab" title="Recenter" onclick="window.AppMap?.invalidate()">⤢</button>
+                        </div>
+                    </div>
+                </div>
+                <aside id="place-sheet" class="sheet" aria-hidden="true">
+                    <div class="sheet-hd">
+                        <div class="sheet-title">Selected Clinic</div>
+                        <button class="sheet-close" title="Close" onclick="window.closePlaceSheet?.()">✕</button>
+                    </div>
+                    <div class="sheet-body" id="clinic-info-body">
+                        <div class="empty-state">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                            <div>Click a clinic marker or use search.</div>
+                        </div>
+                    </div>
+                </aside>
+            </section>
+
+            <section class="card" id="directory-section" style="display:none">
+                <div class="card-hd dir-sticky-hd" id="dirStickyHd">
+                    <h3>📘 Directory (CSV)</h3>
+                    <div class="actions">
+                        <div class="search-wrapper" style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <select id="dirClinicSelect" class="dir-select" title="Filter by clinic">
+                                <option value="">All clinics</option>
+                            </select>
+                            <input id="dirSearchCSV" placeholder="Search name, department, ext, phone..." oninput="CSVDir_filter()" />
+                        </div>
+                        <button class="btn ghost" onclick="CSVDir_reset()">✕ Clear</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="csvdir-meta" class="csvdir-meta"></div>
+                    <div id="csvdir-root" class="csvdir-root"></div>
+                    <div id="csvdir-empty" class="csvdir-empty">No matches found.</div>
+                </div>
+            </section>
+
+            <section class="card" id="provider-directory-section" style="display:none">
+                <div class="card-hd dir-sticky-hd">
+                    <h3>👨‍⚕️ Provider Lookup</h3>
+                    <div class="actions">
+                        <input id="masterProviderSearch" placeholder="Search provider name, internal ID, NPI, or specialty..." style="width: 280px;" />
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="masterProviderGrid" class="info-grid">
+                    
+                    </div>
+                </div>
+            </section>
+
+            <section class="card" id="info-section" style="display:none; padding: 4px;">
+                <div class="card-hd" style="padding: 6px 10px;">
+                    <h3 style="font-size: 0.85rem; margin: 0;">📋 Guidelines & Info </h3>
+                </div>
+                <div class="card-body" style="padding: 4px; display: flex; flex-direction: column; gap: 6px;">
+                    
+                </div>
+            </section>
+            
+            <section class="card" id="admin-section" style="display:none">
+                <div class="control-panel">
+                    <select id="selectorArchivos" onchange="cargarDesdeSelector()">
+                    </select>
+                    <button onclick="recargarArchivoActual()">🔄 Reload</button>
+                    <button onclick="agregarFila()">➕ Add Row</button>
+                    <button onclick="agregarColumna()">➕ Add Column</button>
+                    <button onclick="guardarCambios()">💾 Save</button>
+                </div>
+                <div id="admin-table"></div>
+            </section>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">✓ Copied to clipboard!</div>
+
+    <script>
+            window.APP_DATA = window.APP_DATA || {};
+            window.APP_FILES = window.APP_FILES || {};
+
+            window.registerDataFile = function(config, data) {
+                if (!window.APP_FILES[config.file]) {
+                    window.APP_FILES[config.file] = config;
+                }
+                window.APP_DATA[config.dataKey] = data;
+                console.log("📁 Registered:", config.file);
+            };
+    </script>
+    <script>
+    function openModal(id) {
+        var modal = document.getElementById(id);
+        var overlay = document.getElementById('overlay');
+        if (modal && overlay) {
+            modal.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+    }
+
+    function closeAll() {
+        var modals = document.getElementsByClassName('modal');
+        for (var i = 0; i < modals.length; i++) {
+            modals[i].style.display = 'none';
+        }
+        var overlay = document.getElementById('overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+</script>
+    <script src="notes.js"></script>
+    <script src="map.js"></script>
+    <script src="directory.js"></script>
+    <script src="admin.js"></script> 
+    <script src="block-F12.js"></script>
+    <script src="Guidelines_Info/Guidelines_Info.js"></script>
+    <script src="Guidelines_Info/Dooble_Booking/Double_Booking_1-3.js""></script>
+    <script src="provider-directory.js"></script>
+</body>
+</html>

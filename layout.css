@@ -1,0 +1,52 @@
+/* ===============================
+   layout.css — Global layout: burger + sidebar + nav
+   =============================== */
+
+/* Container */
+.app-container{ display:flex; min-height:100vh }
+.page{ flex:1; max-width:min(1400px,70vw); margin:0 auto; padding:20px }
+@media(max-width:1024px){ .page{ max-width:100% } }
+
+/* Burger */
+.burger{
+  position:fixed; top:16px; left:16px; z-index:1001;
+  background:var(--primary); border:none; border-radius:8px; width:44px; height:44px; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; box-shadow:0 10px 24px rgba(0,0,0,.12)
+}
+.burger span{ display:block; width:24px; height:3px; background:#fff; border-radius:2px; transition:.3s }
+.burger.active span:nth-child(1){ transform:rotate(45deg) translate(6px,6px) }
+.burger.active span:nth-child(2){ opacity:0 }
+.burger.active span:nth-child(3){ transform:rotate(-45deg) translate(6px,-6px) }
+
+/* Sidebar */
+.sidebar{
+  position:fixed; left:0; top:0; bottom:0; width:var(--sidebar-width);
+  background:var(--panel); border-right:1px solid var(--border);
+  box-shadow:0 10px 24px rgba(0,0,0,.12); z-index:1000;
+  transform:translateX(-100%); transition:.3s; overflow-y:auto; padding-top:70px
+}
+.sidebar.open{ transform:translateX(0) }
+.sidebar-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:999; opacity:0; pointer-events:none; transition:.3s }
+.sidebar-overlay.show{ opacity:1; pointer-events:all }
+
+/* Sidebar nav */
+.nav-item{
+  padding:14px 20px; border-bottom:1px solid var(--border); cursor:pointer;
+  display:flex; align-items:center; gap:12px; color:var(--text); font-weight:600; font-size:.95rem
+}
+.nav-item:hover{ background:var(--bg); color:var(--primary) }
+.nav-item.active{ background:#eff6ff; color:var(--primary); border-left:3px solid var(--primary) }
+.nav-item .shortcut{ margin-left:auto; font-size:.75rem; color:var(--muted); background:#f3f4f6; padding:2px 6px; border-radius:4px; font-family:monospace }
+
+/* Brand header (optional) */
+.brand{ display:flex; align-items:center; gap:14px; margin:0 0 24px; padding:16px 20px; background:var(--panel); border-radius:14px; box-shadow:var(--shadow); border:1px solid var(--border) }
+
+/* Legacy map/card wrappers kept for compatibility */
+.mapwrap{ display:grid; grid-template-columns:1fr 320px; gap:14px; align-items:stretch }
+@media(max-width:1024px){ .mapwrap{ grid-template-columns:1fr 280px; gap:12px } }
+@media(max-width:768px){ .mapwrap{ grid-template-columns:1fr; gap:12px } }
+
+/* Toast */
+.toast{ position:fixed; bottom:20px; right:20px; background:var(--success); color:#fff; padding:12px 20px; border-radius:8px; box-shadow:0 10px 24px rgba(0,0,0,.12); font-weight:600; z-index:9999; display:none }
+.toast.show{ display:block; animation:slideIn .3s ease }
+@keyframes slideIn{ from{ transform:translateY(100px); opacity:0 } to{ transform:translateY(0); opacity:1 } }

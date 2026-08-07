@@ -1,0 +1,161 @@
+/* =========================================================
+   notes.css — Compact Companion Workspace Optimization
+   ========================================================= */
+
+/* Adjust Note Builder container for tight side-docking */
+body.page-notes #notes-section { 
+  max-width: 100%; 
+  margin: 0 auto; 
+  padding: 4px;
+}
+
+/* Header compression */
+#notes-section .card-hd {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
+#notes-section .card-hd h3 {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* Tighten the spacing inside the card body */
+#notes-section .card-body {
+  padding: 8px;
+}
+
+/* Force side-by-side columns to stack cleanly on narrow sideboards */
+#notes-section .two-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+/* Only allow two-column split if the tool window is wider than 480px */
+@media (min-width: 480px) {
+  #notes-section .two-col {
+    flex-direction: row;
+    gap: 10px;
+  }
+}
+
+/* Compact input clusters */
+#notes-section .form-group {
+  margin-bottom: 6px;
+  flex: 1;
+}
+
+#notes-section label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-bottom: 2px;
+  display: block;
+  color: #4a5568;
+}
+
+#notes-section input, 
+#notes-section select, 
+#notes-section textarea {
+  font-size: 0.75rem;
+  padding: 4px 6px;
+  height: 26px; /* Lower footprint standard */
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+#notes-section textarea {
+  height: auto;
+  min-height: 38px;
+  resize: vertical;
+}
+
+/* Micro-Buttons */
+#notes-section .btn {
+  padding: 3px 6px;
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+/* High-density, copy-ready code footprint block */
+#notes-section .note-result {
+  background: linear-gradient(to bottom, #f8fafc, #ffffff);
+  border: 1px solid var(--primary, #1a365d);
+  border-radius: 4px; 
+  padding: 6px;
+  font-family: Monaco, Consolas, monospace; 
+  font-size: 0.7rem;
+  min-height: 32px;
+  line-height: 1.3;
+  word-break: break-all;
+  color: #1e293b;
+}
+
+#notes-section .note-result:empty::before {
+  content: 'Your generated note will appear here...';
+  color: #94a3b8; 
+  font-style: italic;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-top: 15px;
+}
+.info-card {
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.info-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.info-card h4 {
+    margin: 0 0 10px 0;
+    color: #1a365d;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.info-card p {
+    margin: 0 0 15px 0;
+    color: #666;
+    font-size: 14px;
+    line-height: 1.4;
+}
+.info-card-meta {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 15px;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 10px;
+}
+.btn-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    background-color: #f0f4f8;
+    color: #1a365d;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+.btn-link:hover {
+    background-color: #1a365d;
+    color: #ffffff;
+}
+

@@ -1,0 +1,516 @@
+:root{
+  --primary:#1d4ed8; --primary-700:#1e40af; --text:#1f2937; --muted:#6b7280;
+  --bg:#f8fafc; --panel:#fff; --border:#e5e7eb; --badge-bg:#eff6ff;
+  --success:#059669; --shadow:0 4px 12px rgba(0,0,0,.08); --sidebar-width:280px;
+  --border-light:#f3f4f6;
+  /* Directory sticky offsets â€” computed in JS */
+  --dirStickyTop: 0px;
+}
+/* ===== Reset / base ===== */
+*{ box-sizing:border-box; margin:0; padding:0 }
+html, body { height:100%; }
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif;
+  background:var(--bg); color:var(--text); line-height:1.6;
+}
+/* ===== App layout ===== */
+.app-container{ display:flex; min-height:100vh }
+/* ===== Burger ===== */
+.burger{
+  position:fixed; top:16px; left:16px; z-index:1001;
+  background:var(--primary); border:none; border-radius:8px;
+  width:44px; height:44px; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+  box-shadow:0 10px 24px rgba(0,0,0,.12)
+}
+.burger span{ display:block; width:24px; height:3px; background:#fff; border-radius:2px; transition:.3s }
+.burger.active span:nth-child(1){ transform:rotate(45deg) translate(6px,6px) }
+.burger.active span:nth-child(2){ opacity:0 }
+.burger.active span:nth-child(3){ transform:rotate(-45deg) translate(6px,-6px) }
+/* ===== Sidebar ===== */
+.sidebar{
+  position:fixed; left:0; top:0; bottom:0; width:var(--sidebar-width);
+  background:var(--panel); border-right:1px solid var(--border);
+  box-shadow:0 10px 24px rgba(0,0,0,.12); z-index:1000;
+  transform:translateX(-100%); transition:.3s; overflow-y:auto; padding-top:70px
+}
+.sidebar.open{ transform:translateX(0) }
+.sidebar-overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:999; opacity:0; pointer-events:none; transition:.3s
+}
+.sidebar-overlay.show{ opacity:1; pointer-events:all }
+/* Sidebar nav */
+.nav-item{
+  padding:14px 20px; border-bottom:1px solid var(--border); cursor:pointer;
+  display:flex; align-items:center; gap:12px; color:var(--text);
+  font-weight:600; font-size:.95rem
+}
+.nav-item:hover{ background:var(--bg); color:var(--primary) }
+.nav-item.active{ background:var(--badge-bg); color:var(--primary); border-left:3px solid var(--primary) }
+.nav-item .shortcut{
+  margin-left:auto; font-size:.75rem; color:var(--muted); background:#f3f4f6;
+  padding:2px 6px; border-radius:4px; font-family:monospace
+}
+/* ===== Page ===== */
+.page{ flex:1; max-width:min(1400px,70vw); margin:0 auto; padding:20px }
+@media(max-width:1024px){ .page{ max-width:100% }}
+/* Keep burger visible on desktop too */
+@media(min-width:1025px){
+  .sidebar{ transform:translateX(-100%) }
+  .burger{ display:block }
+}
+/* ===== Brand Header ===== */
+.brand{
+  display:flex; align-items:center; gap:14px; margin:0 0 24px; padding:16px 20px;
+  background:var(--panel); border-radius:14px; box-shadow:var(--shadow); border:1px solid var(--border)
+}
+
+/* ===== Cards ===== */
+.card{
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:14px; box-shadow:var(--shadow); margin-bottom:20px; overflow:hidden
+}
+.card-hd{
+  display:flex; align-items:center; justify-content:space-between; padding:16px 20px;
+  border-bottom:1px solid var(--border); background:linear-gradient(to bottom,#fafbfc,#fff)
+}
+.card-hd h3{ margin:0; font-size:1.1rem; font-weight:700 }
+.card-hd .actions{ display:flex; gap:8px; flex-wrap:wrap }
+.card-body{ padding:20px }
+/* ===== Buttons ===== */
+.btn{
+  padding:9px 16px; border-radius:8px; border:1px solid var(--border); background:#fff; color:var(--text);
+  cursor:pointer; font-weight:600; font-size:.9rem; transition:.15s; display:inline-flex; align-items:center; gap:6px; font-family:inherit
+}
+.btn:hover{ transform:translateY(-1px); box-shadow:0 1px 2px rgba(0,0,0,.05) }
+.btn.primary{ background:var(--primary); border-color:var(--primary); color:#fff }
+.btn.primary:hover{ background:var(--primary-700) }
+.btn.ghost{ background:#fff; border-color:var(--border) }
+.btn.ghost:hover{ background:var(--bg) }
+/* ===== Forms ===== */
+label{ display:block; font-size:.875rem; font-weight:600; color:#374151; margin:0 0 6px }
+input,select,textarea{
+  width:100%; background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px 12px;
+  outline:none; font-family:inherit; font-size:.95rem; color:#1f2937
+}
+input:focus,select:focus,textarea:focus{ border-color:var(--primary); box-shadow:0 0 0 3px rgba(29,78,216,.1) }
+textarea{ resize:vertical; min-height:60px }
+.two-col{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px }
+.form-group{ margin-bottom:14px }
+@media(max-width:760px){
+  .two-col{ grid-template-columns:1fr }
+  .card-hd{ flex-direction:column; align-items:flex-start; gap:12px }
+  .card-hd .actions{ width:100% }
+  .btn{ flex:1; justify-content:center }
+}
+/* ===== Map layout (legacy card layout â€” kept if you ever revert) ===== */
+.leaflet-container { z-index: 1000; }    /* ensure map stays below UI */
+.mapwrap{ display:grid; grid-template-columns:1fr 320px; gap:14px; align-items:stretch }
+@media(max-width:1024px){ .mapwrap{ grid-template-columns:1fr 280px; gap:12px } }
+@media(max-width:768px){ .mapwrap{ grid-template-columns:1fr; gap:12px } }
+#map{
+  height:600px; border-radius:10px; border:1px solid var(--border); overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.05)
+}
+@media(max-width:1024px){ #map{ height:500px } }
+@media(max-width:768px){ #map{ height:450px } }
+.leaflet-tooltip.clinic-label{
+  background:#fff; color:var(--primary); border:1px solid var(--primary); font-weight:700; font-size:.8rem;
+  padding:3px 8px; border-radius:6px; box-shadow:0 2px 8px rgba(29,78,216,.2)
+}
+/* Clinic info panel (legacy) */
+#clinic-info{
+  background:#fff; border:1px solid var(--border); border-radius:10px; display:flex; flex-direction:column;
+  max-height:600px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.05)
+}
+@media(max-width:1024px){ #clinic-info{ max-height:500px } }
+@media(max-width:768px){ #clinic-info{ max-height:450px } }
+#clinic-info .hdr{ padding:14px 16px; border-bottom:1px solid var(--border); font-weight:700; background:linear-gradient(to bottom,#fafbfc,#fff); font-size:.95rem }
+#clinic-info .body{ padding:16px; flex:1 1 auto; overflow:auto; font-size:.9rem }
+@media(max-width:768px){ #clinic-info .body{ padding:14px; font-size:.875rem } }
+/* ===== Generic / helpers ===== */
+.empty-state{ text-align:center; padding:32px 16px; color:var(--muted) }
+.empty-state svg{ margin:0 auto 12px; opacity:.5 }
+.note-result{
+  background:linear-gradient(to bottom,#f9fafb,#fff); border:2px solid var(--primary);
+  border-radius:8px; padding:12px; font-family:Monaco,'Courier New',monospace; font-size:.9rem;
+  color:#1f2937; min-height:60px; line-height:1.6
+}
+.note-result:empty::before{ content:'Your generated note will appear here...'; color:#9ca3af; font-style:italic }
+.toast{
+  position:fixed; bottom:20px; right:20px; background:var(--success); color:#fff; padding:12px 20px;
+  border-radius:8px; box-shadow:0 10px 24px rgba(0,0,0,.12); font-weight:600; z-index:9999; display:none
+}
+.toast.show{ display:block; animation:slideIn .3s ease }
+@keyframes slideIn{ from{ transform:translateY(100px); opacity:0 } to{ transform:translateY(0); opacity:1 } }
+
+/* =======================================================
+   DIRECTORY (existing) â€” kept as-is
+======================================================= */
+#directory-section .dir-sticky-hd{
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: linear-gradient(to bottom,#fafbfc,#fff);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(0,0,0,.04);
+}
+#directory-section .dir-select{
+  appearance: none;
+  background:#fff url("data:image/svg+xml,%3Csvg width='12' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='2' fill='none'/%3E%3C/svg%3E") no-repeat right 10px center/12px 8px;
+  border:1px solid var(--border); border-radius:8px; padding:10px 34px 10px 12px;
+  font-size:.95rem; color:#1f2937;
+}
+.csvdir-root .clinic{ border:1px solid #cbd5e1; border-radius:12px; background:#fff; overflow:hidden; margin:20px 0; }
+.csvdir-root .clinic-head{
+  position: sticky; top: var(--dirStickyTop); z-index: 20;
+  padding:12px 16px; background:linear-gradient(90deg,#e0f2fe,#e6fffa); border-bottom:1px solid #e2e8f0;
+  font-weight:700; font-size:16px; color:#0b5ea8; display:flex; align-items:center; gap:10px; cursor:pointer;
+}
+.csvdir-root .clinic-head .caret{
+  width:0; height:0; border-left:6px solid #0b5ea8; border-top:6px solid transparent; border-bottom:6px solid transparent;
+  transition: transform .15s ease; transform-origin:3px 6px; margin-right:4px;
+}
+.csvdir-root .clinic.collapsed .clinic-head .caret{ transform: rotate(-90deg); }
+.csvdir-root .clinic-body{ padding:10px 16px; background:#fff }
+.csvdir-root .clinic.collapsed .clinic-body{ display:none }
+.csvdir-root .dept{ border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; margin-bottom:20px; }
+.csvdir-root .dept-head{ background:#ecfeff; padding:10px 12px; font-weight:700; color:#0f766e; border-bottom:1px solid #e2e8f0; }
+.csvdir-root .entries{ padding:10px; background:#fff }
+.csvdir-root .entry{ border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; margin:4px 0; }
+.csvdir-root .entry .name{ font-weight:700; margin-bottom:4px }
+.csvdir-root .entry .row{ font-size:13px; color:#475569; display:flex; gap:12px; flex-wrap:wrap }
+.csvdir-meta{ font-size:12px; color:#475569; margin-bottom:8px }
+.csvdir-empty{ display:none; padding:20px; text-align:center; color:#6b7280 }
+@media (max-width: 768px){
+  .csvdir-root .clinic-head{ font-size:15px; }
+  .csvdir-root .dept-head{ font-size:14px; }
+}
+/* Sticky patches (kept) */
+#directory-section .card-body { max-height: 70vh; overflow: auto; position: relative; }
+:root { --clinicHeadH: 44px; }
+.csvdir-root .clinic-head { min-height: var(--clinicHeadH); display: flex; align-items: center; }
+.csvdir-root .clinic-body { padding-top: calc(10px + var(--clinicHeadH)); }
+.csvdir-root .clinic-head .caret { transform: translateY(1px); }
+:root { --dirStickyTopAdjust: -150px; }
+.csvdir-root .clinic-head {
+  position: sticky;
+  top: calc(var(--dirStickyTop) + var(--dirStickyTopAdjust));
+  z-index: 20;
+  background: linear-gradient(90deg,#e0f2fe,#e6fffa);
+  box-shadow: 0 1px 0 var(--border);
+}
+.csvdir-root .clinic-body { padding-top: calc(var(--clinicHeadH) + 12px); }
+
+/* =======================================================
+   GOOGLE MAPS LOOK â€” fullâ€‘screen, glass controls & sheet
+======================================================= */
+
+/* === Full height for map canvas (desktop + mobile address bar safe) === */
+.map-full      { position: fixed; inset: 0; z-index: 1; background:#fff; }
+.map-viewport  { position: absolute; inset: 0; height: 100dvh; } /* use dynamic vh */
+#map           { height: 100dvh; } /* Leaflet container must have an explicit height */
+
+/* Fallback if 100dvh is not supported */
+@supports not (height: 100dvh) {
+  .map-viewport, #map { height: 100vh; }
+}
+
+/* Prevent page scroll when map is visible (optional but recommended) */
+body.fullscreen-map { overflow: hidden; }
+/* Floating "glass" controls */
+.map-controls{ position: absolute; top: 16px; left: 0px; right: 16px; z-index: 1100; pointer-events: none; transition: padding 0.3s ease; }
+
+.mc-row { 
+    padding-left: 65px;
+    display: flex; 
+    grid-template-columns: 
+    minmax(320px, 720px) auto; 
+    gap: 12px; 
+    align-items: start; 
+    justify-content: space-around;
+    padding-right: 200px;    
+  }
+    
+.mc-card{
+  flex: 0 1 650px; /* Limits width so it doesn't take over the screen */
+  pointer-events: auto; backdrop-filter: blur(10px);
+  background: rgba(255,255,255,.75); border: 1px solid rgba(0,0,0,.06);
+  border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); 
+  padding: 10px;
+}
+.mc-line{ display:flex; gap:8px; align-items:center; }
+.mc-search{ margin-top: 6px; }
+.mc-select, .mc-input{
+  flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: #fff;
+  font-size: .95rem; outline: none;
+}
+.mc-select:focus, .mc-input:focus{ border-color: var(--primary); box-shadow: 0 0 0 3px rgba(29,78,216,.1); }
+.mc-fab-col{ display:flex; gap:8px; align-items:flex-start; pointer-events:auto; }
+.mc-fab{
+  width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(0,0,0,.08);
+  background: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.14); cursor: pointer; font-size: 18px;
+}
+.mc-fab:hover{ transform: translateY(-1px); }
+
+/* Right sheet */
+.sheet{
+  position: absolute; top: 0; right: 0; bottom: 0; width: clamp(300px, 28vw, 420px);
+  background: #fff; border-left: 1px solid var(--border);
+  box-shadow: -12px 0 24px rgba(0,0,0,.08);
+  transform: translateX(100%); transition: transform .25s ease;
+  z-index: 1200; display: flex; flex-direction: column;
+}
+.sheet.open{ transform: translateX(0); }
+
+/* ✅ THIS is the missing piece — the container itself */
+#place-sheet {
+  position: fixed;   /* break out of full-height layout */
+
+  right: 20px;
+
+  top: 50%;
+  bottom: auto;      /* override bottom:0 from .sheet */
+
+  width: 340px;
+  max-height: 75vh;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.2);
+
+  /* ✅ IMPORTANT: combine vertical + slide animation */
+  transform: translateY(-50%) translateX(120%);
+}
+
+/* ✅ open state */
+#place-sheet.open {
+  transform: translateY(-50%) translateX(0);
+}
+
+
+#place-sheet .sheet-hd {
+  background: #f1f5f9;
+  padding: 10px 12px;
+  border-bottom: 1px solid #cbd5e1;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;   /* ✅ vertical alignment fix */
+}
+
+#place-sheet .sheet-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+#place-sheet .sheet-body {
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.sheet-title{ font-weight: 700; font-size: .95rem; }
+.sheet-close{ border: 1px solid var(--border); background: #fff; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; }
+
+/* 2) Ensure the sheet scrolls if content gets tall (you already have this) */
+.sheet-body{
+  overflow: auto;
+}
+
+/* Marker labels (slightly tweaked) */
+.leaflet-tooltip.clinic-label{
+  background:#fff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700; font-size:.78rem;
+  padding:2px 7px; border-radius:6px; box-shadow:0 1px 6px rgba(29,78,216,.25)
+}
+
+/* Extensions table (look & feel of Directory) */
+.ext-table      { border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; background:#fff; }
+.ext-table-hd   { background:#ecfeff; padding:10px 12px; font-weight:700; color:#0f766e; border-bottom:1px solid #e2e8f0; font-size:.9rem; }
+.ext-row        { display:grid; grid-template-columns:120px 1fr 140px; gap:12px; padding:10px 12px; border-bottom:1px solid #e2e8f0; align-items:start; }
+.ext-row:last-child { border-bottom:none; }
+.ext-section    { font-weight:700; color:#0b5ea8; font-size:.85rem; }
+.ext-values     { display:grid; grid-template-columns:auto 1fr; gap:4px 10px; font-size:.85rem; color:#1f2937; }
+.ext-label      { font-weight:700; color:#374151; }
+.ext-val        { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+.ext-phone      { text-align:right; font-size:.85rem; color:#475569; white-space: nowrap; }
+@media (max-width: 768px){ .ext-row{ grid-template-columns: 1fr; } .ext-phone{ text-align:left; margin-top:4px; } }
+
+/* Controls responsive */
+@media (max-width: 760px){
+  .map-controls{ left: 12px; right: 12px; }
+  .mc-row{ grid-template-columns: 1fr; }
+}
+
+/* ================== EXTENSIONS (STACKED / SECTIONED) ================== */
+.ext-stack{
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  overflow:hidden;
+  background:#fff;
+}
+
+/* Overall header for the whole Extensions block (reuse your table-hd look) */
+.ext-stack .ext-block-hd{
+  background:#ecfeff;
+  padding:10px 12px;
+  font-weight:700;
+  color:#0f766e;
+  border-bottom:1px solid #e2e8f0;
+  font-size:.9rem;
+}
+
+/* One clinical section header (e.g., Medical) */
+.ext-sec-hd{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:8px;
+  padding:10px 12px 4px 12px; /* small bottom gap before rows */
+  background:#fff;
+}
+.ext-sec-title{
+  font-weight:800;
+  color:#0b5ea8;
+  font-size:.95rem;
+  letter-spacing:.02em;
+}
+
+/* Phone aligned to the right of the section header */
+.ext-sec-phone{
+  color:#475569;
+  white-space:nowrap;
+  font-size:.9rem;
+}
+
+/* Section body: indented rows beneath the header */
+
+/* 3) (Optional) Add a max height and inner scroll per clinical section body */
+.ext-sec-body{
+  /* comment these two lines out if you prefer no inner scroll */
+  /* max-height: 260px; */
+  /* overflow: auto; */
+}
+
+/* One row: label on the left, value on the right; wraps nicely */
+.ext-row2{
+  display:grid;
+  grid-template-columns: 76px 1fr;
+  gap:6px 12px;
+  align-items:start;
+}
+.ext-row2 .ext-lbl{
+  font-weight:700;
+  color:#374151;
+}
+
+.ext-row2 .ext-val{
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.45;
+
+  /* allow wrapping of long sequences */
+  white-space: normal;         /* was: nowrap */
+  overflow-wrap: anywhere;     /* modern wrapping for long tokens */
+  word-break: break-word;      /* fallback for older engines */
+}
+
+/* Divider between sections for readability */
+.ext-divider{
+  height:1px;
+  background:#e2e8f0;
+  margin:6px 12px;
+}
+
+/* Responsive: on very small screens, stack label above value */
+@media (max-width: 480px){
+  .ext-row2{ grid-template-columns: 1fr; }
+}
+
+/* ===============================
+   RESPONSIVE: CLINIC PANEL
+================================ */
+
+/* ✅ Medium screens (tablet / smaller desktops) */
+@media (max-width: 1024px) {
+  #place-sheet {
+    width: 300px;
+    right: 12px;
+  }
+}
+
+
+/* ✅ Small screens (THIS is the important one) */
+@media (max-width: 768px) {
+  #place-sheet {
+    left: 12px;
+    right: 12px;
+    width: auto;
+
+    /* ✅ switch from side panel → bottom sheet */
+    top: auto;
+    bottom: 12px;
+
+    max-height: 60vh;
+
+    /* ✅ change animation direction */
+    transform: translateY(120%);
+  }
+
+  #place-sheet.open {
+    transform: translateY(0);
+  }
+  
+  #place-sheet {
+  border-radius: 16px 16px 12px 12px;
+  }
+
+}
+
+body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; color: #333; }
+        h2 { color: #2c3e50; }
+        .control-panel { margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        select, button { padding: 10px; font-size: 14px; margin-right: 10px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
+        button { background-color: #27ae60; color: white; border: none; font-weight: bold; }
+        button:hover { background-color: #219653; }
+        #btnAgregar { background-color: #2980b9; }
+        #btnAgregar:hover { background-color: #2471a3; }
+        #btnRestaurar { background-color: #e67e22; }
+        #btnRestaurar:hover { background-color: #d35400; }
+        
+        /* Contenedor de la Tabla estilo Excel */
+        .table-container { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow-x: auto; max-height: 60vh; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background-color: white; }
+        th, td { border: 1px solid #c0c0c0; padding: 6px; text-align: left; }
+        th { background-color: #f1f3f4; color: #333; font-weight: bold; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #b0b0b0; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        
+        /* Celdas de entrada interactivas */
+        td input { width: 100%; box-sizing: border-box; padding: 6px; border: 1px solid transparent; background: transparent; font-size: 14px; transition: background-color 0.2s; }
+        td input:focus { border: 1px solid #1a73e8; background: white; outline: none; box-shadow: inset 0 0 0 1px #1a73e8; }
+        
+        /* Rastreadores visuales de cambios */
+        .cell-modified { background-color: #fff9c4 !important; font-weight: 500; }
+        .row-new { background-color: #e8f5e9 !important; }
+        
+        .btnBorrar { background-color: #c0392b; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; }
+        .btnBorrar:hover { background-color: #a93226; }
+        
+                /* Estilos para que las columnas tengan el tirador de arrastre */
+        th { position: relative; }
+        .resizer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 5px;
+            cursor: col-resize;
+            user-select: none;
+            height: 100%;
+            background-color: #ccc;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        th:hover .resizer { opacity: 1; }
