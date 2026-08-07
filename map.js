@@ -38,35 +38,95 @@
         }
     };
 
+    /* ---------- Flow URL & Parameter Extraction ---------- */
+    function getFlowUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const encoded = params.get('data');
+        if (!encoded) return null;
+        try {
+            // Decode base64 URL parameter
+            return atob(encoded);
+        } catch (e) {
+            console.error("⚠️ Error decoding flow URL parameter:", e);
+            return null;
+        }
+    }
+    
     /* ---------- Data Load ---------- */
-    async function loadData() {
-        // console.log("📡 Cargando fuentes de datos...");
+    /* ---------- Data Load via Power Automate Flow ---------- */
+async function loadData() {
+    console.log("📡 Cargando datos desde Power Automate Flow...");
+    
+    const flowUrl = getFlowUrl();
+    if (!flowUrl) {
+        console.warn("⚠️ No flow URL provided in query parameters (?data=...). Falling back to local files or empty state.");
+        // Optional fallback logic if needed
+        return;
+    }
 
-        // 1. Load Clinics (Source of truth for keys)
-        const clinicsTxt = await CSV_loadText('clinics.csv');
-        if (clinicsTxt) {
-            CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(clinicsTxt)));
+    try {
+        const response = await fetch(flowUrl, {
+            method: 'GET', // or 'POST' depending on how your manual trigger is configured
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
-        // 2. Load Providers and map by "Health Center" code
-        const provTxt = await CSV_loadText('PROVIDERS-Sched.csv');
-        if (provTxt) {
-            const provRows = CSV_rowsToObjects(CSV_parse(provTxt));
+        const data = await response.json();
+
+        // 1. Load Clinics (from data.clinics or data.clinicsDirectory based on your flow output)
+        if (data.clinics) {
+            // Assuming your flow returns raw CSV text or parsed objects. 
+            // If it returns CSV text strings, keep your CSV_parse / CSV_rowsToObjects pipeline:
+            const clinicsParsed = typeof data.clinics === 'string' 
+                ? CSV_rowsToObjects(CSV_parse(data.clinics)) 
+                : data.clinics;
+            
+            CLINICS = mapClinicsCsvToObjects(clinicsParsed);
+        }
+
+        // 2. Load Extensions
+        if (data.extensions) {
+            EXT = typeof data.extensions === 'string' 
+                ? JSON.parse(data.extensions) 
+                : data.extensions;
+            buildExtensionsIndex();
+        }
+
+        // 3. Initialize APP_DATA container if not already present
+        window.APP_DATA = window.APP_DATA || {};
+
+        // 4. Load Providers Schedule
+        if (data.providersSched) {
+            const provRows = typeof data.providersSched === 'string'
+                ? CSV_rowsToObjects(CSV_parse(data.providersSched))
+                : data.providersSched;
 
             // Group providers by their clinic short code (e.g., "ESV", "OXN")
             window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
                 const code = String(row['Health Center'] || '').trim().toUpperCase();
-                if (!acc[code])
-                    acc[code] = [];
+                if (!acc[code]) acc[code] = [];
                 acc[code].push(row);
                 return acc;
             }, {});
         }
 
-        // 3. Load Extensions and map by "code"
-        EXT = await safeJson('extensions.json') ?? {};
-        buildExtensionsIndex();
+        // Store any extra datasets in APP_DATA if your UI needs them elsewhere
+        window.APP_DATA.clinicsDirectory = data.clinicsDirectory;
+        window.APP_DATA.mainProviders = data.mainProviders;
+        window.APP_DATA.providerClinicDates = data.providerClinicDates;
+        window.APP_DATA.providersNpi = data.providersNpi;
+
+        console.log("✅ Datos cargados y mapeados exitosamente.");
+
+    } catch (err) {
+        console.error("❌ Error fetching data from flow URL:", err);
     }
+}
 
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items))
