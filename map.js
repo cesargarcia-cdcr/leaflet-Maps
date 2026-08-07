@@ -52,7 +52,7 @@ async function loadData() {
         }
 
         if (!flowUrl) {
-            throw new Error("No se encontró la flowUrl ni en los parámetros de la URL ni en el atributo data- del iframe.");
+            throw new Error("No se encontró la flowUrl ni en los parámetros de la URL ni en el atributo data-.");
         }
 
         const response = await fetch(flowUrl, {
@@ -69,73 +69,67 @@ async function loadData() {
 
         const result = await response.json();
         const records = result.clinics || [];
-        const extensions = result.extensions || [];
 
         const out = [], seen = new Set();
 
         for (const item of records) {
-            // Map SharePoint fields precisely based on your clinics-list headers
-            const code = item.code || item.Title || item.crbab_code;
-            const plusCode = item.plusCode || item.field_12 || item.crbab_pluscode || "";
-            const name = item.name || item.field_2 || item.crbab_name || "";
+            // Code and plusCode are captured for marker placement/internal keys only
+            const code = item.code || "";
+            const plusCode = item.plusCode || "";
+            const name = item.name || "";
 
             const addr = [
-                item.address || item.field_3 || item.crbab_address,
-                item.city || item.field_4 || item.crbab_city,
-                item.state || item.field_5 || item.crbab_state,
-                item.zipCode || item.field_6 || item.crbab_zipcode
+                item.address,
+                item.city,
+                item.state,
+                item.zip
             ].filter(Boolean).join(', ');
 
-            const lat = parseFloat(item.latitude || item.field_13 || item.crbab_latitude);
-            const lng = parseFloat(item.longitude || item.field_14 || item.crbab_longitude);
-
-            // Find all extension entries for this specific clinic code
-            const clinicExtensions = extensions.filter(e => (e.code === code) || (e.Title === code));
-
-            // Dynamically map extensions by section (e.g., medical, mh, dental, optical)
-            const sectionsMap = {};
-            clinicExtensions.forEach(ext => {
-                const sectionKey = (ext.section || "").toLowerCase().trim();
-                if (sectionKey) {
-                    sectionsMap[sectionKey] = {
-                        name: ext.name || "",
-                        front: ext.front || "",
-                        back: ext.back || "",
-                        phone: ext.phone || "",
-                        fax: ext.fax || ""
-                    };
-                }
-            });
+            const lat = parseFloat(item.latitude);
+            const lng = parseFloat(item.longitude);
 
             const clinic = {
-                clinicId: item.clinicId || item.ItemInternalId || item.ID || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
-                code: code,
+                clinicId: name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
+                code: code,          // Used internally for markers/lookup
+                plusCode: plusCode,  // Used internally for mapping
                 name: name,
-                plusCode: plusCode,
                 address: addr,
-                nicknames: item.nicknames || "",
                 lat: isNaN(lat) ? null : lat,
                 lng: isNaN(lng) ? null : lng,
-                operationHours: item.operationHours || "",
-                crossStreets: item.crossStreets || "",
-                offeredServices: item.offeredServices || "",
-                extName: item.extName || "",
-                sections: sectionsMap,
-                // Backward compatibility fallback if your UI code reads directly from clinic.medical
-                medical: sectionsMap['medical'] || { front: '', back: '', phone: '', fax: '' }
+                
+                // Mapped department structures matching your exact schema
+                medical: {
+                    front: item.medical?.front || "",
+                    back: item.medical?.back || "",
+                    phone: item.medical?.phone || "",
+                    fax: item.medical?.fax || ""
+                },
+                optical: {
+                    ext: item.optical?.ext || "",
+                    phone: item.optical?.phone || ""
+                },
+                dental: {
+                    ext: item.dental?.ext || "",
+                    phone: item.dental?.phone || ""
+                },
+                mh: {
+                    ext: item.mh?.ext || "",
+                    phone: item.mh?.phone || ""
+                }
             };
 
-            if (code && !seen.has(code)) {
+            if (name && !seen.has(name)) {
                 out.push(clinic);
-                seen.add(code);
+                seen.add(name);
             }
         }
 
-        CLINICS = out;
-        console.log(`Successfully loaded ${CLINICS.length} clinics and ${extensions.length} extensions via Power Automate!`);
+        // Expose globally so your UI panels and console checks can read it instantly
+        window.CLINICS = out;
+        console.log(`Successfully loaded ${window.CLINICS.length} clinics via map.js!`);
 
     } catch (error) {
-        console.error("Error fetching clinic data via Power Automate:", error);
+        console.error("Error fetching clinic data:", error);
     }
 }
    
