@@ -83,22 +83,30 @@
 
         try {
             const r = await fetch(flowUrl, {
-                method: "POST", // Must be POST for manual/HTTP triggers
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({}) // ⚠️ Crucial: Power Automate requires a JSON body payload
+                body: JSON.stringify({})
             });
 
             if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`);
-            EXT = await r.json();
+            
+            // 🔍 Debug: Grab the raw text first to inspect what Power Automate is sending back
+            const rawText = await r.text();
+            console.log("Raw Flow Response:", rawText);
+
+            if (!rawText) {
+                throw new Error("Flow returned an empty response body.");
+            }
+
+            EXT = JSON.parse(rawText);
             buildClinicsFromJSON();
         } catch (err) {
             console.error('Flow URL fetch failed:', err);
-            showErrorNotification('⚠️ Error: Could not load data from the Flow URL (check CORS or URL validity).');
+            showErrorNotification('⚠️ Error: Could not load data from the Flow URL (check console).');
         }
     }
-
     function buildClinicsFromJSON() {
         CLINICS = [];
         for (const code in EXT) {
