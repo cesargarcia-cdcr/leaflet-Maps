@@ -37,7 +37,6 @@
             display: flex;
         }
 
-        /* === Header matching reference UI === */
         #clinic-panel-header {
             padding: 14px 16px;
             background: #ffffff;
@@ -93,7 +92,6 @@
             color: #111827;
         }
 
-        /* === Content Area === */
         #clinic-panel-content {
             flex: 1;
             overflow-y: auto;
@@ -101,7 +99,6 @@
             background: #ffffff;
         }
 
-        /* Extensions Banner */
         .extensions-banner {
             display: flex;
             align-items: center;
@@ -116,7 +113,6 @@
             border: 1px solid #dbeafe;
         }
 
-        /* Department Blocks */
         .clinic-department-block {
             margin-bottom: 14px;
             padding-bottom: 12px;
@@ -180,7 +176,7 @@
 
     <!-- Search Bar -->
     <div id="search-container">
-        <input type="text" id="searchInput" placeholder="Buscar dirección o Plus Code..." onkeydown="if(event.key === 'Enter') findNearest();" />
+        <input type="text" id="searchInput" placeholder="Buscar dirección..." />
         <button onclick="findNearest()">Buscar</button>
         <button onclick="clearSearch()" title="Limpiar">✕</button>
     </div>
@@ -190,7 +186,7 @@
         <div id="map"></div>
     </div>
 
-    <!-- Clinic Details Panel -->
+    <!-- Clinic Details Panel (Excludes code & plusCode entirely) -->
     <div id="clinic-details-panel">
         <div id="clinic-panel-header">
             <div id="clinic-panel-header-content">
@@ -198,7 +194,7 @@
                 <h2 id="clinic-panel-name"></h2>
                 <div class="clinic-panel-address" id="clinic-panel-address"></div>
             </div>
-            <button class="clinic-panel-close-btn" onclick="clearSearch()">✕</button>
+            <button class="clinic-panel-close-btn" onclick="closeClinicPanel()">✕</button>
         </div>
         <div id="clinic-panel-content"></div>
     </div>
@@ -214,7 +210,6 @@
         let currentClinic = null;
         const panel = document.getElementById('clinic-details-panel');
 
-        // === BRIDGE HOOK FOR map.js ===
         window.selectClinicPanel = function(clinic) {
             if (!clinic) {
                 closeClinicPanel();
@@ -224,12 +219,8 @@
             displayClinicDetails(clinic);
         };
 
-        // === RENDER CLINIC DETAILS MAPPING SECTIONS DYNAMICALLY ===
         function displayClinicDetails(clinic) {
-            if (!clinic) {
-                closeClinicPanel();
-                return;
-            }
+            if (!clinic) return;
 
             document.getElementById('clinic-panel-name').textContent = clinic.name || 'Sin nombre';
             document.getElementById('clinic-panel-address').textContent = clinic.address || '';
@@ -240,69 +231,52 @@
                 </div>
             `;
 
-            const sections = clinic.sections || {};
-            const sectionKeys = Object.keys(sections);
+            let hasSections = false;
 
-            if (sectionKeys.length === 0) {
-                contentHtml += `<div style="font-size: 12px; color: #6b7280; text-align: center; padding: 10px;">No hay extensiones disponibles para esta clínica.</div>`;
-            } else {
-                for (const key of sectionKeys) {
-                    const sec = sections[key];
-                    const displayName = key.charAt(0).toUpperCase() + key.slice(1);
+            // Helper renderer for department blocks
+            function renderDept(title, data) {
+                if (!data) return;
+                const hasData = Object.values(data).some(val => val && val.trim() !== '');
+                if (!hasData) return;
 
-                    contentHtml += `
-                        <div class="clinic-department-block">
-                            <div class="clinic-department-header">
-                                <span class="clinic-department-title">🔹 ${escapeHtml(displayName)}</span>
-                                ${sec.phone ? `<span class="clinic-department-phone">${escapeHtml(sec.phone)}</span>` : ''}
-                            </div>
-                            ${sec.front ? `<div class="clinic-sub-row"><span class="clinic-sub-label">FRONT</span><span class="clinic-sub-value">${escapeHtml(sec.front)}</span></div>` : ''}
-                            ${sec.back ? `<div class="clinic-sub-row"><span class="clinic-sub-label">BACK</span><span class="clinic-sub-value">${escapeHtml(sec.back)}</span></div>` : ''}
-                            ${sec.ext ? `<div class="clinic-sub-row"><span class="clinic-sub-label">EXT</span><span class="clinic-sub-value">${escapeHtml(sec.ext)}</span></div>` : ''}
-                            ${sec.fax ? `<div class="clinic-sub-row"><span class="clinic-sub-label">FAX</span><span class="clinic-sub-value">${escapeHtml(sec.fax)}</span></div>` : ''}
+                hasSections = true;
+                contentHtml += `
+                    <div class="clinic-department-block">
+                        <div class="clinic-department-header">
+                            <span class="clinic-department-title">🔹 ${escapeHtml(title)}</span>
+                            ${data.phone ? `<span class="clinic-department-phone">${escapeHtml(data.phone)}</span>` : ''}
                         </div>
-                    `;
-                }
+                        ${data.front ? `<div class="clinic-sub-row"><span class="clinic-sub-label">FRONT</span><span class="clinic-sub-value">${escapeHtml(data.front)}</span></div>` : ''}
+                        ${data.back ? `<div class="clinic-sub-row"><span class="clinic-sub-label">BACK</span><span class="clinic-sub-value">${escapeHtml(data.back)}</span></div>` : ''}
+                        ${data.ext ? `<div class="clinic-sub-row"><span class="clinic-sub-label">EXT</span><span class="clinic-sub-value">${escapeHtml(data.ext)}</span></div>` : ''}
+                        ${data.fax ? `<div class="clinic-sub-row"><span class="clinic-sub-label">FAX</span><span class="clinic-sub-value">${escapeHtml(data.fax)}</span></div>` : ''}
+                    </div>
+                `;
+            }
+
+            renderDept('Medical', clinic.medical);
+            renderDept('Optical', clinic.optical);
+            renderDept('Dental', clinic.dental);
+            renderDept('Mental Health', clinic.mh);
+
+            if (!hasSections) {
+                contentHtml += `<div style="font-size: 12px; color: #6b7280; text-align: center; padding: 10px;">No hay información de extensiones disponible.</div>`;
             }
 
             document.getElementById('clinic-panel-content').innerHTML = contentHtml;
             panel.classList.add('visible');
         }
 
-        // === CLOSE / HIDE PANEL ===
         function closeClinicPanel() {
             panel.classList.remove('visible');
             currentClinic = null;
         }
 
-        // === XSS SANITIZER ===
         function escapeHtml(text) {
             if (!text) return '';
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
             return String(text).replace(/[&<>"']/g, m => map[m]);
         }
-
-        // === IFRAME POSTMESSAGE LISTENER ===
-        window.addEventListener('message', (event) => {
-            try {
-                const data = event.data;
-                if (!data || typeof data !== 'object') return;
-
-                if (data.type === 'CLINIC_SELECTED') {
-                    window.selectClinicPanel(data.clinic);
-                } else if (data.type === 'CLINIC_DESELECTED') {
-                    closeClinicPanel();
-                }
-            } catch (error) {
-                console.error('Error handling message:', error);
-            }
-        });
     </script>
 </body>
 </html>
