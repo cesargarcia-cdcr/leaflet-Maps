@@ -3,6 +3,30 @@
 
 (function () {
 
+    /* ---------- Sincronización Global de Archivos CSV y Datos ---------- */
+window.APP_DATA = window.APP_DATA || {};
+
+// Función auxiliar para exponer texto CSV o convertirlo en objetos JSON listos para usarse
+async function fetchAndExposeCsv(url, globalKeyAsObject = true) {
+    try {
+        const response = await fetch(url, { cache: 'no-cache' });
+        if (!response.ok) return null;
+        const text = await response.text();
+        
+        // Guardar la versión de texto plano por si algún script la requiere tal cual
+        window.APP_DATA[`${globalKeyAsObject}_rawText`] = text;
+
+        if (globalKeyAsObject && typeof CSV_parse === 'function' && typeof CSV_rowsToObjects === 'function') {
+            const rows = CSV_parse(text);
+            return CSV_rowsToObjects(rows);
+        }
+        return text;
+    } catch (err) {
+        console.error(`❌ Error al jalar el archivo desde: ${url}`, err);
+        return null;
+    }
+}
+    
     /* ======= Sidebar / burger ======= */
     function enforceCollapsedSidebar() {
         const sidebar = document.querySelector('.sidebar');
