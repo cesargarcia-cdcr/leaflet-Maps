@@ -38,7 +38,6 @@ async function loadData() {
         const encodedData = urlParams.get('data');
         if (encodedData) {
             try {
-                // If the user pastes a raw URL directly for testing instead of Base64, handle it gracefully
                 if (encodedData.startsWith('http://') || encodedData.startsWith('https://')) {
                     flowUrl = encodedData;
                 } else {
@@ -55,16 +54,8 @@ async function loadData() {
             flowUrl = urlParams.get('flowUrl');
         }
 
-        // 3. Fallback check for iframe data- attribute or direct local testing injection
         if (!flowUrl) {
-            const iframeElement = window.parentElement?.querySelector('iframe') || document.querySelector('[data-flow-url]');
-            if (iframeElement) {
-                flowUrl = iframeElement.getAttribute('data-flow-url');
-            }
-        }
-
-        if (!flowUrl) {
-            throw new Error("No se encontró la flowUrl en los parámetros de la URL ni en el contexto del iframe.");
+            throw new Error("No se encontró la flowUrl en los parámetros de la URL.");
         }
 
         const response = await fetch(flowUrl, {
@@ -80,12 +71,13 @@ async function loadData() {
         }
 
         const result = await response.json();
-        const records = result.clinics || [];
+        
+        // Flexible fallback to catch records whether wrapped in .clinics, .value, or returned as an array directly
+        const records = Array.isArray(result) ? result : (result.clinics || result.value || result.data || []);
 
         const out = [], seen = new Set();
 
         for (const item of records) {
-            // Code and plusCode are stored strictly for marker placement and internal logic
             const code = item.code || "";
             const plusCode = item.plusCode || "";
             const name = item.name || "";
@@ -102,14 +94,13 @@ async function loadData() {
 
             const clinic = {
                 clinicId: name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
-                code: code,          // Internal tracking/marker reference
-                plusCode: plusCode,  // Internal mapping reference
+                code: code,
+                plusCode: plusCode,
                 name: name,
                 address: addr,
                 lat: isNaN(lat) ? null : lat,
                 lng: isNaN(lng) ? null : lng,
                 
-                // Nested department schema mapping
                 medical: {
                     front: item.medical?.front || "",
                     back: item.medical?.back || "",
@@ -137,7 +128,7 @@ async function loadData() {
         }
 
         CLINICS = out;
-        window.CLINICS = out; // Ensure global availability for console/UI inspection
+        window.CLINICS = out;
         
         console.log(`Successfully loaded ${CLINICS.length} clinics!`);
         initMap();
@@ -148,16 +139,21 @@ async function loadData() {
 }
 
 function initMap() {
+    // Initialize map container once
     if (!map) {
         map = L.map('map').setView([34.22, -119.15], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '© OpenStreetMap'
         }).addTo(map);
-        markersLayer = L.layerGroup().addTo(map);
     }
 
-    markersLayer.clearLayers();
+    // Ensure markersLayer exists safely before calling methods on it
+    if (!markersLayer) {
+        markersLayer = L.layerGroup().addTo(map);
+    } else {
+        markersLayer.clearLayers();
+    }
 
     CLINICS.forEach(clinic => {
         if (clinic.lat && clinic.lng) {
