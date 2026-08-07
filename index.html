@@ -8,6 +8,61 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- Unified Styles -->
     <link rel="stylesheet" href="map.css">
+    <style>
+        /* Fixed right-side centered panel styling to override floating draggability bugs */
+        #clinic-details-panel {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            width: 380px;
+            max-height: 85vh;
+            background: #ffffff;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        #clinic-details-panel.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(-50%);
+        }
+
+        #clinic-panel-header {
+            padding: 16px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            background: #f9fafb;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+
+        #clinic-panel-content {
+            padding: 16px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .clinic-panel-close-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .clinic-panel-close-btn:hover {
+            color: #111827;
+        }
+    </style>
 </head>
 <body>
 
@@ -44,33 +99,7 @@
         'use strict';
 
         let currentClinic = null;
-        let isDragging = false;
-        let offsetX = 0;
-        let offsetY = 0;
-
         const panel = document.getElementById('clinic-details-panel');
-        const panelHeader = document.getElementById('clinic-panel-header');
-
-        // === MAKE PANEL DRAGGABLE ===
-        panelHeader.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            const rect = panel.getBoundingClientRect();
-            offsetX = e.clientX - rect.left;
-            offsetY = e.clientY - rect.top;
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                panel.style.right = 'auto';
-                panel.style.bottom = 'auto';
-                panel.style.left = (e.clientX - offsetX) + 'px';
-                panel.style.top = (e.clientY - offsetY) + 'px';
-            }
-        });
-
-        document.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
 
         // === EXPOSE CLINIC SELECTION TO MAP.JS ===
         window.selectClinicPanel = function(clinic) {
@@ -121,7 +150,6 @@
                         contentHtml += `<div class="clinic-department-detail"><strong>Departamento:</strong> ${escapeHtml(sectionData.name)}</div>`;
                     }
 
-                    // Contact information
                     const hasPhone = sectionData.phone || false;
                     const hasFax = sectionData.fax || false;
 
@@ -182,10 +210,9 @@
                 if (!data || typeof data !== 'object') return;
 
                 if (data.type === 'CLINIC_SELECTED') {
-                    // Map posts selection via postMessage — display it here
                     currentClinic = data.clinic;
                     displayClinicDetails(currentClinic);
-                } else if (data.type === 'CLINIC_DESELECTED') {
+                } else if (data.type === 'CLINIC_DES') {
                     currentClinic = null;
                     closeClinicPanel();
                 }
@@ -194,20 +221,10 @@
             }
         });
 
-        // Notify parent (or other frames) that details panel is ready
-        if (window.parent !== window) {
-            window.parent.postMessage({
-                type: 'CLINIC_DETAILS_READY',
-                timestamp: new Date().toISOString()
-            }, '*');
-        }
-
         // === PAGE LOAD ===
         window.addEventListener('load', () => {
             const mapSection = document.getElementById('map-section');
             if (mapSection) {
-                mapSection.style.maxWidth = '';
-                mapSection.style.maxHeight = '';
                 mapSection.style.width = '100%';
                 mapSection.style.height = '100%';
             }
