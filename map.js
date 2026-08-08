@@ -47,15 +47,6 @@ async function loadData() {
 
         // 1. Initialize global APP_DATA container
         window.APP_DATA = window.APP_DATA || {};
-
-        console.log("✅ Datos centralizados cargados y mapeados exitosamente en window.APP_DATA.");
-
-        // 🗺️ Asegurar que el mapa pinte los pines una vez que los datos existen
-        if (typeof window.renderMapMarkers === 'function') {
-            window.renderMapMarkers();
-        } else if (typeof window.AppMap?.refresh === 'function') {
-            window.AppMap.refresh();
-        }
         
         // 2. Parse & Store Clinics
         if (data.clinics) {
@@ -118,6 +109,13 @@ async function loadData() {
         }
 
         console.log("✅ Datos centralizados cargados y mapeados exitosamente en window.APP_DATA.");
+
+        // 🗺️ Asegurar que el mapa pinte los pines una vez que los datos existen
+        if (typeof window.renderMapMarkers === 'function') {
+            window.renderMapMarkers();
+        } else if (typeof window.AppMap?.refresh === 'function') {
+            window.AppMap.refresh();
+        }
 
     } catch (err) {
         console.error("❌ Error fetching data from flow URL:", err);
