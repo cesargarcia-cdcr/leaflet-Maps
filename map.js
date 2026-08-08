@@ -9,7 +9,6 @@
     searchLine = null,
     markersLayer = null;
 
-    /* ---------- Flow URL & Parameter Extraction ---------- */
     /* ---------- Data Load via Power Automate Flow ---------- */
 function getFlowUrl() {
     const params = new URLSearchParams(window.location.search);
@@ -52,9 +51,6 @@ function getFlowUrl() {
         }
     };
 
-    /* ---------- Data Load ---------- */
-/* ---------- Data Load ---------- */
-/* ---------- Data Load ---------- */
 /* ---------- Data Load ---------- */
 async function loadData() {
     console.log("🔍 [MAP_LOG] 1. Iniciando loadData()...");
@@ -136,24 +132,31 @@ async function loadData() {
                 ? CSV_rowsToObjects(CSV_parse(cleanExt)) 
                 : (Array.isArray(cleanExt) ? cleanExt : []);
             
-            // Imprimir la primera fila en la consola para ver las llaves exactas del CSV
-            if (EXT.length > 0) {
-                console.log("🔍 [EXT_DEBUG] Columnas disponibles en extensions.csv:", Object.keys(EXT[0]));
-                console.log("🔍 [EXT_DEBUG] Ejemplo de la primera fila:", EXT[0]);
-            }
-
+            // 🎯 Normalización avanzada de códigos (elimina espacios y unifica guiones/guiones bajos)
             EXT_BY_CODE = {};
             for (const row of EXT) {
-                // Revisa aquí si alguna de estas llaves coincide con tu CSV
-                const code = String(row['code'] || row['Clinic'] || row['ClinicCode'] || '').trim().toUpperCase();
-                if (code) {
-                    if (!EXT_BY_CODE[code]) EXT_BY_CODE[code] = [];
-                    EXT_BY_CODE[code].push(row);
+                const rawCode = String(row['code'] || row['Clinic'] || row['ClinicCode'] || '').trim();
+                // Generar múltiples variantes de la llave para garantizar que encuentre coincidencia
+                const variants = [
+                    rawCode.toUpperCase(),
+                    rawCode.toUpperCase().replace(/_/g, ' '),
+                    rawCode.toUpperCase().replace(/\s+/g, '_')
+                ];
+                
+                for (const code of variants) {
+                    if (code) {
+                        if (!EXT_BY_CODE[code]) EXT_BY_CODE[code] = [];
+                        // Evitar duplicados exactos en la misma variante
+                        if (!EXT_BY_CODE[code].includes(row)) {
+                            EXT_BY_CODE[code].push(row);
+                        }
+                    }
                 }
             }
 
-            console.log(`📞 [MAP_LOG] Extensiones procesadas correctamente. Total: ${EXT.length}, Códigos indexados: ${Object.keys(EXT_BY_CODE).length}`);
+            console.log(`📞 [MAP_LOG] Extensiones procesadas correctamente. Total: ${EXT.length}, Variantes de códigos indexadas: ${Object.keys(EXT_BY_CODE).length}`);
         }
+        
         // 4. Store remaining tables globally in window.APP_DATA for pickers and popovers
         window.APP_DATA = window.APP_DATA || {};
         if (data.clinicsDirectory) {
