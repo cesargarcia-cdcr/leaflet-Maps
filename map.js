@@ -132,11 +132,14 @@ async function loadData() {
         // 3. Load Extensions
         if (data.extensions) {
             const cleanExt = decodeFlowField(data.extensions);
+            
+            // Forzar siempre a que EXT sea un arreglo de objetos plano para renderSelectedClinic
             EXT = typeof cleanExt === 'string' 
                 ? CSV_rowsToObjects(CSV_parse(cleanExt)) 
                 : (Array.isArray(cleanExt) ? cleanExt : []);
+            
             buildExtensionsIndex();
-            console.log("📞 [MAP_LOG] Extensiones procesadas correctamente.");
+            console.log("📞 [MAP_LOG] Extensiones procesadas correctamente. Total:", EXT.length);
         }
 
         // 4. Store remaining tables globally in window.APP_DATA for pickers and popovers
