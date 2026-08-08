@@ -9,35 +9,6 @@
     searchLine = null,
     markersLayer = null;
 
-    /* ---------- Utilities ---------- */
-    async function safeJson(url) {
-        try {
-            const r = await fetch(url, {
-                cache: 'no-cache'
-            });
-            if (!r.ok)
-                return null;
-            return await r.json();
-        } catch (_) {
-            return null;
-        }
-    }
-    const store = {
-        get(k, d) {
-            try {
-                const v = localStorage.getItem(k);
-                return v ?? d;
-            } catch (_) {
-                return d
-            }
-        },
-        set(k, v) {
-            try {
-                localStorage.setItem(k, v)
-            } catch (_) {}
-        }
-    };
-
     /* ---------- Flow URL & Parameter Extraction ---------- */
     /* ---------- Data Load via Power Automate Flow ---------- */
 function getFlowUrl() {
@@ -77,6 +48,15 @@ async function loadData() {
         // 1. Initialize global APP_DATA container
         window.APP_DATA = window.APP_DATA || {};
 
+        console.log("✅ Datos centralizados cargados y mapeados exitosamente en window.APP_DATA.");
+
+        // 🗺️ Asegurar que el mapa pinte los pines una vez que los datos existen
+        if (typeof window.renderMapMarkers === 'function') {
+            window.renderMapMarkers();
+        } else if (typeof window.AppMap?.refresh === 'function') {
+            window.AppMap.refresh();
+        }
+        
         // 2. Parse & Store Clinics
         if (data.clinics) {
             const rawClinics = typeof data.clinics === 'string' 
@@ -143,6 +123,37 @@ async function loadData() {
         console.error("❌ Error fetching data from flow URL:", err);
     }
 }
+    
+    /* ---------- Utilities ---------- */
+    async function safeJson(url) {
+        try {
+            const r = await fetch(url, {
+                cache: 'no-cache'
+            });
+            if (!r.ok)
+                return null;
+            return await r.json();
+        } catch (_) {
+            return null;
+        }
+    }
+    const store = {
+        get(k, d) {
+            try {
+                const v = localStorage.getItem(k);
+                return v ?? d;
+            } catch (_) {
+                return d
+            }
+        },
+        set(k, v) {
+            try {
+                localStorage.setItem(k, v)
+            } catch (_) {}
+        }
+    };
+
+
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items))
             return [];
