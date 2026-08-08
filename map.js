@@ -79,14 +79,25 @@ async function loadData() {
         const data = await response.json();
         console.log("✅ [MAP_LOG] 4. JSON recibido del flujo con éxito. Claves disponibles:", Object.keys(data));
 
-        // 1. Load Clinics (Source of truth for keys)
+  // 1. Load Clinics (Source of truth for keys)
         if (data.clinics) {
-            console.log("⚙️ [MAP_LOG] 5. Procesando datos de clínicas...");
-            const clinicsTxt = data.clinics;
-            const parsedClinics = typeof clinicsTxt === 'string' 
-                ? CSV_rowsToObjects(CSV_parse(clinicsTxt)) 
-                : clinicsTxt;
+            console.log("⚙️ [MAP_LOG] 5. Procesando datos de clínicas...", data.clinics);
             
+            let clinicsSource = data.clinics;
+            // Si viene envuelto en un objeto de Power Automate
+            if (typeof clinicsSource === 'object' && clinicsSource !== null) {
+                clinicsSource = clinicsSource.body || clinicsSource.value || clinicsSource.content || clinicsSource;
+            }
+
+            let parsedClinics = [];
+            if (typeof clinicsSource === 'string') {
+                // Normalizar saltos de línea por si el flujo usa formato de Windows (\r\n)
+                const cleanCsv = clinicsSource.replace(/\r\n/g, '\n');
+                parsedClinics = CSV_rowsToObjects(CSV_parse(cleanCsv));
+            } else if (Array.isArray(clinicsSource)) {
+                parsedClinics = clinicsSource;
+            }
+
             CLINICS = mapClinicsCsvToObjects(parsedClinics);
             console.log(`🏥 [MAP_LOG] Clínicas mapeadas correctamente: ${CLINICS.length} registros.`);
         } else {
