@@ -427,6 +427,8 @@ async function addMarkers() {
 
     /* ---------- Centrado Inteligente dejando espacio para el Panel ---------- */
     function selectClinic(c) {
+        console.log("🎯 [CLINIC_CLICKED] Clínica seleccionada:", c);
+        console.log("📞 [EXT_LOOKUP] Buscando extensiones para el código:", c.code, "-> Resultado:", EXT_BY_CODE[c.code] || EXT_BY_CODE[String(c.code).trim().toUpperCase()]);
         renderSelectedClinic(c);
 
         map.fitBounds(L.latLngBounds([[c.lat, c.lng]]), {
