@@ -54,14 +54,19 @@ function getFlowUrl() {
 
     /* ---------- Data Load ---------- */
 /* ---------- Data Load ---------- */
+/* ---------- Data Load ---------- */
 async function loadData() {
+    console.log("🔍 [MAP_LOG] 1. Iniciando loadData()...");
+    
     const flowUrl = getFlowUrl();
     if (!flowUrl) {
-        console.warn("⚠️ No flow URL provided in query parameters (?data=...).");
+        console.warn("⚠️ [MAP_LOG] No flow URL provided in query parameters (?data=...).");
         return;
     }
+    console.log("📡 [MAP_LOG] 2. URL del flujo obtenida correctamente:", flowUrl);
 
     try {
+        console.log("⏳ [MAP_LOG] 3. Ejecutando fetch al flujo...");
         const response = await fetch(flowUrl, {
             method: 'GET',
             headers: { 'Accept': 'application/json' }
@@ -72,14 +77,20 @@ async function loadData() {
         }
 
         const data = await response.json();
+        console.log("✅ [MAP_LOG] 4. JSON recibido del flujo con éxito. Claves disponibles:", Object.keys(data));
 
         // 1. Load Clinics (Source of truth for keys)
         if (data.clinics) {
+            console.log("⚙️ [MAP_LOG] 5. Procesando datos de clínicas...");
             const clinicsTxt = data.clinics;
             const parsedClinics = typeof clinicsTxt === 'string' 
                 ? CSV_rowsToObjects(CSV_parse(clinicsTxt)) 
                 : clinicsTxt;
+            
             CLINICS = mapClinicsCsvToObjects(parsedClinics);
+            console.log(`🏥 [MAP_LOG] Clínicas mapeadas correctamente: ${CLINICS.length} registros.`);
+        } else {
+            console.warn("⚠️ [MAP_LOG] El flujo no devolvió la propiedad 'clinics'.");
         }
 
         // 2. Load Providers and map by "Health Center" code
@@ -97,19 +108,34 @@ async function loadData() {
                 acc[code].push(row);
                 return acc;
             }, {});
+            console.log(`👨‍⚕️ [MAP_LOG] Proveedores mapeados por código. Filas totales: ${provRows.length}`);
+        } else {
+            console.warn("⚠️ [MAP_LOG] El flujo no devolvió la propiedad 'providersSched'.");
         }
 
         // 3. Load Extensions (now as CSV from flow) and map by "code"
         if (data.extensions) {
             const extTxt = data.extensions;
-            EXT = typeof extTxt === 'string'
-                ? CSV_rowsToObjects(CSV_parse(extTxt))
+            EXT = typeof extTxt === 'string' 
+                ? CSV_rowsToObjects(CSV_parse(extTxt)) 
                 : (Array.isArray(extTxt) ? extTxt : []);
             buildExtensionsIndex();
+            console.log("📞 [MAP_LOG] Extensiones procesadas correctamente.");
+        } else {
+            console.warn("⚠️ [MAP_LOG] El flujo no devolvió la propiedad 'extensions'.");
+        }
+
+        // 🗺️ LLAMADA OBLIGATORIA AL TERMINAR LA CARGA PARA PINTAR LOS PINS
+        console.log("📍 [MAP_LOG] 6. Disparando addMarkers() y populateClinicPickers()...");
+        if (typeof addMarkers === 'function') {
+            await addMarkers();
+        }
+        if (typeof populateClinicPickers === 'function') {
+            populateClinicPickers();
         }
 
     } catch (err) {
-        console.error("❌ Error fetching data from flow URL:", err);
+        console.error("❌ [MAP_LOG] Error fetching data from flow URL:", err);
     }
 }
 
@@ -282,70 +308,68 @@ async function loadData() {
     }
 
     /* ---------- Markers ---------- */
-    async function addMarkers() {
-        if (markersLayer) {
-            map.removeLayer(markersLayer);
-            markersLayer = null;
-        }
-        markersLayer = L.layerGroup().addTo(map);
-        const bounds = L.latLngBounds();
+/* ---------- Markers ---------- */
+async function addMarkers() {
+    if (markersLayer) {
+        map.removeLayer(markersLayer);
+        markersLayer = null;
+    }
+    markersLayer = L.layerGroup().addTo(map);
+    const bounds = L.latLngBounds();
 
-        // 🎯 SOLUCIÓN AL DESFASE: Forzar a Leaflet a usar un anclaje centrado abajo del pin
-        const clinicIcon = L.icon({
-            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-            iconSize: [25, 41],         // Dimensiones nativas de la imagen del marcador
-            iconAnchor: [12, 41],       // ⚠️ Eje X centrado (12) y Eje Y en la punta inferior (41)
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
+    // 🎯 SOLUCIÓN AL DESFASE: Forzar a Leaflet a usar un anclaje centrado abajo del pin
+    const clinicIcon = L.icon({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        iconSize: [25, 41],         // Dimensiones nativas de la imagen del marcador
+        iconAnchor: [12, 41],       // ⚠️ Eje X centrado (12) y Eje Y en la punta inferior (41)
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
+    for (const c of CLINICS) {
+        let lat = c.lat;
+        let lng = c.lng;
+
+        // Decodificación directa desde la columna Plus Code de tu CSV de clínicas
+        const plusDecoded = await tryDecodePlusCode(c.plusCode);
+        if (plusDecoded) {
+            lat = plusDecoded.lat;
+            lng = plusDecoded.lng;
+            // console.log(`📍 Using precise Plus Code for ${c.code}: ${lat}, ${lng}`);
+        }
+
+        if (typeof lat !== 'number' || typeof lng !== 'number') {
+            console.warn(`⚠️ Skipping marker for ${c.name}: No valid coordinates.`);
+            continue;
+        }
+
+        // Aplicamos el icon de anclaje corregido aquí para fijar la marca al mapa
+        const m = L.marker([lat, lng], { icon: clinicIcon }).addTo(markersLayer);
+        
+        // Vincular la etiqueta flotante usando los estilos de tu map.css (.clinic-label)
+        m.bindTooltip(c.code, {
+            permanent: true,
+            direction: 'polygon', // 🎯 CAMBIO: Forzar centrado matemático absoluto horizontal
+            offset: [0, -42],     // Mantiene la elevación perfecta sobre la cabeza del pin
+            className: 'clinic-label'
         });
 
-        for (const c of CLINICS) {
-            let lat = c.lat;
-            let lng = c.lng;
+        m.on('click', () => selectClinic({
+            ...c,
+            lat,
+            lng
+        })); 
+        bounds.extend([lat, lng]);
+    } // 👈 Faltaba cerrar este bucle for
 
-            // Decodificación directa desde la columna Plus Code de tu CSV de clínicas
-            const plusDecoded = await tryDecodePlusCode(c.plusCode);
-            if (plusDecoded) {
-                lat = plusDecoded.lat;
-                lng = plusDecoded.lng;
-                // console.log(`📍 Using precise Plus Code for ${c.code}: ${lat}, ${lng}`);
-            }
-
-            if (typeof lat !== 'number' || typeof lng !== 'number') {
-                console.warn(`⚠️ Skipping marker for ${c.name}: No valid coordinates.`);
-                continue;
-            }
-
-            // Aplicamos el icon de anclaje corregido aquí para fijar la marca al mapa
-            const m = L.marker([lat, lng], { icon: clinicIcon }).addTo(markersLayer);
-            
-            // Vincular la etiqueta flotante usando los estilos de tu map.css (.clinic-label)
-            m.bindTooltip(c.code, {
-                permanent: true,
-                direction: 'polygon', // 🎯 CAMBIO: Forzar centrado matemático absoluto horizontal
-                offset: [0, -42],     // Mantiene la elevación perfecta sobre la cabeza del pin
-                className: 'clinic-label'
-            });
-
-            m.on('click', () => selectClinic({
-                ...c,
-                lat,
-                lng
-            })); 
-            bounds.extend([lat, lng]);
-        }
-
-        if (bounds.isValid()) {
-            map.fitBounds(bounds, {
-                padding: [40, 40]
-            });
-
-            if (map.getZoom() > 9) {
-                map.setZoom(10);
-            }
+    if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [40, 40] });
+        if (map.getZoom() > 9) {
+            map.setZoom(10);
         }
     }
+} 
 
     /* ---------- Centrado Inteligente dejando espacio para el Panel ---------- */
     function selectClinic(c) {
