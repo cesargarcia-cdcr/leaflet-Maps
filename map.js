@@ -55,6 +55,7 @@ function getFlowUrl() {
     /* ---------- Data Load ---------- */
 /* ---------- Data Load ---------- */
 /* ---------- Data Load ---------- */
+/* ---------- Data Load ---------- */
 async function loadData() {
     console.log("🔍 [MAP_LOG] 1. Iniciando loadData()...");
     
@@ -79,49 +80,43 @@ async function loadData() {
         const data = await response.json();
         console.log("✅ [MAP_LOG] 4. JSON recibido del flujo con éxito. Claves disponibles:", Object.keys(data));
 
-// 1. Load Clinics (Source of truth for keys)
-        if (data.clinics) {
-            console.log("⚙️ [MAP_LOG] 5. Procesando datos de clínicas...", data.clinics);
-            
-            let clinicsSource = data.clinics;
-            
-            // 🎯 Detectar si Power Automate lo envió envuelto o codificado en Base64
-            if (typeof clinicsSource === 'object' && clinicsSource !== null) {
-                const base64Content = clinicsSource.$content || clinicsSource.body || clinicsSource.value || clinicsSource.content;
-                if (base64Content && typeof base64Content === 'string' && base64Content.length > 100) {
+        // 🎯 Función auxiliar para limpiar y decodificar Base64 de cualquier propiedad del flujo
+        const decodeFlowField = (field) => {
+            if (!field) return null;
+            let source = field;
+            if (typeof source === 'object' && source !== null) {
+                const b64 = source.$content || source.body || source.value || source.content;
+                if (b64 && typeof b64 === 'string' && b64.length > 50) {
                     try {
-                        // Decodificar Base64 a texto CSV plano
-                        clinicsSource = atob(base64Content);
-                        console.log("🔓 [MAP_LOG] Contenido Base64 de clínicas decodificado con éxito.");
+                        source = atob(b64);
                     } catch (e) {
-                        console.warn("⚠️ [MAP_LOG] No se pudo decodificar Base64, intentando usar texto directo:", e);
-                        clinicsSource = base64Content;
+                        source = b64;
                     }
                 } else {
-                    clinicsSource = base64Content || clinicsSource;
+                    source = b64 || source;
                 }
             }
+            return typeof source === 'string' ? source.replace(/\r\n/g, '\n') : source;
+        };
 
-            let parsedClinics = [];
-            if (typeof clinicsSource === 'string') {
-                const cleanCsv = clinicsSource.replace(/\r\n/g, '\n');
-                parsedClinics = CSV_rowsToObjects(CSV_parse(cleanCsv));
-            } else if (Array.isArray(clinicsSource)) {
-                parsedClinics = clinicsSource;
-            }
-
+        // 1. Load Clinics
+        if (data.clinics) {
+            console.log("⚙️ [MAP_LOG] 5. Procesando datos de clínicas...");
+            const cleanClinics = decodeFlowField(data.clinics);
+            const parsedClinics = typeof cleanClinics === 'string' 
+                ? CSV_rowsToObjects(CSV_parse(cleanClinics)) 
+                : cleanClinics;
+            
             CLINICS = mapClinicsCsvToObjects(parsedClinics);
             console.log(`🏥 [MAP_LOG] Clínicas mapeadas correctamente: ${CLINICS.length} registros.`);
-        } else {
-            console.warn("⚠️ [MAP_LOG] El flujo no devolvió la propiedad 'clinics'.");
         }
-        
+
         // 2. Load Providers and map by "Health Center" code
         if (data.providersSched) {
-            const provTxt = data.providersSched;
-            const provRows = typeof provTxt === 'string'
-                ? CSV_rowsToObjects(CSV_parse(provTxt))
-                : (Array.isArray(provTxt) ? provTxt : []);
+            const cleanProv = decodeFlowField(data.providersSched);
+            const provRows = typeof cleanProv === 'string'
+                ? CSV_rowsToObjects(CSV_parse(cleanProv))
+                : (Array.isArray(cleanProv) ? cleanProv : []);
 
             window.APP_DATA = window.APP_DATA || {};
             window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
@@ -132,24 +127,42 @@ async function loadData() {
                 return acc;
             }, {});
             console.log(`👨‍⚕️ [MAP_LOG] Proveedores mapeados por código. Filas totales: ${provRows.length}`);
-        } else {
-            console.warn("⚠️ [MAP_LOG] El flujo no devolvió la propiedad 'providersSched'.");
         }
 
-        // 3. Load Extensions (now as CSV from flow) and map by "code"
+        // 3. Load Extensions
         if (data.extensions) {
-            const extTxt = data.extensions;
-            EXT = typeof extTxt === 'string' 
-                ? CSV_rowsToObjects(CSV_parse(extTxt)) 
-                : (Array.isArray(extTxt) ? extTxt : []);
+            const cleanExt = decodeFlowField(data.extensions);
+            EXT = typeof cleanExt === 'string' 
+                ? CSV_rowsToObjects(CSV_parse(cleanExt)) 
+                : (Array.isArray(cleanExt) ? cleanExt : []);
             buildExtensionsIndex();
             console.log("📞 [MAP_LOG] Extensiones procesadas correctamente.");
-        } else {
-            console.warn("⚠️ [MAP_LOG] El flujo no devolvió la propiedad 'extensions'.");
         }
 
-        // 🗺️ LLAMADA OBLIGATORIA AL TERMINAR LA CARGA PARA PINTAR LOS PINS
-        console.log("📍 [MAP_LOG] 6. Disparando addMarkers() y populateClinicPickers()...");
+        // 4. Store remaining tables globally in window.APP_DATA for pickers and popovers
+        window.APP_DATA = window.APP_DATA || {};
+        if (data.clinicsDirectory) {
+            const cd = decodeFlowField(data.clinicsDirectory);
+            window.APP_DATA.clinicsDirectory = typeof cd === 'string' ? CSV_rowsToObjects(CSV_parse(cd)) : cd;
+        }
+        if (data.mainProviders) {
+            const mp = decodeFlowField(data.mainProviders);
+            window.APP_DATA.mainProviders = mp;
+            window.APP_DATA.Main_Providers_csv = typeof mp === 'string' ? CSV_rowsToObjects(CSV_parse(mp)) : (Array.isArray(mp) ? mp : []);
+        }
+        if (data.providerClinicDates) {
+            const pcd = decodeFlowField(data.providerClinicDates);
+            window.APP_DATA.providerClinicDates = typeof pcd === 'string' ? CSV_rowsToObjects(CSV_parse(pcd)) : pcd;
+        }
+        if (data.providersNpi) {
+            const pn = decodeFlowField(data.providersNpi);
+            window.APP_DATA.providersNpi = typeof pn === 'string' ? CSV_rowsToObjects(CSV_parse(pn)) : pn;
+        }
+
+        console.log("✨ [MAP_LOG] 6. Todos los datos centralizados cargados y decodificados.");
+
+        // 🗺️ Disparar la creación de pines y selectores
+        console.log("📍 [MAP_LOG] 7. Disparando addMarkers() y populateClinicPickers()...");
         if (typeof addMarkers === 'function') {
             await addMarkers();
         }
@@ -158,7 +171,7 @@ async function loadData() {
         }
 
     } catch (err) {
-        console.error("❌ [MAP_LOG] Error fetching data from flow URL:", err);
+        console.error("❌ [MAP_LOG] Error al procesar datos del flujo:", err);
     }
 }
 
