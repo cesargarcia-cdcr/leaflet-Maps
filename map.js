@@ -136,10 +136,16 @@ async function loadData() {
                 ? CSV_rowsToObjects(CSV_parse(cleanExt)) 
                 : (Array.isArray(cleanExt) ? cleanExt : []);
             
-            // 🎯 Poblar EXT_BY_CODE agrupando por código de clínica para que el panel las encuentre
+            // Imprimir la primera fila en la consola para ver las llaves exactas del CSV
+            if (EXT.length > 0) {
+                console.log("🔍 [EXT_DEBUG] Columnas disponibles en extensions.csv:", Object.keys(EXT[0]));
+                console.log("🔍 [EXT_DEBUG] Ejemplo de la primera fila:", EXT[0]);
+            }
+
             EXT_BY_CODE = {};
             for (const row of EXT) {
-                const code = String(row['code'] || row['Clinic'] || '').trim().toUpperCase();
+                // Revisa aquí si alguna de estas llaves coincide con tu CSV
+                const code = String(row['code'] || row['Clinic'] || row['ClinicCode'] || '').trim().toUpperCase();
                 if (code) {
                     if (!EXT_BY_CODE[code]) EXT_BY_CODE[code] = [];
                     EXT_BY_CODE[code].push(row);
@@ -148,7 +154,6 @@ async function loadData() {
 
             console.log(`📞 [MAP_LOG] Extensiones procesadas correctamente. Total: ${EXT.length}, Códigos indexados: ${Object.keys(EXT_BY_CODE).length}`);
         }
-
         // 4. Store remaining tables globally in window.APP_DATA for pickers and popovers
         window.APP_DATA = window.APP_DATA || {};
         if (data.clinicsDirectory) {
