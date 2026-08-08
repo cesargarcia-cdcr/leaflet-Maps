@@ -79,19 +79,31 @@ async function loadData() {
         const data = await response.json();
         console.log("✅ [MAP_LOG] 4. JSON recibido del flujo con éxito. Claves disponibles:", Object.keys(data));
 
-  // 1. Load Clinics (Source of truth for keys)
+// 1. Load Clinics (Source of truth for keys)
         if (data.clinics) {
             console.log("⚙️ [MAP_LOG] 5. Procesando datos de clínicas...", data.clinics);
             
             let clinicsSource = data.clinics;
-            // Si viene envuelto en un objeto de Power Automate
+            
+            // 🎯 Detectar si Power Automate lo envió envuelto o codificado en Base64
             if (typeof clinicsSource === 'object' && clinicsSource !== null) {
-                clinicsSource = clinicsSource.body || clinicsSource.value || clinicsSource.content || clinicsSource;
+                const base64Content = clinicsSource.$content || clinicsSource.body || clinicsSource.value || clinicsSource.content;
+                if (base64Content && typeof base64Content === 'string' && base64Content.length > 100) {
+                    try {
+                        // Decodificar Base64 a texto CSV plano
+                        clinicsSource = atob(base64Content);
+                        console.log("🔓 [MAP_LOG] Contenido Base64 de clínicas decodificado con éxito.");
+                    } catch (e) {
+                        console.warn("⚠️ [MAP_LOG] No se pudo decodificar Base64, intentando usar texto directo:", e);
+                        clinicsSource = base64Content;
+                    }
+                } else {
+                    clinicsSource = base64Content || clinicsSource;
+                }
             }
 
             let parsedClinics = [];
             if (typeof clinicsSource === 'string') {
-                // Normalizar saltos de línea por si el flujo usa formato de Windows (\r\n)
                 const cleanCsv = clinicsSource.replace(/\r\n/g, '\n');
                 parsedClinics = CSV_rowsToObjects(CSV_parse(cleanCsv));
             } else if (Array.isArray(clinicsSource)) {
@@ -103,7 +115,7 @@ async function loadData() {
         } else {
             console.warn("⚠️ [MAP_LOG] El flujo no devolvió la propiedad 'clinics'.");
         }
-
+        
         // 2. Load Providers and map by "Health Center" code
         if (data.providersSched) {
             const provTxt = data.providersSched;
