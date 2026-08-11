@@ -1,4 +1,4 @@
-/* === Map UI/UX Optimized (v1) === */
+/* === Map UI/UX Optimized (v1 - Integrado con Data Loader) === */
 'use strict';
 (function () {
     let CLINICS = [],
@@ -9,190 +9,64 @@
     searchLine = null,
     markersLayer = null;
 
-    /* ---------- Data Load via Power Automate Flow ---------- */
-function getFlowUrl() {
-    const params = new URLSearchParams(window.location.search);
-    const encoded = params.get('data');
-    if (!encoded) return null;
-    try {
-        return atob(encoded);
-    } catch (e) {
-        console.error("⚠️ Error decoding flow URL parameter:", e);
-        return null;
-    }
-}
-
     /* ---------- Utilities ---------- */
-    async function safeJson(url) {
-        try {
-            const r = await fetch(url, {
-                cache: 'no-cache'
-            });
-            if (!r.ok)
-                return null;
-            return await r.json();
-        } catch (_) {
-            return null;
-        }
-    }
     const store = {
         get(k, d) {
             try {
                 const v = localStorage.getItem(k);
                 return v ?? d;
             } catch (_) {
-                return d
+                return d;
             }
         },
         set(k, v) {
             try {
-                localStorage.setItem(k, v)
+                localStorage.setItem(k, v);
             } catch (_) {}
         }
     };
 
-/* ---------- Data Load ---------- */
-async function loadData() {
-    console.log("🔍 [MAP_LOG] 1. Iniciando loadData()...");
-    
-    const flowUrl = getFlowUrl();
-    if (!flowUrl) {
-        console.warn("⚠️ [MAP_LOG] No flow URL provided in query parameters (?data=...).");
-        return;
-    }
-    console.log("📡 [MAP_LOG] 2. URL del flujo obtenida correctamente:", flowUrl);
-
+    async function loadData() {
     try {
-        console.log("⏳ [MAP_LOG] 3. Ejecutando fetch al flujo...");
-        const response = await fetch(flowUrl, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
+        console.log("LOG_DEBUG: Iniciando loadData...");
+        
+        // 1. Cargar Clínicas
+        const clinicsTxt = await obtenerArchivo('clinics');
+        if (clinicsTxt) {
+            CLINICS = CSV_rowsToObjects(CSV_parse(clinicsTxt));
         }
 
-        const data = await response.json();
-        console.log("✅ [MAP_LOG] 4. JSON recibido del flujo con éxito. Claves disponibles:", Object.keys(data));
+        // 2. Cargar Proveedores / Schedules
+        const schedTxt = await obtenerArchivo('PROVIDERS-Sched');
+        if (schedTxt) {
+            PROVIDERS_SCHED = CSV_rowsToObjects(CSV_parse(schedTxt));
+        }
 
-        // 🎯 Función auxiliar para limpiar y decodificar Base64 de cualquier propiedad del flujo
-        const decodeFlowField = (field) => {
-            if (!field) return null;
-            let source = field;
-            if (typeof source === 'object' && source !== null) {
-                const b64 = source.$content || source.body || source.value || source.content;
-                if (b64 && typeof b64 === 'string' && b64.length > 50) {
-                    try {
-                        source = atob(b64);
-                    } catch (e) {
-                        source = b64;
-                    }
-                } else {
-                    source = b64 || source;
-                }
+        // 3. Cargar Extensiones (en formato CSV)
+        const extTxt = await obtenerArchivo('extensions');
+        if (extTxt) {
+            try {
+                const extRows = CSV_rowsToObjects(CSV_parse(extTxt));
+                EXT = {};
+                extRows.forEach(row => {
+                    const sec = row.section || row.Section || 'General';
+                    if (!EXT[sec]) EXT[sec] = [];
+                    EXT[sec].push(row);
+                });
+            } catch (e) {
+                console.error("❌ Error procesando el CSV de extensiones:", e);
+                EXT = {};
             }
-            return typeof source === 'string' ? source.replace(/\r\n/g, '\n') : source;
-        };
-
-        // 1. Load Clinics
-        if (data.clinics) {
-            console.log("⚙️ [MAP_LOG] 5. Procesando datos de clínicas...");
-            const cleanClinics = decodeFlowField(data.clinics);
-            const parsedClinics = typeof cleanClinics === 'string' 
-                ? CSV_rowsToObjects(CSV_parse(cleanClinics)) 
-                : cleanClinics;
-            
-            CLINICS = mapClinicsCsvToObjects(parsedClinics);
-            console.log(`🏥 [MAP_LOG] Clínicas mapeadas correctamente: ${CLINICS.length} registros.`);
-        }
-
-        // 2. Load Providers and map by "Health Center" code
-        if (data.providersSched) {
-            const cleanProv = decodeFlowField(data.providersSched);
-            const provRows = typeof cleanProv === 'string'
-                ? CSV_rowsToObjects(CSV_parse(cleanProv))
-                : (Array.isArray(cleanProv) ? cleanProv : []);
-
-            window.APP_DATA = window.APP_DATA || {};
-            window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
-                const code = String(row['Health Center'] || '').trim().toUpperCase();
-                if (!acc[code])
-                    acc[code] = [];
-                acc[code].push(row);
-                return acc;
-            }, {});
-            console.log(`👨‍⚕️ [MAP_LOG] Proveedores mapeados por código. Filas totales: ${provRows.length}`);
-        }
-
-        // 3. Load Extensions
-        if (data.extensions) {
-            const cleanExt = decodeFlowField(data.extensions);
-            EXT = typeof cleanExt === 'string' 
-                ? CSV_rowsToObjects(CSV_parse(cleanExt)) 
-                : (Array.isArray(cleanExt) ? cleanExt : []);
-            
-            // 🎯 Normalización avanzada de códigos (elimina espacios y unifica guiones/guiones bajos)
-            EXT_BY_CODE = {};
-            for (const row of EXT) {
-                const rawCode = String(row['code'] || row['Clinic'] || row['ClinicCode'] || '').trim();
-                // Generar múltiples variantes de la llave para garantizar que encuentre coincidencia
-                const variants = [
-                    rawCode.toUpperCase(),
-                    rawCode.toUpperCase().replace(/_/g, ' '),
-                    rawCode.toUpperCase().replace(/\s+/g, '_')
-                ];
-                
-                for (const code of variants) {
-                    if (code) {
-                        if (!EXT_BY_CODE[code]) EXT_BY_CODE[code] = [];
-                        // Evitar duplicados exactos en la misma variante
-                        if (!EXT_BY_CODE[code].includes(row)) {
-                            EXT_BY_CODE[code].push(row);
-                        }
-                    }
-                }
-            }
-
-            console.log(`📞 [MAP_LOG] Extensiones procesadas correctamente. Total: ${EXT.length}, Variantes de códigos indexadas: ${Object.keys(EXT_BY_CODE).length}`);
+        } else {
+            EXT = {};
         }
         
-        // 4. Store remaining tables globally in window.APP_DATA for pickers and popovers
-        window.APP_DATA = window.APP_DATA || {};
-        if (data.clinicsDirectory) {
-            const cd = decodeFlowField(data.clinicsDirectory);
-            window.APP_DATA.clinicsDirectory = typeof cd === 'string' ? CSV_rowsToObjects(CSV_parse(cd)) : cd;
-        }
-        if (data.mainProviders) {
-            const mp = decodeFlowField(data.mainProviders);
-            window.APP_DATA.mainProviders = mp;
-            window.APP_DATA.Main_Providers_csv = typeof mp === 'string' ? CSV_rowsToObjects(CSV_parse(mp)) : (Array.isArray(mp) ? mp : []);
-        }
-        if (data.providerClinicDates) {
-            const pcd = decodeFlowField(data.providerClinicDates);
-            window.APP_DATA.providerClinicDates = typeof pcd === 'string' ? CSV_rowsToObjects(CSV_parse(pcd)) : pcd;
-        }
-        if (data.providersNpi) {
-            const pn = decodeFlowField(data.providersNpi);
-            window.APP_DATA.providersNpi = typeof pn === 'string' ? CSV_rowsToObjects(CSV_parse(pn)) : pn;
-        }
+        buildExtensionsIndex();
 
-        console.log("✨ [MAP_LOG] 6. Todos los datos centralizados cargados y decodificados.");
-
-        // 🗺️ Disparar la creación de pines y selectores
-        console.log("📍 [MAP_LOG] 7. Disparando addMarkers() y populateClinicPickers()...");
-        if (typeof addMarkers === 'function') {
-            await addMarkers();
-        }
-        if (typeof populateClinicPickers === 'function') {
-            populateClinicPickers();
-        }
-
-    } catch (err) {
-        console.error("❌ [MAP_LOG] Error al procesar datos del flujo:", err);
+    } catch (error) {
+        console.error("❌ Error bootstrap:", error);
     }
 }
-
     function mapClinicsCsvToObjects(items) {
         if (!items || !Array.isArray(items))
             return [];
@@ -315,7 +189,7 @@ async function loadData() {
                 lng: a.longitudeCenter
             };
         } catch (_) {
-            return null
+            return null;
         }
     }
 
@@ -350,7 +224,7 @@ async function loadData() {
                 lng: +best.lon
             };
         } catch (_) {
-            return null
+            return null;
         }
     }
 
@@ -362,73 +236,68 @@ async function loadData() {
     }
 
     /* ---------- Markers ---------- */
-/* ---------- Markers ---------- */
-async function addMarkers() {
-    if (markersLayer) {
-        map.removeLayer(markersLayer);
-        markersLayer = null;
-    }
-    markersLayer = L.layerGroup().addTo(map);
-    const bounds = L.latLngBounds();
-
-    // 🎯 SOLUCIÓN AL DESFASE: Forzar a Leaflet a usar un anclaje centrado abajo del pin
-    const clinicIcon = L.icon({
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        iconSize: [25, 41],         // Dimensiones nativas de la imagen del marcador
-        iconAnchor: [12, 41],       // ⚠️ Eje X centrado (12) y Eje Y en la punta inferior (41)
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-    });
-
-    for (const c of CLINICS) {
-        let lat = c.lat;
-        let lng = c.lng;
-
-        // Decodificación directa desde la columna Plus Code de tu CSV de clínicas
-        const plusDecoded = await tryDecodePlusCode(c.plusCode);
-        if (plusDecoded) {
-            lat = plusDecoded.lat;
-            lng = plusDecoded.lng;
-            // console.log(`📍 Using precise Plus Code for ${c.code}: ${lat}, ${lng}`);
+    async function addMarkers() {
+        if (markersLayer) {
+            map.removeLayer(markersLayer);
+            markersLayer = null;
         }
+        markersLayer = L.layerGroup().addTo(map);
+        const bounds = L.latLngBounds();
 
-        if (typeof lat !== 'number' || typeof lng !== 'number') {
-            console.warn(`⚠️ Skipping marker for ${c.name}: No valid coordinates.`);
-            continue;
-        }
-
-        // Aplicamos el icon de anclaje corregido aquí para fijar la marca al mapa
-        const m = L.marker([lat, lng], { icon: clinicIcon }).addTo(markersLayer);
-        
-        // Vincular la etiqueta flotante usando los estilos de tu map.css (.clinic-label)
-        m.bindTooltip(c.code, {
-            permanent: true,
-            direction: 'polygon', // 🎯 CAMBIO: Forzar centrado matemático absoluto horizontal
-            offset: [0, -42],     // Mantiene la elevación perfecta sobre la cabeza del pin
-            className: 'clinic-label'
+        const clinicIcon = L.icon({
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
         });
 
-        m.on('click', () => selectClinic({
-            ...c,
-            lat,
-            lng
-        })); 
-        bounds.extend([lat, lng]);
-    } // 👈 Faltaba cerrar este bucle for
+        for (const c of CLINICS) {
+            let lat = c.lat;
+            let lng = c.lng;
 
-    if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [40, 40] });
-        if (map.getZoom() > 9) {
-            map.setZoom(10);
+            const plusDecoded = await tryDecodePlusCode(c.plusCode);
+            if (plusDecoded) {
+                lat = plusDecoded.lat;
+                lng = plusDecoded.lng;
+            }
+
+            if (typeof lat !== 'number' || typeof lng !== 'number') {
+                console.warn(`⚠️ Skipping marker for ${c.name}: No valid coordinates.`);
+                continue;
+            }
+
+            const m = L.marker([lat, lng], { icon: clinicIcon }).addTo(markersLayer);
+            
+            m.bindTooltip(c.code, {
+                permanent: true,
+                direction: 'polygon',
+                offset: [0, -42],
+                className: 'clinic-label'
+            });
+
+            m.on('click', () => selectClinic({
+                ...c,
+                lat,
+                lng
+            })); 
+            bounds.extend([lat, lng]);
+        }
+
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, {
+                padding: [40, 40]
+            });
+
+            if (map.getZoom() > 9) {
+                map.setZoom(10);
+            }
         }
     }
-} 
 
     /* ---------- Centrado Inteligente dejando espacio para el Panel ---------- */
     function selectClinic(c) {
-        console.log("🎯 [CLINIC_CLICKED] Clínica seleccionada:", c);
-        console.log("📞 [EXT_LOOKUP] Buscando extensiones para el código:", c.code, "-> Resultado:", EXT_BY_CODE[c.code] || EXT_BY_CODE[String(c.code).trim().toUpperCase()]);
         renderSelectedClinic(c);
 
         map.fitBounds(L.latLngBounds([[c.lat, c.lng]]), {
@@ -452,7 +321,7 @@ async function addMarkers() {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
 
-        const linkedProviders = (window.APP_DATA.providersByCode?.[c.code.toUpperCase()] || [])
+        const linkedProviders = (window.APP_DATA?.providersByCode?.[c.code.toUpperCase()] || [])
         .filter(p => String(p.Date || '').trim() === todayStr);
 
         let html = '';
@@ -548,22 +417,18 @@ async function addMarkers() {
         setTimeout(() => AppMap.invalidate(), 100);
     }
 
-    // Función puente para comunicar el mapa con el directorio de proveedores
     window.routeToProviderDirectory = function(providerName) {
-        // 1. Cambiar de pestaña usando el enrutador de tu notes.js
         if (typeof window.navigateTo === 'function') {
             window.navigateTo('provider-directory');
         }
 
-        // 2. Inyectar el nombre en el buscador del directorio y disparar el filtrado
         setTimeout(() => {
             const searchInput = document.getElementById('masterProviderSearch');
             if (searchInput) {
                 searchInput.value = providerName;
-                // Disparar el evento input para que provider-directory.js reaccione e implemente el autocompletado
                 searchInput.dispatchEvent(new Event('input', { bubbles: true }));
             }
-        }, 50); // Pequeña pausa para asegurar que el DOM de la pestaña ya esté visible
+        }, 50);
     };
 
     function openSheet() {
@@ -634,14 +499,12 @@ async function addMarkers() {
         if (dl) {
             let optionsHtml = [];
 
-            // 1. Agregar las clínicas con sus Nicknames al buscador
             CLINICS.forEach(c => {
                 const nicknamesArray = String(c.nicknames || '').split(',').map(n => n.trim()).filter(Boolean);
                 const nicknamesStr = nicknamesArray.length > 0 ? ` (${nicknamesArray.join(', ')})` : '';
                 optionsHtml.push(`<option value="${c.name}${nicknamesStr}" data-type="clinic" data-code="${c.code}"></option>`);
             });
 
-            // 2. Extraer y agregar los Proveedores programados para HOY de forma dinámica
             const now = new Date();
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -659,9 +522,7 @@ async function addMarkers() {
                                 const pName = String(p['Employee Name'] || '').trim();
                                 const pSpec = p.Specialty ?? p['JOB NAME'] ?? 'MD';
                                 
-                                // Opción por Nombre
                                 optionsHtml.push(`<option value="${pName}" label="🆔 ${pId} -> Hoy en ${code} (${pSpec})"></option>`);
-                                // Opción por ID para búsqueda rápida numérica
                                 optionsHtml.push(`<option value="${pId}" label="👨‍⚕️ ${pName} -> Hoy en ${code} (${pSpec})"></option>`);
                                 
                                 seenPairs.add(uniqueKey);
@@ -675,7 +536,7 @@ async function addMarkers() {
         }
     }
 
-    async function findNearest() {
+        async function findNearest() {
         const sel = document.getElementById('clinicSelect');
         const chosen = sel?.selectedOptions?.[0]?.dataset?.code ?? '';
         if (chosen) {
@@ -689,7 +550,6 @@ async function addMarkers() {
         if (!q)
             return;
 
-        // 🎯 INTERCEPCIÓN MULTIBUSCADOR: Verificar si coincide con un Proveedor por Nombre o por ID
         const now = new Date();
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -714,38 +574,30 @@ async function addMarkers() {
             }
         }
 
-        // Si fue un proveedor, saltamos directo a su clínica de hoy y detenemos la geolocalización de mapas
         if (providerTargetCode) {
             const c = getClinicByCode(providerTargetCode);
             if (c && c.lat && c.lng) {
-                console.log(`🎯 Proveedor localizado por Todo-En-Uno: ${matchedProviderName}. Saltando a ${providerTargetCode}`);
                 selectClinic(c);
-                document.getElementById('searchInput').value = matchedProviderName; // Autocompleta el nombre limpio
+                document.getElementById('searchInput').value = matchedProviderName;
                 return;
             }
         }
 
-        // Búsqueda de clínicas por código base/nickname tradicional
         const bySearch = getClinicBySearch(q);
         if (bySearch && bySearch.lat) {
             selectClinic(bySearch);
             return;
         }
         
-        // 1. Resolver ubicación del paciente (Si no fue clínica ni proveedor, asume dirección/Plus Code)
         const g = await resolveLocation(q);
         if (!g) {
             alert('Address/Plus Code/Provider not found.');
             return;
         }
         
-        // ... El resto de tu código de enrutamiento OSRM continúa exactamente igual abajo ...
-        
-        // Limpiar capas previas
         if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
         if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
 
-        // 🎯 CORRECCIÓN: Se eliminó '.openPopup()' al final para que el marcador no estorbe la ruta
         searchMarker = L.circleMarker([g.lat, g.lng], {
             radius: 7,
             color: '#dc2626',
@@ -754,7 +606,6 @@ async function addMarkers() {
             weight: 2
         }).addTo(map).bindPopup('📍 Dirección de Búsqueda');
 
-        // 2. Pre-filtrado geométrico rápido para encontrar las 3 más cercanas en línea recta
         let candidates = [];
 
         for (const c of CLINICS) {
@@ -769,7 +620,6 @@ async function addMarkers() {
 
             if (!targetLat || !targetLng) continue;
 
-            // Distancia geométrica rápida (Haversine)
             const R = 6371, toRad = d => d * Math.PI / 180;
             const dLat = toRad(targetLat - g.lat), dLng = toRad(targetLng - g.lng);
             const s1 = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(g.lat)) * Math.cos(toRad(targetLat)) * Math.sin(dLng / 2) ** 2;
@@ -778,7 +628,6 @@ async function addMarkers() {
             candidates.push({ clinic: c, lat: targetLat, lng: targetLng, dGeom: dGeom });
         }
 
-        // Ordenar por distancia aérea y quedarnos con las 3 mejores finalistas
         candidates.sort((a, b) => a.dGeom - b.dGeom);
         const finalists = candidates.slice(0, 3);
 
@@ -787,13 +636,9 @@ async function addMarkers() {
         let bestMatch = null;
         let minDrivingDistance = Infinity;
         let bestRouteGeometry = null;
-
-        // 3. Consultar al servidor de enrutamiento vial para las finalistas
-        console.log("🛣️ Calculando distancias reales por carretera para las clínicas finalistas...");
         
         for (const f of finalists) {
             try {
-                // Consultamos la API libre de OSRM (modo conducción/driving)
                 const url = `https://router.project-osrm.org/route/v1/driving/${g.lng},${g.lat};${f.lng},${f.lat}?overview=full&geometries=geojson`;
                 const response = await fetch(url);
                 if (!response.ok) continue;
@@ -802,16 +647,14 @@ async function addMarkers() {
                 if (!data.routes || !data.routes.length) continue;
 
                 const route = data.routes[0];
-                const drivingDistKm = route.distance / 1000; // OSRM devuelve metros, pasamos a km
+                const drivingDistKm = route.distance / 1000;
 
-                // Si esta clínica está más cerca manejando, se convierte en la líder
                 if (drivingDistKm < minDrivingDistance) {
                     minDrivingDistance = drivingDistKm;
                     bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
-                    bestRouteGeometry = route.geometry; // Guardamos las curvas de las calles
+                    bestRouteGeometry = route.geometry;
                 }
             } catch (err) {
-                console.error("⚠️ Error consultando servidor de rutas, usando respaldo geométrico:", err);
                 if (!bestMatch) {
                     minDrivingDistance = f.dGeom;
                     bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
@@ -819,12 +662,10 @@ async function addMarkers() {
             }
         }
 
-        // 4. Renderizar resultados y dibujar la ruta real por las calles
         if (bestMatch) {
             renderSelectedClinic(bestMatch, minDrivingDistance);
             
             if (bestRouteGeometry) {
-                // Dibujar calles reales invirtiendo coordenadas de GeoJSON [lng, lat] a [lat, lng]
                 const coordinates = bestRouteGeometry.coordinates.map(coord => [coord[1], coord[0]]);
                 
                 searchLine = L.polyline(coordinates, {
@@ -839,7 +680,6 @@ async function addMarkers() {
                 }).addTo(map);
             }
 
-            // Ajustar la pantalla dinámicamente para que se vea la ruta completa
             const routeBounds = searchLine.getBounds();
             routeBounds.extend([g.lat, g.lng]);
             map.fitBounds(routeBounds, {
@@ -955,17 +795,18 @@ async function addMarkers() {
         });
     }
 
-    /* ---------- Bootstrap ---------- */
-    window.addEventListener('DOMContentLoaded', async() => {
+    /* ---------- Bootstrap (Seguro con Fallback para evitar bloqueos) ---------- */
+    const startApp = async () => {
+        if (map) return;
         try {
             map = L.map('map', {
                 zoomControl: true,
                 maxBounds: CA_BOUNDS,
                 maxBoundsViscosity: .8
             }).setView([34.25, -119.10], 10);
+            
             buildBaseLayers();
             await loadData();
-            buildExtensionsIndex();
             
             for (const c of CLINICS) {
                 if (typeof c.lat !== 'number' || typeof c.lng !== 'number') {
@@ -981,16 +822,33 @@ async function addMarkers() {
             wireShortcuts();
             setTimeout(() => map.invalidateSize(), 200);
         } catch (e) {
-            console.error('bootstrap', e);
+            console.error('❌ Error bootstrap:', e);
         }
-    });
+    };
+
+    if (window.datosListos && typeof window.datosListos.then === 'function') {
+        window.datosListos.then(startApp).catch((err) => {
+            console.warn('⚠️ Falló datosListos, arrancando mapa...', err);
+            startApp();
+        });
+    } else {
+        window.addEventListener('DOMContentLoaded', startApp);
+    }
+
+    // Respaldo por si datosListos nunca responde
+    setTimeout(() => {
+        if (!map) {
+            console.warn('⏳ Tiempo agotado. Forzando render de mapa...');
+            startApp();
+        }
+    }, 4000);
 
     /* ---------- Expose ---------- */
     window.findNearest = findNearest;
     window.clearSearch = clearSearch;
     window.AppMap = {
         invalidate() {
-            try { map?.invalidateSize() } catch (_) {}
+            try { map?.invalidateSize(); } catch (_) {}
         },
         toggleFullscreen,
         geolocate
@@ -1010,35 +868,35 @@ async function addMarkers() {
                     if (text[i + 1] == '"') {
                         f += '"';
                         i++;
-                        continue
+                        continue;
                     }
                     q = false;
-                    continue
+                    continue;
                 }
                 f += c;
-                continue
+                continue;
             }
             if (c == '"') {
                 q = true;
-                continue
+                continue;
             }
             if (c == ',') {
                 row.push(f);
                 f = "";
-                continue
+                continue;
             }
             if (c == '\n') {
                 row.push(f);
                 rows.push(row);
                 row = [];
                 f = "";
-                continue
+                continue;
             }
             f += c;
         }
         row.push(f);
         rows.push(row);
-        return rows
+        return rows;
     }
     
     function CSV_rowsToObjects(rows) {
@@ -1053,42 +911,26 @@ async function addMarkers() {
             }
             out.push(o);
         }
-        return out
+        return out;
     }
     
-    async function CSV_loadText(url) {
-        const r = await fetch(url, { cache: 'no-cache' });
-        if (!r.ok)
-            return null;
-        return await r.text()
-    }
-    
-    /* ---------- Motor del Popover de Cumplimiento (Do's & Don'ts) ---------- */
-    /* ---------- Motor del Popover de Cumplimiento (Do's & Don'ts) ---------- */
+    /* ---------- Motor Popover Cumplimiento (Do's & Don'ts) ---------- */
     async function showProviderPopover(providerId, providerName) {
-        // 1. Eliminar cualquier popover previo para evitar duplicados
         removeProviderPopover();
 
-        // 2. Intentar buscar el registro en la memoria global
         let masterList = window.APP_DATA?.Main_Providers_csv || [];
         
-        // Paracaídas: Si la lista de memoria está vacía, hacer un fetch veloz al CSV físico
-        if (masterList.length === 0) {
+        if (masterList.length === 0 && typeof obtenerArchivo === 'function') {
             try {
-                const responseMain = await fetch('/Main-Providers.csv');
-                if (responseMain.ok) {
-                    const textMain = await responseMain.text();
-                    // Usamos el parseador nativo que ya tienes integrado en map.js
-                    if (typeof CSV_parse === 'function' && typeof CSV_rowsToObjects === 'function') {
-                        masterList = CSV_rowsToObjects(CSV_parse(textMain));
-                    }
+                const textMain = await obtenerArchivo('Main-Providers');
+                if (textMain) {
+                    masterList = CSV_rowsToObjects(CSV_parse(textMain));
                 }
             } catch (err) {
-                console.error("❌ Error de comunicación con Main-Providers.csv:", err);
+                console.error("❌ Error recuperando Main-Providers:", err);
             }
         }
 
-        // Buscar coincidencia exacta usando la Clave Primaria (Provider ID) o el Nombre como respaldo
         const doc = masterList.find(m => {
             const mId = String(m['Provider ID'] || '').trim();
             const mName = String(m['Provider'] || '').toLowerCase().trim();
@@ -1097,12 +939,11 @@ async function addMarkers() {
         });
 
         if (!doc) {
-            console.warn(`⚠️ No se encontraron directrices de cumplimiento para: ${providerName}`);
-            alert(`No se encontraron directrices registradas en Main-Providers.csv para el proveedor: ${providerName}`);
+            console.warn(`⚠️ No se encontraron directrices para: ${providerName}`);
+            alert(`No se encontraron directrices registradas para el proveedor: ${providerName}`);
             return;
         }
 
-        // Extracción limpia mapeando los encabezados reales de tu Main-Providers.csv
         const docName = String(doc['Provider'] || providerName).trim();
         const docDegree = String(doc['Dr Degree'] || '').trim();
         const docSpec = String(doc['Specialty'] || 'General Medicine').trim();
@@ -1111,7 +952,6 @@ async function addMarkers() {
         const docDos = String(doc["Do's ✔"] || '').trim();
         const docDonts = String(doc["Don'ts ❌"] || '').trim();
 
-        // 3. Crear el contenedor del Popover y el fondo oscuro transparente
         const backdrop = document.createElement('div');
         backdrop.id = 'pdir-popover-backdrop';
         backdrop.style = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.2); z-index:99999; display:flex; align-items:center; justify-content:center;';
@@ -1120,7 +960,6 @@ async function addMarkers() {
         popover.id = 'pdir-popover-card';
         popover.style = 'width:440px; max-width:90vw; background:#ffffff; padding:18px; border-radius:8px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); border:1px solid #e2e8f0; animation: pdirPopIn 0.18s ease-out; font-family: system-ui, -apple-system, sans-serif;';
 
-        // 4. Armar la estructura HTML interna inyectando Do's & Don'ts
         let guidelinesHtml = '<div style="margin-top:10px; font-size:0.8rem; color:#64748b; text-align:center; font-style:italic;">⚠️ Sin directrices de agendamiento registradas.</div>';
         if (docDos || docDonts) {
             guidelinesHtml = `
