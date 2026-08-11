@@ -55,22 +55,27 @@
           // Desglosar y decodificar cada archivo del diccionario de Power Automate
           for (const [fileKey, contentInfo] of Object.entries(freshData)) {
             if (contentInfo && typeof contentInfo === 'object') {
+              
+              // 🎯 NUEVO: Si la propiedad es un arreglo directo (como mainProviders), guárdala directamente
+              if (Array.isArray(contentInfo)) {
+                const stringifiedArray = JSON.stringify(contentInfo);
+                localStorage.setItem(fileKey, stringifiedArray);
+                console.log(`✅ [DATA_LOADER] Arreglo directo guardado: "${fileKey}" (Registros: ${contentInfo.length})`);
+                continue; // Salta al siguiente elemento
+              }
+
               let base64Str = contentInfo.$content || '';
               if (base64Str) {
                 const missingPadding = base64Str.length % 4;
                 if (missingPadding) {
                   base64Str += '='.repeat(4 - missingPadding);
                 }
-
                 try {
-                  const binaryString = atob(base64Str);
-                  const bytes = Uint8Array.from(binaryString, (m) => m.codePointAt(0));
-                  const decodedText = new TextDecoder('utf-8').decode(bytes);
-
-                  // Guardar individualmente limpio para consumo directo
-                  localStorage.setItem(fileKey, decodedText);
+                  const decodedContent = atob(base64Str);
+                  localStorage.setItem(fileKey, decodedContent);
+                  console.log(`✅ [DATA_LOADER] Archivo decodificado y guardado: "${fileKey}" (Longitud: ${decodedContent.length} chars)`);
                 } catch (err) {
-                  console.warn(`⚠️ No se pudo decodificar el archivo interno: ${fileKey}`, err);
+                  console.warn(`⚠️ [DATA_LOADER] Error decodificando el archivo ${fileKey}:`, err);
                 }
               }
             }
