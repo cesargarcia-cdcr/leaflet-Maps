@@ -207,18 +207,48 @@
         try {
             await throttle();
             q = String(q ?? '').trim();
-            if (!/(\bCA\b|\bCalifornia\b|\bUSA\b|\d{5})/i.test(q))
+            
+            // 1. Limpiar espacios múltiples y convertir saltos o espacios extra en espacios simples
+            q = q.replace(/\s+/g, ' ');
+
+            // 2. Si el usuario escribió la dirección solo con espacios en lugar de comas,
+            // podemos ayudar a Nominatim agregando comas lógicas si detectamos números seguidos de texto y estados
+            // O simplemente asegurarnos de que si no incluye CA/California, se los adjuntamos al final.
+            if (!/(\bCA\b|\bCalifornia\b|\bUSA\b|\d{5})/i.test(q)) {
                 q += ', CA, USA';
+            } else if (!q.includes(',')) {
+                // Si tiene datos (como un código postal o CA) pero cero comas, intentamos separar 
+                // el estado/código o simplemente dejamos que Nominatim procese la cadena limpia.
+                q = q.replace(/\b(CA|California)\b/i, ', $1, USA');
+            }
+
             const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=us&viewbox=${encodeURIComponent(CA_VIEWBOX)}&bounded=1&limit=5`;
             const r = await fetch(url, {
                 headers: { 'Accept': 'application/json' }
             });
-            if (!r.ok)
-                return null;
+            
+            if (!r.ok) return null;
             const d = await r.json();
-            if (!Array.isArray(d) || !d.length)
+            if (!Array.isArray(d) || !d.length) return null;
+
+            // Filtrar estrictamente para aceptar únicamente resultados dentro de California
+            const best = d.find(x => {
+                const name = x?.display_name || '';
+                const lat = parseFloat(x.lat);
+                const lon = parseFloat(x.lon);
+                
+                const isCaliforniaText = /(^|,\s)California(,|\s|$)/i.test(name);
+                const isInBounds = (lat >= CA_BOUNDS[0][0] && lat <= CA_BOUNDS[1][0] && 
+                                  lon >= CA_BOUNDS[0][1] && lon <= CA_BOUNDS[1][1]);
+                
+                return isCaliforniaText && isInBounds;
+            });
+
+            if (!best) {
+                console.warn("⚠️ Búsqueda rechazada: Fuera del área de servicio.");
                 return null;
-            const best = d.find(x => /(^|,\s)California(,|\s|$)/i.test(x?.display_name || '')) || d[0];
+            }
+
             return {
                 lat: +best.lat,
                 lng: +best.lon
@@ -467,227 +497,183 @@
     }
 
     function populateClinicPickers() {
-        const sel = document.getElementById('clinicSelect');
-        const dl = document.getElementById('clinicNameList');
-        if (!sel && !dl)
-            return;
-        
-        const ordered = [...CLINICS].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        
-        if (sel) {
-            sel.innerHTML = '';
-            sel.insertAdjacentHTML('beforeend', '<option value="">Todas las clínicas…</option>');
-            for (const c of ordered) {
-                const main = document.createElement('option');
-                main.value = c.code;
-                main.textContent = c.code ? `${c.code} — ${c.name}` : c.name;
-                main.setAttribute('data-code', c.code);
-                sel.appendChild(main);
-            }
-            if (!sel.__wired) {
-                sel.addEventListener('change', () => {
-                    const opt = sel.selectedOptions?.[0];
-                    const code = opt?.dataset?.code;
-                    const c = code ? getClinicByCode(code) : null;
-                    if (c && c.lat && c.lng)
-                        selectClinic(c);
-                });
-                sel.__wired = true;
-            }
-        }
+    const dl = document.getElementById('clinicNameList');
+    if (!dl) return;
+    
+    const ordered = [...CLINICS].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    let optionsHtml = ordered.map(c => {
+        const nicknames = String(c.nicknames || '').split(',').map(n => n.trim()).filter(Boolean);
+        const nickStr = nicknames.length ? ` (${nicknames.join(', ')})` : '';
+        return `<option value="${c.name}${nickStr}" data-type="clinic" data-code="${c.code}"></option>`;
+    });
 
-        if (dl) {
-            let optionsHtml = [];
+    const now = new Date();
+    const todayStr = `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()]} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][now.getMonth()]} ${now.getDate()}`;
+    const seenPairs = new Set();
 
-            CLINICS.forEach(c => {
-                const nicknamesArray = String(c.nicknames || '').split(',').map(n => n.trim()).filter(Boolean);
-                const nicknamesStr = nicknamesArray.length > 0 ? ` (${nicknamesArray.join(', ')})` : '';
-                optionsHtml.push(`<option value="${c.name}${nicknamesStr}" data-type="clinic" data-code="${c.code}"></option>`);
-            });
-
-            const now = new Date();
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
-            const seenPairs = new Set();
-
-            if (window.APP_DATA && window.APP_DATA.providersByCode) {
-                for (const code in window.APP_DATA.providersByCode) {
-                    const list = window.APP_DATA.providersByCode[code] || [];
-                    list.forEach(p => {
-                        if (String(p.Date || '').trim() === todayStr && p['Employee Name']) {
-                            const uniqueKey = `${p['Provider ID']}-${code}`;
-                            if (!seenPairs.has(uniqueKey)) {
-                                const pId = String(p['Provider ID'] || '').trim();
-                                const pName = String(p['Employee Name'] || '').trim();
-                                const pSpec = p.Specialty ?? p['JOB NAME'] ?? 'MD';
-                                
-                                optionsHtml.push(`<option value="${pName}" label="🆔 ${pId} -> Hoy en ${code} (${pSpec})"></option>`);
-                                optionsHtml.push(`<option value="${pId}" label="👨‍⚕️ ${pName} -> Hoy en ${code} (${pSpec})"></option>`);
-                                
-                                seenPairs.add(uniqueKey);
-                            }
-                        }
-                    });
+    const providers = window.APP_DATA?.providersByCode;
+    if (providers) {
+        for (const code in providers) {
+            (providers[code] || []).forEach(p => {
+                if (String(p.Date || '').trim() === todayStr && p['Employee Name']) {
+                    const uniqueKey = `${p['Provider ID']}-${code}`;
+                    if (!seenPairs.has(uniqueKey)) {
+                        const pId = String(p['Provider ID'] || '').trim();
+                        const pName = String(p['Employee Name'] || '').trim();
+                        const pSpec = p.Specialty ?? p['JOB NAME'] ?? 'MD';
+                        
+                        optionsHtml.push(
+                            `<option value="${pName}" label="🆔 ${pId} -> Hoy en ${code} (${pSpec})"></option>`,
+                            `<option value="${pId}" label="👨‍⚕️ ${pName} -> Hoy en ${code} (${pSpec})"></option>`
+                        );
+                        seenPairs.add(uniqueKey);
+                    }
                 }
-            }
-
-            dl.innerHTML = optionsHtml.join('');
-        }
-    }
-
-        async function findNearest() {
-        const sel = document.getElementById('clinicSelect');
-        const chosen = sel?.selectedOptions?.[0]?.dataset?.code ?? '';
-        if (chosen) {
-            const c = getClinicByCode(chosen);
-            if (c && c.lat && c.lng) {
-                selectClinic(c);
-                return;
-            }
-        }
-        const q = (document.getElementById('searchInput')?.value ?? '').trim();
-        if (!q)
-            return;
-
-        const now = new Date();
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
-        let providerTargetCode = null;
-        let matchedProviderName = null;
-
-        if (window.APP_DATA && window.APP_DATA.providersByCode) {
-            for (const code in window.APP_DATA.providersByCode) {
-                const list = window.APP_DATA.providersByCode[code] || [];
-                const found = list.find(p => 
-                    String(p.Date || '').trim() === todayStr && (
-                        String(p['Employee Name'] || '').toLowerCase().includes(q.toLowerCase()) ||
-                        String(p['Provider ID'] || '').trim() === q
-                    )
-                );
-                if (found) {
-                    providerTargetCode = code;
-                    matchedProviderName = found['Employee Name'];
-                    break;
-                }
-            }
-        }
-
-        if (providerTargetCode) {
-            const c = getClinicByCode(providerTargetCode);
-            if (c && c.lat && c.lng) {
-                selectClinic(c);
-                document.getElementById('searchInput').value = matchedProviderName;
-                return;
-            }
-        }
-
-        const bySearch = getClinicBySearch(q);
-        if (bySearch && bySearch.lat) {
-            selectClinic(bySearch);
-            return;
-        }
-        
-        const g = await resolveLocation(q);
-        if (!g) {
-            alert('Address/Plus Code/Provider not found.');
-            return;
-        }
-        
-        if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
-        if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
-
-        searchMarker = L.circleMarker([g.lat, g.lng], {
-            radius: 7,
-            color: '#dc2626',
-            fillColor: '#dc2626',
-            fillOpacity: .8,
-            weight: 2
-        }).addTo(map).bindPopup('📍 Dirección de Búsqueda');
-
-        let candidates = [];
-
-        for (const c of CLINICS) {
-            let targetLat = c.lat;
-            let targetLng = c.lng;
-
-            const plusDecoded = await tryDecodePlusCode(c.plusCode);
-            if (plusDecoded) {
-                targetLat = plusDecoded.lat;
-                targetLng = plusDecoded.lng;
-            }
-
-            if (!targetLat || !targetLng) continue;
-
-            const R = 6371, toRad = d => d * Math.PI / 180;
-            const dLat = toRad(targetLat - g.lat), dLng = toRad(targetLng - g.lng);
-            const s1 = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(g.lat)) * Math.cos(toRad(targetLat)) * Math.sin(dLng / 2) ** 2;
-            const dGeom = 2 * R * Math.asin(Math.sqrt(s1));
-            
-            candidates.push({ clinic: c, lat: targetLat, lng: targetLng, dGeom: dGeom });
-        }
-
-        candidates.sort((a, b) => a.dGeom - b.dGeom);
-        const finalists = candidates.slice(0, 3);
-
-        if (!finalists.length) return;
-
-        let bestMatch = null;
-        let minDrivingDistance = Infinity;
-        let bestRouteGeometry = null;
-        
-        for (const f of finalists) {
-            try {
-                const url = `https://router.project-osrm.org/route/v1/driving/${g.lng},${g.lat};${f.lng},${f.lat}?overview=full&geometries=geojson`;
-                const response = await fetch(url);
-                if (!response.ok) continue;
-                
-                const data = await response.json();
-                if (!data.routes || !data.routes.length) continue;
-
-                const route = data.routes[0];
-                const drivingDistKm = route.distance / 1000;
-
-                if (drivingDistKm < minDrivingDistance) {
-                    minDrivingDistance = drivingDistKm;
-                    bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
-                    bestRouteGeometry = route.geometry;
-                }
-            } catch (err) {
-                if (!bestMatch) {
-                    minDrivingDistance = f.dGeom;
-                    bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
-                }
-            }
-        }
-
-        if (bestMatch) {
-            renderSelectedClinic(bestMatch, minDrivingDistance);
-            
-            if (bestRouteGeometry) {
-                const coordinates = bestRouteGeometry.coordinates.map(coord => [coord[1], coord[0]]);
-                
-                searchLine = L.polyline(coordinates, {
-                    color: '#2563eb',
-                    weight: 4,
-                    opacity: 0.85,
-                    lineJoin: 'round'
-                }).addTo(map);
-            } else {
-                searchLine = L.polyline([[g.lat, g.lng], [bestMatch.lat, bestMatch.lng]], {
-                    color: '#dc2626', weight: 2, opacity: .6, dashArray: '5,5'
-                }).addTo(map);
-            }
-
-            const routeBounds = searchLine.getBounds();
-            routeBounds.extend([g.lat, g.lng]);
-            map.fitBounds(routeBounds, {
-                padding: [60, 60],
-                maxZoom: 14
             });
         }
     }
+
+    dl.innerHTML = optionsHtml.join('');
+}
+
+async function findNearest() {
+    const sel = document.getElementById('clinicSelect');
+    const chosen = sel?.selectedOptions?.[0]?.dataset?.code;
+    if (chosen) {
+        const c = getClinicByCode(chosen);
+        if (c?.lat && c.lng) {
+            selectClinic(c);
+            return;
+        }
+    }
+
+    const searchInput = document.getElementById('searchInput');
+    const q = (searchInput?.value ?? '').trim();
+    if (!q) return;
+
+    const now = new Date();
+    const todayStr = `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()]} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][now.getMonth()]} ${now.getDate()}`;
+    
+    let providerTargetCode = null;
+    let matchedProviderName = null;
+
+    const providers = window.APP_DATA?.providersByCode;
+    if (providers) {
+        for (const code in providers) {
+            const found = (providers[code] || []).find(p => 
+                String(p.Date || '').trim() === todayStr && (
+                    String(p['Employee Name'] || '').toLowerCase().includes(q.toLowerCase()) ||
+                    String(p['Provider ID'] || '').trim() === q
+                )
+            );
+            if (found) {
+                providerTargetCode = code;
+                matchedProviderName = found['Employee Name'];
+                break;
+            }
+        }
+    }
+
+    if (providerTargetCode) {
+        const c = getClinicByCode(providerTargetCode);
+        if (c?.lat && c.lng) {
+            selectClinic(c);
+            if (searchInput) searchInput.value = matchedProviderName;
+            return;
+        }
+    }
+
+    const bySearch = getClinicBySearch(q);
+    if (bySearch?.lat) {
+        selectClinic(bySearch);
+        return;
+    }
+    
+    const g = await resolveLocation(q);
+    if (!g) {
+        alert('Address/Plus Code/Provider not found.');
+        return;
+    }
+    
+    if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+    if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
+
+    searchMarker = L.circleMarker([g.lat, g.lng], {
+        radius: 7, color: '#dc2626', fillColor: '#dc2626', fillOpacity: 0.8, weight: 2
+    }).addTo(map).bindPopup('📍 Dirección de Búsqueda');
+
+    let candidates = [];
+    for (const c of CLINICS) {
+        let targetLat = c.lat;
+        let targetLng = c.lng;
+
+        const plusDecoded = await tryDecodePlusCode(c.plusCode);
+        if (plusDecoded) {
+            targetLat = plusDecoded.lat;
+            targetLng = plusDecoded.lng;
+        }
+
+        if (!targetLat || !targetLng) continue;
+
+        const R = 6371, toRad = d => d * Math.PI / 180;
+        const dLat = toRad(targetLat - g.lat), dLng = toRad(targetLng - g.lng);
+        const s1 = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(g.lat)) * Math.cos(toRad(targetLat)) * Math.sin(dLng / 2) ** 2;
+        const dGeom = 2 * R * Math.asin(Math.sqrt(s1));
+        
+        candidates.push({ clinic: c, lat: targetLat, lng: targetLng, dGeom });
+    }
+
+    candidates.sort((a, b) => a.dGeom - b.dGeom);
+    const finalists = candidates.slice(0, 3);
+    if (!finalists.length) return;
+
+    let bestMatch = null;
+    let minDrivingDistance = Infinity;
+    let bestRouteGeometry = null;
+    
+    for (const f of finalists) {
+        try {
+            const url = `https://router.project-osrm.org/route/v1/driving/${g.lng},${g.lat};${f.lng},${f.lat}?overview=full&geometries=geojson`;
+            const response = await fetch(url);
+            if (!response.ok) continue;
+            
+            const data = await response.json();
+            const route = data.routes?.[0];
+            if (!route) continue;
+
+            const drivingDistKm = route.distance / 1000;
+            if (drivingDistKm < minDrivingDistance) {
+                minDrivingDistance = drivingDistKm;
+                bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
+                bestRouteGeometry = route.geometry;
+            }
+        } catch {
+            if (!bestMatch) {
+                minDrivingDistance = f.dGeom;
+                bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
+            }
+        }
+    }
+
+    if (bestMatch) {
+        renderSelectedClinic(bestMatch, minDrivingDistance);
+        
+        if (bestRouteGeometry) {
+            const coordinates = bestRouteGeometry.coordinates.map(coord => [coord[1], coord[0]]);
+            searchLine = L.polyline(coordinates, {
+                color: '#2563eb', weight: 4, opacity: 0.85, lineJoin: 'round'
+            }).addTo(map);
+        } else {
+            searchLine = L.polyline([[g.lat, g.lng], [bestMatch.lat, bestMatch.lng]], {
+                color: '#dc2626', weight: 2, opacity: 0.6, dashArray: '5,5'
+            }).addTo(map);
+        }
+
+        const routeBounds = searchLine.getBounds();
+        routeBounds.extend([g.lat, g.lng]);
+        map.fitBounds(routeBounds, { padding: [60, 60], maxZoom: 14 });
+    }
+}
 
     function clearSearch() {
         const box = document.getElementById('searchInput');

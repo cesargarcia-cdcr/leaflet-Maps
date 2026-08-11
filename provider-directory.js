@@ -45,76 +45,42 @@
         return result;
     }
 
-    // Auto-carga asíncrona directa desde el disco
     async function preloadProviderData() {
         try {
-            console.log("📂 Cargando bases de datos de proveedores desde la raíz...");
+            console.log("📂 Cargando base de datos de proveedores exclusivamente desde Excel Online (Flujo)...");
             
-            const responseMain = await fetch('/Main-Providers.csv');
-            if (responseMain.ok) {
-                masterList = parseStandardCSV(await responseMain.text());
+            // Cargar datos exclusivamente desde el almacenamiento sincronizado del flujo
+            let mainTxt = null;
+            if (typeof window.obtenerArchivo === 'function') {
+                mainTxt = await window.obtenerArchivo('mainProviders') || await window.obtenerArchivo('Main-Providers');
+            }
+            if (!mainTxt) {
+                mainTxt = localStorage.getItem('mainProviders') || localStorage.getItem('Main-Providers');
             }
 
-            const responseSched = await fetch('/PROVIDERS-Sched.csv');
-            if (responseSched.ok) {
-                const schedList = parseStandardCSV(await responseSched.text());
-                
-                // 🕒 OBTENER FECHA REAL HOY (Se desplaza sola día con día en tiempo real)
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const currentYear = today.getFullYear();
-
-                globalScheduleMap = {};
-                schedList.forEach(slot => {
-                    const pId = String(slot['Provider ID'] || '').trim();
-                    if (!pId) return;
-
-                    const dateStr = String(slot['Date'] || '').trim();
-                    let isFuture = true;
-                    
-                    if (dateStr) {
-                        // 🛠️ LIMPIEZA DE FECHA: Remueve el prefijo del día de la semana (ej: "Mon Jun 1" -> "Jun 1")
-                        const cleanDateStr = dateStr.replace(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+/i, '');
-                        
-                        // Combinar con el año actual asumido de forma segura
-                        const parsedDate = Date.parse(`${cleanDateStr} ${currentYear}`);
-                        
-                        if (!isNaN(parsedDate)) {
-                            const slotDate = new Date(parsedDate);
-                            // Comparación estricta: Si la rotación es menor al día de hoy, se descarta
-                            if (slotDate < today) {
-                                isFuture = false;
-                            }
-                        }
+            if (mainTxt) {
+                if (typeof mainTxt === 'string' && (mainTxt.trim().startsWith('[') || mainTxt.trim().startsWith('{'))) {
+                    try {
+                        const parsed = JSON.parse(mainTxt);
+                        masterList = Array.isArray(parsed) ? parsed : (parsed.value || []);
+                    } catch (e) {
+                        masterList = parseStandardCSV(mainTxt);
                     }
-
-                    if (!isFuture) return;
-
-                    if (!globalScheduleMap[pId]) globalScheduleMap[pId] = [];
-                    globalScheduleMap[pId].push({
-                        date: dateStr,
-                        clinic: slot['Health Center'] || 'On-Site',
-                        role: slot['JOB NAME'] || 'Provider'
-                    });
-                });
-                // console.log("✅ PROVIDERS-Sched.csv filtrado: Solo mostrando turnos vigentes y futuros.");
-            }
-
-            const responseNpi = await fetch('/Providers-npi.csv');
-            if (responseNpi.ok) {
-                const npiList = parseStandardCSV(await responseNpi.text());
-                npiList.forEach(item => {
-                    const pId = String(item['Provider ID'] || '').trim();
-                    const npi = String(item['NPI'] || '').trim();
-                    if (pId && npi) npiLookupMap[pId] = npi;
-                });
+                } else if (Array.isArray(mainTxt)) {
+                    masterList = mainTxt;
+                } else {
+                    masterList = parseStandardCSV(mainTxt);
+                }
+            } else {
+                console.warn("⚠️ No se encontró la tabla de proveedores en los datos sincronizados.");
+                masterList = [];
             }
 
             renderDirectory();
             initAutocomplete();
 
         } catch (error) {
-            console.error("❌ Error en precarga de datos:", error);
+            console.error("❌ Error en precarga de datos de proveedores:", error);
         }
     }
 
