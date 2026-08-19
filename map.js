@@ -1,4 +1,4 @@
-/* === Map UI/UX Optimized (v1 - Integrado con Data Loader) === */
+/* === Map UI/UX Optimized (v1) === */
 'use strict';
 (function () {
     let CLINICS = [],
@@ -10,91 +10,193 @@
     markersLayer = null;
 
     /* ---------- Utilities ---------- */
+    async function safeJson(url) {
+        try {
+            const r = await fetch(url, {
+                cache: 'no-cache'
+            });
+            if (!r.ok)
+                return null;
+            return await r.json();
+        } catch (_) {
+            return null;
+        }
+    }
     const store = {
         get(k, d) {
             try {
                 const v = localStorage.getItem(k);
                 return v ?? d;
             } catch (_) {
-                return d;
+                return d
             }
         },
         set(k, v) {
             try {
-                localStorage.setItem(k, v);
+                localStorage.setItem(k, v)
             } catch (_) {}
         }
     };
 
+    /* ---------- Data Load ---------- */
     async function loadData() {
-    try {
-        console.log("LOG_DEBUG: Iniciando loadData...");
-        
-        // 1. Cargar Clínicas
-        const clinicsTxt = await obtenerArchivo('clinics');
+
+        console.log("📡 Loading cached datasets...");
+
+        // ==========================
+        // Clinics
+        // ==========================
+        const clinicsTxt = obtenerCsv("clinics");
+
         if (clinicsTxt) {
-            CLINICS = CSV_rowsToObjects(CSV_parse(clinicsTxt));
-        }
+            CLINICS = mapClinicsCsvToObjects(
+                    CSV_rowsToObjects(
+                        CSV_parse(clinicsTxt)));
 
-        // 2. Cargar Proveedores / Schedules
-        const schedTxt = await obtenerArchivo('PROVIDERS-Sched');
-        if (schedTxt) {
-            PROVIDERS_SCHED = CSV_rowsToObjects(CSV_parse(schedTxt));
-        }
-
-        // 3. Cargar Extensiones (en formato CSV)
-        const extTxt = await obtenerArchivo('extensions');
-        if (extTxt) {
-            try {
-                const extRows = CSV_rowsToObjects(CSV_parse(extTxt));
-                EXT = {};
-                extRows.forEach(row => {
-                    const sec = row.section || row.Section || 'General';
-                    if (!EXT[sec]) EXT[sec] = [];
-                    EXT[sec].push(row);
-                });
-            } catch (e) {
-                console.error("❌ Error procesando el CSV de extensiones:", e);
-                EXT = {};
-            }
+            console.log(
+`✅ Clinics loaded: ${CLINICS.length}`);
         } else {
-            EXT = {};
+            console.warn("⚠️ csv_clinics not found");
         }
-        
-        buildExtensionsIndex();
 
-    } catch (error) {
-        console.error("❌ Error bootstrap:", error);
+        // ==========================
+        // Provider Schedule
+        // ==========================
+        const provTxt = obtenerCsv("providersSched");
+
+        if (provTxt) {
+
+            const provRows =
+                CSV_rowsToObjects(
+                    CSV_parse(provTxt));
+
+            console.log("Headers:");
+            console.log(Object.keys(provRows[0] || {}));
+
+            console.log("First row:");
+            console.log(provRows[0]);
+
+            window.APP_DATA = window.APP_DATA || {};
+
+            window.APP_DATA.providersByCode =
+                provRows.reduce((acc, row) => {
+
+                    const code = String(
+                            row["Code"] || "")
+                        .trim()
+                        .toUpperCase();
+
+                    if (!code)
+                        return acc;
+
+                    if (!acc[code]) {
+                        acc[code] = [];
+                    }
+
+                    acc[code].push(row);
+
+                    return acc;
+
+                }, {});
+
+            console.log(
+                "Provider groups:",
+                Object.keys(window.APP_DATA.providersByCode));
+
+            console.log(
+`✅ Provider schedule loaded: ${provRows.length}`);
+        };
+
+        // ==========================
+        // Extensions
+        // ==========================
+        const extTxt = obtenerCsv("extensions");
+
+        if (extTxt) {
+
+            const extRows =
+                CSV_rowsToObjects(
+                    CSV_parse(extTxt));
+
+            EXT = {};
+
+            extRows.forEach(row => {
+
+                const section =
+                    row.Section ||
+                    row.section ||
+                    "General";
+
+                if (!EXT[section]) {
+                    EXT[section] = [];
+                }
+
+                EXT[section].push(row);
+            });
+
+            console.log(
+`✅ Extensions loaded: ${extRows.length}`);
+
+            console.log("Extension first row:");
+            console.log(extRows[0]);
+
+            console.log("Extension headers:");
+            console.log(Object.keys(extRows[0] || {}));
+
+        }
+
+        buildExtensionsIndex();
     }
-}
+
     function mapClinicsCsvToObjects(items) {
-        if (!items || !Array.isArray(items))
+        console.log(
+            "✅ Clinics loaded:",
+            CLINICS.length);
+
+        console.log(
+            "First clinic:",
+            CLINICS[0]);
+        if (!Array.isArray(items)) {
             return [];
-        const out = [],
-        seen = new Set();
+        }
+
+        const out = [];
+        const seen = new Set();
 
         for (const it of items) {
-            const code = it['code'];
-            const name = it['name'];
-            const plusCode = it['plusCode'];
-            const nicknames = it['nicknames'];
 
-            const addr = [it['address'], it['city'], it['state'], it['zipCode']]
+            const code = String(
+                    it.Abbreviation || "").trim();
+
+            const name = String(
+                    it.Location || "").trim();
+
+            const plusCode = String(
+                    it.plusCode || "").trim();
+
+            const address = [
+                it.Address,
+                it.City,
+                it.Zip
+            ]
             .filter(Boolean)
-            .join(', ');
-
-            const lat = parseFloat(it['lat']);
-            const lng = parseFloat(it['lng']);
+            .join(", ");
 
             const clinic = {
-                clinicId: it['clinicId'] || name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-'),
-                code: code,
-                name: name,
-                plusCode: plusCode, 
-                address: addr,
-                lat: lat,
-                lng: lng,
-                nicknames: nicknames
+                clinicId:
+                it.ItemInternalId ||
+                code,
+
+                code,
+                name,
+                plusCode,
+
+                address,
+
+                lat: null,
+                lng: null,
+
+                nicknames: ""
             };
 
             if (code && !seen.has(code)) {
@@ -102,29 +204,55 @@
                 seen.add(code);
             }
         }
+
         return out;
     }
 
     function buildExtensionsIndex() {
+
         EXT_BY_CODE = {};
+
+        console.log("EXT =", EXT);
+
         for (const section in EXT) {
-            if (section === 'Meta' || !Array.isArray(EXT[section]))
+
+            console.log("SECTION =", section);
+
+            if (!Array.isArray(EXT[section])) {
+                console.log("NOT ARRAY");
                 continue;
+            }
+
             for (const item of EXT[section]) {
-                const code = String(item.code || '').toUpperCase();
+
+                console.log("ITEM =", item);
+
+                const code = String(
+                        item.Code || "");
+
                 if (!code)
                     continue;
-                if (!EXT_BY_CODE[code])
+
+                if (!EXT_BY_CODE[code]) {
                     EXT_BY_CODE[code] = {};
+                }
+
                 EXT_BY_CODE[code][section] = item;
             }
         }
+
+        console.log(
+            "EXT_BY_CODE",
+            EXT_BY_CODE);
     }
 
     /* ---------- OLC & Geocode ---------- */
     const CA_BOUNDS = [[32.529523, -124.482003], [42.009518, -114.131211]];
     const CA_VIEWBOX = '-124.482003,42.009518,-114.131211,32.529523';
-    const CA_CENTER = { lat: 37.25, lng: -119.7 };
+    const CA_CENTER = {
+        lat: 37.25,
+        lng: -119.7
+    };
     let __OLC_READY = null;
 
     function ensureOLC() {
@@ -189,7 +317,7 @@
                 lng: a.longitudeCenter
             };
         } catch (_) {
-            return null;
+            return null
         }
     }
 
@@ -207,54 +335,26 @@
         try {
             await throttle();
             q = String(q ?? '').trim();
-            
-            // 1. Limpiar espacios múltiples y convertir saltos o espacios extra en espacios simples
-            q = q.replace(/\s+/g, ' ');
-
-            // 2. Si el usuario escribió la dirección solo con espacios en lugar de comas,
-            // podemos ayudar a Nominatim agregando comas lógicas si detectamos números seguidos de texto y estados
-            // O simplemente asegurarnos de que si no incluye CA/California, se los adjuntamos al final.
-            if (!/(\bCA\b|\bCalifornia\b|\bUSA\b|\d{5})/i.test(q)) {
+            if (!/(\bCA\b|\bCalifornia\b|\bUSA\b|\d{5})/i.test(q))
                 q += ', CA, USA';
-            } else if (!q.includes(',')) {
-                // Si tiene datos (como un código postal o CA) pero cero comas, intentamos separar 
-                // el estado/código o simplemente dejamos que Nominatim procese la cadena limpia.
-                q = q.replace(/\b(CA|California)\b/i, ', $1, USA');
-            }
-
             const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=us&viewbox=${encodeURIComponent(CA_VIEWBOX)}&bounded=1&limit=5`;
             const r = await fetch(url, {
-                headers: { 'Accept': 'application/json' }
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
-            
-            if (!r.ok) return null;
-            const d = await r.json();
-            if (!Array.isArray(d) || !d.length) return null;
-
-            // Filtrar estrictamente para aceptar únicamente resultados dentro de California
-            const best = d.find(x => {
-                const name = x?.display_name || '';
-                const lat = parseFloat(x.lat);
-                const lon = parseFloat(x.lon);
-                
-                const isCaliforniaText = /(^|,\s)California(,|\s|$)/i.test(name);
-                const isInBounds = (lat >= CA_BOUNDS[0][0] && lat <= CA_BOUNDS[1][0] && 
-                                  lon >= CA_BOUNDS[0][1] && lon <= CA_BOUNDS[1][1]);
-                
-                return isCaliforniaText && isInBounds;
-            });
-
-            if (!best) {
-                console.warn("⚠️ Búsqueda rechazada: Fuera del área de servicio.");
+            if (!r.ok)
                 return null;
-            }
-
+            const d = await r.json();
+            if (!Array.isArray(d) || !d.length)
+                return null;
+            const best = d.find(x => /(^|,\s)California(,|\s|$)/i.test(x?.display_name || '')) || d[0];
             return {
                 lat: +best.lat,
                 lng: +best.lon
             };
         } catch (_) {
-            return null;
+            return null
         }
     }
 
@@ -274,11 +374,12 @@
         markersLayer = L.layerGroup().addTo(map);
         const bounds = L.latLngBounds();
 
+        // 🎯 SOLUCIÓN AL DESFASE: Forzar a Leaflet a usar un anclaje centrado abajo del pin
         const clinicIcon = L.icon({
             iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
             shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
+            iconSize: [25, 41], // Dimensiones nativas de la imagen del marcador
+            iconAnchor: [12, 41], // ⚠️ Eje X centrado (12) y Eje Y en la punta inferior (41)
             popupAnchor: [1, -34],
             shadowSize: [41, 41]
         });
@@ -287,10 +388,12 @@
             let lat = c.lat;
             let lng = c.lng;
 
+            // Decodificación directa desde la columna Plus Code de tu CSV de clínicas
             const plusDecoded = await tryDecodePlusCode(c.plusCode);
             if (plusDecoded) {
                 lat = plusDecoded.lat;
                 lng = plusDecoded.lng;
+                // console.log(`📍 Using precise Plus Code for ${c.code}: ${lat}, ${lng}`);
             }
 
             if (typeof lat !== 'number' || typeof lng !== 'number') {
@@ -298,20 +401,24 @@
                 continue;
             }
 
-            const m = L.marker([lat, lng], { icon: clinicIcon }).addTo(markersLayer);
-            
+            // Aplicamos el icon de anclaje corregido aquí para fijar la marca al mapa
+            const m = L.marker([lat, lng], {
+                icon: clinicIcon
+            }).addTo(markersLayer);
+
+            // Vincular la etiqueta flotante usando los estilos de tu map.css (.clinic-label)
             m.bindTooltip(c.code, {
                 permanent: true,
-                direction: 'polygon',
-                offset: [0, -42],
+                direction: 'polygon', // 🎯 CAMBIO: Forzar centrado matemático absoluto horizontal
+                offset: [0, -42], // Mantiene la elevación perfecta sobre la cabeza del pin
                 className: 'clinic-label'
             });
 
             m.on('click', () => selectClinic({
-                ...c,
-                lat,
-                lng
-            })); 
+                    ...c,
+                    lat,
+                    lng
+                }));
             bounds.extend([lat, lng]);
         }
 
@@ -339,6 +446,32 @@
         });
     }
 
+    function excelDateToJS(excelDate) {
+
+        if (!excelDate)
+            return null;
+
+        return new Date(
+            (Number(excelDate) - 25569) * 86400 * 1000);
+
+    }
+
+    function isTodayExcelDate(excelDate) {
+
+        const d = excelDateToJS(excelDate);
+
+        if (!d)
+            return false;
+
+        const now = new Date();
+
+        return (
+            d.getFullYear() === now.getFullYear() &&
+            d.getMonth() === now.getMonth() &&
+            d.getDate() === now.getDate());
+
+    }
+
     /* ---------- Sheet render (Counters + Toggle) ---------- */
     function renderSelectedClinic(c, distance) {
         const panel = document.getElementById('clinic-info-body');
@@ -351,8 +484,71 @@
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
 
-        const linkedProviders = (window.APP_DATA?.providersByCode?.[c.code.toUpperCase()] || [])
-        .filter(p => String(p.Date || '').trim() === todayStr);
+        console.log("========== DEBUG CLINIC ==========");
+        console.log("Clinic code:", c.code);
+        console.log("Today:", todayStr);
+
+        console.log(
+            "Provider groups:",
+            Object.keys(window.APP_DATA.providersByCode || {}));
+
+        const clinicProviders =
+            window.APP_DATA.providersByCode?.[
+                c.code.toUpperCase()
+            ] || [];
+
+        console.log(
+            "Providers for clinic:",
+            clinicProviders.length);
+
+        console.log(
+            "Sample provider:",
+            clinicProviders[0]);
+
+        /*         const linkedProviders = (window.APP_DATA.providersByCode?.[c.code.toUpperCase()] || [])
+        .filter(p => String(p.Date || '').trim() === todayStr); */
+
+        // TEMP DEBUG
+const linkedProviders = clinicProviders;
+
+console.log(
+    "After date filter (disabled):",
+    linkedProviders.length
+);
+
+if (clinicProviders.length > 0) {
+
+    console.log(
+        "todayStr:",
+        todayStr
+    );
+
+    console.log(
+        "provider excel date:",
+        clinicProviders[0].Date
+    );
+
+    console.log(
+        "provider js date:",
+        excelDateToJS(
+            clinicProviders[0].Date
+        )
+    );
+
+}
+
+        console.log(
+            "todayStr:",
+            todayStr);
+
+        console.log(
+            "provider excel date:",
+            clinicProviders[0]?.Date);
+
+        console.log(
+            "provider js date:",
+            excelDateToJS(
+                clinicProviders[0]?.Date));
 
         let html = '';
 
@@ -387,11 +583,20 @@
                 const v = EXT_BY_CODE[c.code][sec] || {};
                 const rows = [];
                 if (v.front)
-                    rows.push({ label: 'Front', value: nb(v.front) });
+                    rows.push({
+                        label: 'Front',
+                        value: nb(v.front)
+                    });
                 if (v.back)
-                    rows.push({ label: 'Back', value: nb(v.back) });
+                    rows.push({
+                        label: 'Back',
+                        value: nb(v.back)
+                    });
                 if (!v.front && !v.back && v.ext)
-                    rows.push({ label: 'EXT', value: nb(v.ext) });
+                    rows.push({
+                        label: 'EXT',
+                        value: nb(v.ext)
+                    });
 
                 html += `
             <div class="modern-ext-group">
@@ -447,18 +652,24 @@
         setTimeout(() => AppMap.invalidate(), 100);
     }
 
-    window.routeToProviderDirectory = function(providerName) {
+    // Función puente para comunicar el mapa con el directorio de proveedores
+    window.routeToProviderDirectory = function (providerName) {
+        // 1. Cambiar de pestaña usando el enrutador de tu notes.js
         if (typeof window.navigateTo === 'function') {
             window.navigateTo('provider-directory');
         }
 
+        // 2. Inyectar el nombre en el buscador del directorio y disparar el filtrado
         setTimeout(() => {
             const searchInput = document.getElementById('masterProviderSearch');
             if (searchInput) {
                 searchInput.value = providerName;
-                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                // Disparar el evento input para que provider-directory.js reaccione e implemente el autocompletado
+                searchInput.dispatchEvent(new Event('input', {
+                        bubbles: true
+                    }));
             }
-        }, 50);
+        }, 50); // Pequeña pausa para asegurar que el DOM de la pestaña ya esté visible
     };
 
     function openSheet() {
@@ -482,12 +693,12 @@
         const n = String(code ?? '').toUpperCase().trim();
         return CLINICS.find(c => c.code?.toUpperCase().trim() === n);
     }
-    
+
     function getClinicBySearch(q) {
         let c = getClinicByCode(q);
         if (c)
             return c;
-            
+
         const n = String(q ?? '').toLowerCase().trim();
         return CLINICS.find(c => {
             const nameMatch = c.name?.toLowerCase().trim() === n || c.name?.toLowerCase().includes(n);
@@ -497,183 +708,278 @@
     }
 
     function populateClinicPickers() {
-    const dl = document.getElementById('clinicNameList');
-    if (!dl) return;
-    
-    const ordered = [...CLINICS].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    let optionsHtml = ordered.map(c => {
-        const nicknames = String(c.nicknames || '').split(',').map(n => n.trim()).filter(Boolean);
-        const nickStr = nicknames.length ? ` (${nicknames.join(', ')})` : '';
-        return `<option value="${c.name}${nickStr}" data-type="clinic" data-code="${c.code}"></option>`;
-    });
+        const sel = document.getElementById('clinicSelect');
+        const dl = document.getElementById('clinicNameList');
+        if (!sel && !dl)
+            return;
 
-    const now = new Date();
-    const todayStr = `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()]} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][now.getMonth()]} ${now.getDate()}`;
-    const seenPairs = new Set();
+        const ordered = [...CLINICS].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-    const providers = window.APP_DATA?.providersByCode;
-    if (providers) {
-        for (const code in providers) {
-            (providers[code] || []).forEach(p => {
-                if (String(p.Date || '').trim() === todayStr && p['Employee Name']) {
-                    const uniqueKey = `${p['Provider ID']}-${code}`;
-                    if (!seenPairs.has(uniqueKey)) {
-                        const pId = String(p['Provider ID'] || '').trim();
-                        const pName = String(p['Employee Name'] || '').trim();
-                        const pSpec = p.Specialty ?? p['JOB NAME'] ?? 'MD';
-                        
-                        optionsHtml.push(
-                            `<option value="${pName}" label="🆔 ${pId} -> Hoy en ${code} (${pSpec})"></option>`,
-                            `<option value="${pId}" label="👨‍⚕️ ${pName} -> Hoy en ${code} (${pSpec})"></option>`
-                        );
-                        seenPairs.add(uniqueKey);
-                    }
+        if (sel) {
+            sel.innerHTML = '';
+            sel.insertAdjacentHTML('beforeend', '<option value="">Todas las clínicas…</option>');
+            for (const c of ordered) {
+                const main = document.createElement('option');
+                main.value = c.code;
+                main.textContent = c.code ? `${c.code} — ${c.name}` : c.name;
+                main.setAttribute('data-code', c.code);
+                sel.appendChild(main);
+            }
+            if (!sel.__wired) {
+                sel.addEventListener('change', () => {
+                    const opt = sel.selectedOptions?.[0];
+                    const code = opt?.dataset?.code;
+                    const c = code ? getClinicByCode(code) : null;
+                    if (c && c.lat && c.lng)
+                        selectClinic(c);
+                });
+                sel.__wired = true;
+            }
+        }
+
+        if (dl) {
+            let optionsHtml = [];
+
+            // 1. Agregar las clínicas con sus Nicknames al buscador
+            CLINICS.forEach(c => {
+                const nicknamesArray = String(c.nicknames || '').split(',').map(n => n.trim()).filter(Boolean);
+                const nicknamesStr = nicknamesArray.length > 0 ? ` (${nicknamesArray.join(', ')})` : '';
+                optionsHtml.push(`<option value="${c.name}${nicknamesStr}" data-type="clinic" data-code="${c.code}"></option>`);
+            });
+
+            // 2. Extraer y agregar los Proveedores programados para HOY de forma dinámica
+            const now = new Date();
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
+            const seenPairs = new Set();
+
+            if (window.APP_DATA && window.APP_DATA.providersByCode) {
+                for (const code in window.APP_DATA.providersByCode) {
+                    const list = window.APP_DATA.providersByCode[code] || [];
+                    list.forEach(p => {
+                        if (String(p.Date || '').trim() === todayStr && p['Employee Name']) {
+                            const uniqueKey = `${p['Provider ID']}-${code}`;
+                            if (!seenPairs.has(uniqueKey)) {
+                                const pId = String(p['Provider ID'] || '').trim();
+                                const pName = String(p['Employee Name'] || '').trim();
+                                const pSpec = p.Specialty ?? p['JOB NAME'] ?? 'MD';
+
+                                // Opción por Nombre
+                                optionsHtml.push(`<option value="${pName}" label="🆔 ${pId} -> Hoy en ${code} (${pSpec})"></option>`);
+                                // Opción por ID para búsqueda rápida numérica
+                                optionsHtml.push(`<option value="${pId}" label="👨‍⚕️ ${pName} -> Hoy en ${code} (${pSpec})"></option>`);
+
+                                seenPairs.add(uniqueKey);
+                            }
+                        }
+                    });
                 }
+            }
+
+            dl.innerHTML = optionsHtml.join('');
+        }
+    }
+
+    async function findNearest() {
+        const sel = document.getElementById('clinicSelect');
+        const chosen = sel?.selectedOptions?.[0]?.dataset?.code ?? '';
+        if (chosen) {
+            const c = getClinicByCode(chosen);
+            if (c && c.lat && c.lng) {
+                selectClinic(c);
+                return;
+            }
+        }
+        const q = (document.getElementById('searchInput')?.value ?? '').trim();
+        if (!q)
+            return;
+
+        // 🎯 INTERCEPCIÓN MULTIBUSCADOR: Verificar si coincide con un Proveedor por Nombre o por ID
+        const now = new Date();
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
+        let providerTargetCode = null;
+        let matchedProviderName = null;
+
+        if (window.APP_DATA && window.APP_DATA.providersByCode) {
+            for (const code in window.APP_DATA.providersByCode) {
+                const list = window.APP_DATA.providersByCode[code] || [];
+                const found = list.find(p =>
+                        String(p.Date || '').trim() === todayStr && (
+                            String(p['Employee Name'] || '').toLowerCase().includes(q.toLowerCase()) ||
+                            String(p['Provider ID'] || '').trim() === q));
+                if (found) {
+                    providerTargetCode = code;
+                    matchedProviderName = found['Employee Name'];
+                    break;
+                }
+            }
+        }
+
+        // Si fue un proveedor, saltamos directo a su clínica de hoy y detenemos la geolocalización de mapas
+        if (providerTargetCode) {
+            const c = getClinicByCode(providerTargetCode);
+            if (c && c.lat && c.lng) {
+                console.log(`🎯 Proveedor localizado por Todo-En-Uno: ${matchedProviderName}. Saltando a ${providerTargetCode}`);
+                selectClinic(c);
+                document.getElementById('searchInput').value = matchedProviderName; // Autocompleta el nombre limpio
+                return;
+            }
+        }
+
+        // Búsqueda de clínicas por código base/nickname tradicional
+        const bySearch = getClinicBySearch(q);
+        if (bySearch && bySearch.lat) {
+            selectClinic(bySearch);
+            return;
+        }
+
+        // 1. Resolver ubicación del paciente (Si no fue clínica ni proveedor, asume dirección/Plus Code)
+        const g = await resolveLocation(q);
+        if (!g) {
+            alert('Address/Plus Code/Provider not found.');
+            return;
+        }
+
+        // ... El resto de tu código de enrutamiento OSRM continúa exactamente igual abajo ...
+
+        // Limpiar capas previas
+        if (searchMarker) {
+            map.removeLayer(searchMarker);
+            searchMarker = null;
+        }
+        if (searchLine) {
+            map.removeLayer(searchLine);
+            searchLine = null;
+        }
+
+        // 🎯 CORRECCIÓN: Se eliminó '.openPopup()' al final para que el marcador no estorbe la ruta
+        searchMarker = L.circleMarker([g.lat, g.lng], {
+            radius: 7,
+            color: '#dc2626',
+            fillColor: '#dc2626',
+            fillOpacity: .8,
+            weight: 2
+        }).addTo(map).bindPopup('📍 Dirección de Búsqueda');
+
+        // 2. Pre-filtrado geométrico rápido para encontrar las 3 más cercanas en línea recta
+        let candidates = [];
+
+        for (const c of CLINICS) {
+            let targetLat = c.lat;
+            let targetLng = c.lng;
+
+            const plusDecoded = await tryDecodePlusCode(c.plusCode);
+            if (plusDecoded) {
+                targetLat = plusDecoded.lat;
+                targetLng = plusDecoded.lng;
+            }
+
+            if (!targetLat || !targetLng)
+                continue;
+
+            // Distancia geométrica rápida (Haversine)
+            const R = 6371,
+            toRad = d => d * Math.PI / 180;
+            const dLat = toRad(targetLat - g.lat),
+            dLng = toRad(targetLng - g.lng);
+            const s1 = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(g.lat)) * Math.cos(toRad(targetLat)) * Math.sin(dLng / 2) ** 2;
+            const dGeom = 2 * R * Math.asin(Math.sqrt(s1));
+
+            candidates.push({
+                clinic: c,
+                lat: targetLat,
+                lng: targetLng,
+                dGeom: dGeom
+            });
+        }
+
+        // Ordenar por distancia aérea y quedarnos con las 3 mejores finalistas
+        candidates.sort((a, b) => a.dGeom - b.dGeom);
+        const finalists = candidates.slice(0, 3);
+
+        if (!finalists.length)
+            return;
+
+        let bestMatch = null;
+        let minDrivingDistance = Infinity;
+        let bestRouteGeometry = null;
+
+        // 3. Consultar al servidor de enrutamiento vial para las finalistas
+        console.log("🛣️ Calculando distancias reales por carretera para las clínicas finalistas...");
+
+        for (const f of finalists) {
+            try {
+                // Consultamos la API libre de OSRM (modo conducción/driving)
+                const url = `https://router.project-osrm.org/route/v1/driving/${g.lng},${g.lat};${f.lng},${f.lat}?overview=full&geometries=geojson`;
+                const response = await fetch(url);
+                if (!response.ok)
+                    continue;
+
+                const data = await response.json();
+                if (!data.routes || !data.routes.length)
+                    continue;
+
+                const route = data.routes[0];
+                const drivingDistKm = route.distance / 1000; // OSRM devuelve metros, pasamos a km
+
+                // Si esta clínica está más cerca manejando, se convierte en la líder
+                if (drivingDistKm < minDrivingDistance) {
+                    minDrivingDistance = drivingDistKm;
+                    bestMatch = {
+                        ...f.clinic,
+                        lat: f.lat,
+                        lng: f.lng
+                    };
+                    bestRouteGeometry = route.geometry; // Guardamos las curvas de las calles
+                }
+            } catch (err) {
+                console.error("⚠️ Error consultando servidor de rutas, usando respaldo geométrico:", err);
+                if (!bestMatch) {
+                    minDrivingDistance = f.dGeom;
+                    bestMatch = {
+                        ...f.clinic,
+                        lat: f.lat,
+                        lng: f.lng
+                    };
+                }
+            }
+        }
+
+        // 4. Renderizar resultados y dibujar la ruta real por las calles
+        if (bestMatch) {
+            renderSelectedClinic(bestMatch, minDrivingDistance);
+
+            if (bestRouteGeometry) {
+                // Dibujar calles reales invirtiendo coordenadas de GeoJSON [lng, lat] a [lat, lng]
+                const coordinates = bestRouteGeometry.coordinates.map(coord => [coord[1], coord[0]]);
+
+                searchLine = L.polyline(coordinates, {
+                    color: '#2563eb',
+                    weight: 4,
+                    opacity: 0.85,
+                    lineJoin: 'round'
+                }).addTo(map);
+            } else {
+                searchLine = L.polyline([[g.lat, g.lng], [bestMatch.lat, bestMatch.lng]], {
+                    color: '#dc2626',
+                    weight: 2,
+                    opacity: .6,
+                    dashArray: '5,5'
+                }).addTo(map);
+            }
+
+            // Ajustar la pantalla dinámicamente para que se vea la ruta completa
+            const routeBounds = searchLine.getBounds();
+            routeBounds.extend([g.lat, g.lng]);
+            map.fitBounds(routeBounds, {
+                padding: [60, 60],
+                maxZoom: 14
             });
         }
     }
-
-    dl.innerHTML = optionsHtml.join('');
-}
-
-async function findNearest() {
-    const sel = document.getElementById('clinicSelect');
-    const chosen = sel?.selectedOptions?.[0]?.dataset?.code;
-    if (chosen) {
-        const c = getClinicByCode(chosen);
-        if (c?.lat && c.lng) {
-            selectClinic(c);
-            return;
-        }
-    }
-
-    const searchInput = document.getElementById('searchInput');
-    const q = (searchInput?.value ?? '').trim();
-    if (!q) return;
-
-    const now = new Date();
-    const todayStr = `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()]} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][now.getMonth()]} ${now.getDate()}`;
-    
-    let providerTargetCode = null;
-    let matchedProviderName = null;
-
-    const providers = window.APP_DATA?.providersByCode;
-    if (providers) {
-        for (const code in providers) {
-            const found = (providers[code] || []).find(p => 
-                String(p.Date || '').trim() === todayStr && (
-                    String(p['Employee Name'] || '').toLowerCase().includes(q.toLowerCase()) ||
-                    String(p['Provider ID'] || '').trim() === q
-                )
-            );
-            if (found) {
-                providerTargetCode = code;
-                matchedProviderName = found['Employee Name'];
-                break;
-            }
-        }
-    }
-
-    if (providerTargetCode) {
-        const c = getClinicByCode(providerTargetCode);
-        if (c?.lat && c.lng) {
-            selectClinic(c);
-            if (searchInput) searchInput.value = matchedProviderName;
-            return;
-        }
-    }
-
-    const bySearch = getClinicBySearch(q);
-    if (bySearch?.lat) {
-        selectClinic(bySearch);
-        return;
-    }
-    
-    const g = await resolveLocation(q);
-    if (!g) {
-        alert('Address/Plus Code/Provider not found.');
-        return;
-    }
-    
-    if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
-    if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
-
-    searchMarker = L.circleMarker([g.lat, g.lng], {
-        radius: 7, color: '#dc2626', fillColor: '#dc2626', fillOpacity: 0.8, weight: 2
-    }).addTo(map).bindPopup('📍 Dirección de Búsqueda');
-
-    let candidates = [];
-    for (const c of CLINICS) {
-        let targetLat = c.lat;
-        let targetLng = c.lng;
-
-        const plusDecoded = await tryDecodePlusCode(c.plusCode);
-        if (plusDecoded) {
-            targetLat = plusDecoded.lat;
-            targetLng = plusDecoded.lng;
-        }
-
-        if (!targetLat || !targetLng) continue;
-
-        const R = 6371, toRad = d => d * Math.PI / 180;
-        const dLat = toRad(targetLat - g.lat), dLng = toRad(targetLng - g.lng);
-        const s1 = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(g.lat)) * Math.cos(toRad(targetLat)) * Math.sin(dLng / 2) ** 2;
-        const dGeom = 2 * R * Math.asin(Math.sqrt(s1));
-        
-        candidates.push({ clinic: c, lat: targetLat, lng: targetLng, dGeom });
-    }
-
-    candidates.sort((a, b) => a.dGeom - b.dGeom);
-    const finalists = candidates.slice(0, 3);
-    if (!finalists.length) return;
-
-    let bestMatch = null;
-    let minDrivingDistance = Infinity;
-    let bestRouteGeometry = null;
-    
-    for (const f of finalists) {
-        try {
-            const url = `https://router.project-osrm.org/route/v1/driving/${g.lng},${g.lat};${f.lng},${f.lat}?overview=full&geometries=geojson`;
-            const response = await fetch(url);
-            if (!response.ok) continue;
-            
-            const data = await response.json();
-            const route = data.routes?.[0];
-            if (!route) continue;
-
-            const drivingDistKm = route.distance / 1000;
-            if (drivingDistKm < minDrivingDistance) {
-                minDrivingDistance = drivingDistKm;
-                bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
-                bestRouteGeometry = route.geometry;
-            }
-        } catch {
-            if (!bestMatch) {
-                minDrivingDistance = f.dGeom;
-                bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
-            }
-        }
-    }
-
-    if (bestMatch) {
-        renderSelectedClinic(bestMatch, minDrivingDistance);
-        
-        if (bestRouteGeometry) {
-            const coordinates = bestRouteGeometry.coordinates.map(coord => [coord[1], coord[0]]);
-            searchLine = L.polyline(coordinates, {
-                color: '#2563eb', weight: 4, opacity: 0.85, lineJoin: 'round'
-            }).addTo(map);
-        } else {
-            searchLine = L.polyline([[g.lat, g.lng], [bestMatch.lat, bestMatch.lng]], {
-                color: '#dc2626', weight: 2, opacity: 0.6, dashArray: '5,5'
-            }).addTo(map);
-        }
-
-        const routeBounds = searchLine.getBounds();
-        routeBounds.extend([g.lat, g.lng]);
-        map.fitBounds(routeBounds, { padding: [60, 60], maxZoom: 14 });
-    }
-}
 
     function clearSearch() {
         const box = document.getElementById('searchInput');
@@ -740,7 +1046,7 @@ async function findNearest() {
         }
         setTimeout(() => AppMap.invalidate(), 200);
     }
-    
+
     function geolocate() {
         if (!navigator.geolocation) {
             alert('Geolocation not supported');
@@ -781,19 +1087,18 @@ async function findNearest() {
         });
     }
 
-    /* ---------- Bootstrap (Seguro con Fallback para evitar bloqueos) ---------- */
-    const startApp = async () => {
-        if (map) return;
+    /* ---------- Bootstrap ---------- */
+    window.addEventListener('AppDataLoaded', async() => {
         try {
             map = L.map('map', {
                 zoomControl: true,
                 maxBounds: CA_BOUNDS,
                 maxBoundsViscosity: .8
             }).setView([34.25, -119.10], 10);
-            
             buildBaseLayers();
             await loadData();
-            
+            buildExtensionsIndex();
+
             for (const c of CLINICS) {
                 if (typeof c.lat !== 'number' || typeof c.lng !== 'number') {
                     const g = await tryDecodePlusCode(c.plusCode);
@@ -804,37 +1109,24 @@ async function findNearest() {
                 }
             }
             addMarkers();
+            console.log("CLINICS =", CLINICS.length);
+            console.log(CLINICS.slice(0, 3));
             populateClinicPickers();
             wireShortcuts();
             setTimeout(() => map.invalidateSize(), 200);
         } catch (e) {
-            console.error('❌ Error bootstrap:', e);
+            console.error('bootstrap', e);
         }
-    };
-
-    if (window.datosListos && typeof window.datosListos.then === 'function') {
-        window.datosListos.then(startApp).catch((err) => {
-            console.warn('⚠️ Falló datosListos, arrancando mapa...', err);
-            startApp();
-        });
-    } else {
-        window.addEventListener('DOMContentLoaded', startApp);
-    }
-
-    // Respaldo por si datosListos nunca responde
-    setTimeout(() => {
-        if (!map) {
-            console.warn('⏳ Tiempo agotado. Forzando render de mapa...');
-            startApp();
-        }
-    }, 4000);
+    });
 
     /* ---------- Expose ---------- */
     window.findNearest = findNearest;
     window.clearSearch = clearSearch;
     window.AppMap = {
         invalidate() {
-            try { map?.invalidateSize(); } catch (_) {}
+            try {
+                map?.invalidateSize()
+            } catch (_) {}
         },
         toggleFullscreen,
         geolocate
@@ -854,37 +1146,37 @@ async function findNearest() {
                     if (text[i + 1] == '"') {
                         f += '"';
                         i++;
-                        continue;
+                        continue
                     }
                     q = false;
-                    continue;
+                    continue
                 }
                 f += c;
-                continue;
+                continue
             }
             if (c == '"') {
                 q = true;
-                continue;
+                continue
             }
             if (c == ',') {
                 row.push(f);
                 f = "";
-                continue;
+                continue
             }
             if (c == '\n') {
                 row.push(f);
                 rows.push(row);
                 row = [];
                 f = "";
-                continue;
+                continue
             }
             f += c;
         }
         row.push(f);
         rows.push(row);
-        return rows;
+        return rows
     }
-    
+
     function CSV_rowsToObjects(rows) {
         const headers = (rows.shift() ?? []).map(h => String(h ?? '').trim());
         const out = [];
@@ -897,39 +1189,58 @@ async function findNearest() {
             }
             out.push(o);
         }
-        return out;
+        return out
     }
-    
-    /* ---------- Motor Popover Cumplimiento (Do's & Don'ts) ---------- */
+
+    async function CSV_loadText(url) {
+        const r = await fetch(url, {
+            cache: 'no-cache'
+        });
+        if (!r.ok)
+            return null;
+        return await r.text()
+    }
+
+    /* ---------- Motor del Popover de Cumplimiento (Do's & Don'ts) ---------- */
+    /* ---------- Motor del Popover de Cumplimiento (Do's & Don'ts) ---------- */
     async function showProviderPopover(providerId, providerName) {
+        // 1. Eliminar cualquier popover previo para evitar duplicados
         removeProviderPopover();
 
+        // 2. Intentar buscar el registro en la memoria global
         let masterList = window.APP_DATA?.Main_Providers_csv || [];
-        
-        if (masterList.length === 0 && typeof obtenerArchivo === 'function') {
+
+        // Paracaídas: Si la lista de memoria está vacía, hacer un fetch veloz al CSV físico
+        if (masterList.length === 0) {
             try {
-                const textMain = await obtenerArchivo('Main-Providers');
-                if (textMain) {
-                    masterList = CSV_rowsToObjects(CSV_parse(textMain));
+                const responseMain = await fetch('/Main-Providers.csv');
+                if (responseMain.ok) {
+                    const textMain = await responseMain.text();
+                    // Usamos el parseador nativo que ya tienes integrado en map.js
+                    if (typeof CSV_parse === 'function' && typeof CSV_rowsToObjects === 'function') {
+                        masterList = CSV_rowsToObjects(CSV_parse(textMain));
+                    }
                 }
             } catch (err) {
-                console.error("❌ Error recuperando Main-Providers:", err);
+                console.error("❌ Error de comunicación con Main-Providers.csv:", err);
             }
         }
 
+        // Buscar coincidencia exacta usando la Clave Primaria (Provider ID) o el Nombre como respaldo
         const doc = masterList.find(m => {
             const mId = String(m['Provider ID'] || '').trim();
             const mName = String(m['Provider'] || '').toLowerCase().trim();
-            return (providerId && mId === String(providerId).trim()) || 
-                   (mName === providerName.toLowerCase().trim());
+            return (providerId && mId === String(providerId).trim()) ||
+            (mName === providerName.toLowerCase().trim());
         });
 
         if (!doc) {
-            console.warn(`⚠️ No se encontraron directrices para: ${providerName}`);
-            alert(`No se encontraron directrices registradas para el proveedor: ${providerName}`);
+            console.warn(`⚠️ No se encontraron directrices de cumplimiento para: ${providerName}`);
+            alert(`No se encontraron directrices registradas en Main-Providers.csv para el proveedor: ${providerName}`);
             return;
         }
 
+        // Extracción limpia mapeando los encabezados reales de tu Main-Providers.csv
         const docName = String(doc['Provider'] || providerName).trim();
         const docDegree = String(doc['Dr Degree'] || '').trim();
         const docSpec = String(doc['Specialty'] || 'General Medicine').trim();
@@ -938,14 +1249,16 @@ async function findNearest() {
         const docDos = String(doc["Do's ✔"] || '').trim();
         const docDonts = String(doc["Don'ts ❌"] || '').trim();
 
+        // 3. Crear el contenedor del Popover y el fondo oscuro transparente
         const backdrop = document.createElement('div');
         backdrop.id = 'pdir-popover-backdrop';
         backdrop.style = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.2); z-index:99999; display:flex; align-items:center; justify-content:center;';
-        
+
         const popover = document.createElement('div');
         popover.id = 'pdir-popover-card';
         popover.style = 'width:440px; max-width:90vw; background:#ffffff; padding:18px; border-radius:8px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); border:1px solid #e2e8f0; animation: pdirPopIn 0.18s ease-out; font-family: system-ui, -apple-system, sans-serif;';
 
+        // 4. Armar la estructura HTML interna inyectando Do's & Don'ts
         let guidelinesHtml = '<div style="margin-top:10px; font-size:0.8rem; color:#64748b; text-align:center; font-style:italic;">⚠️ Sin directrices de agendamiento registradas.</div>';
         if (docDos || docDonts) {
             guidelinesHtml = `
@@ -977,13 +1290,15 @@ async function findNearest() {
         document.body.appendChild(backdrop);
 
         backdrop.addEventListener('click', (e) => {
-            if (e.target === backdrop) removeProviderPopover();
+            if (e.target === backdrop)
+                removeProviderPopover();
         });
     }
 
     function removeProviderPopover() {
         const existing = document.getElementById('pdir-popover-backdrop');
-        if (existing) existing.remove();
+        if (existing)
+            existing.remove();
     }
 
     window.showProviderPopover = showProviderPopover;

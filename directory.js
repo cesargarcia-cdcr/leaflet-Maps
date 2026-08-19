@@ -21,20 +21,69 @@ window.APP_DATA = window.APP_DATA || {};
         return await r.text();
     }
 
-    async function loadDirectoryFiles() {
+async function loadDirectoryFiles() {
+        // En lugar de hacer un fetch a /data-files, leemos la sección desde el caché del flujo
         try {
-            const r = await fetch("/data-files");
-            const data = await r.json();
-
-            // Asumiendo que tu endpoint /data-files en server_config.py
-            // ahora también lista los archivos de la carpeta Directory/
-            if (data && data.directory) {
-                return data.directory; // Lista de nombres como "EL_RIO.html"
+            if (typeof window.obtenerArchivo === 'function') {
+                const dirContent = window.obtenerArchivo('clinicsDirectory');
+                if (dirContent) {
+                    // Si el flujo regresa el contenido como texto HTML o JSON, lo adaptamos
+                    return dirContent; 
+                }
             }
         } catch (err) {
-            console.warn("Error cargando lista de directorios:", err);
+            console.warn("Error obteniendo directorio desde el caché:", err);
         }
-        return [];
+        return null;
+    }
+
+    async function loadClinics() {
+        console.log("LOG_DEBUG: Iniciando loadClinics...");
+        const root = document.getElementById("csvdir-root");
+        if (!root) {
+            console.error("LOG_DEBUG: No se encontró el elemento #csvdir-root");
+            return;
+        }
+
+        root.innerHTML = "<div style='padding:20px'>Cargando directorios clínicos...</div>";
+
+        try {
+            // Obtenemos el contenido directamente del almacenamiento sincronizado
+            const dirData = await loadDirectoryFiles();
+            
+            if (!dirData) {
+                console.warn("LOG_DEBUG: La lista de directorios está vacía o no disponible.");
+                root.innerHTML = "<div style='padding:20px; color:orange;'>No hay datos de directorios sincronizados.</div>";
+                return;
+            }
+
+            root.innerHTML = "";
+
+            // Dependiendo de cómo Power Automate te entregue 'clinicsDirectory' (HTML directo o lista):
+            // Si es un string con el HTML completo o bloques:
+            const section = document.createElement("section");
+            section.className = "clinic";
+            
+            // Si dirData es texto HTML crudo:
+            section.innerHTML = typeof dirData === 'string' ? dirData : (dirData.Content || JSON.stringify(dirData));
+
+            buildClinicMarkup(section);
+            root.appendChild(section);
+
+            // Inicializamos las funciones de búsqueda y filtrado
+            buildIndex();
+            buildClinicSelect();
+            updateMeta(DIRECTORY_INDEX.length, DIRECTORY_INDEX.length);
+
+            const box = document.getElementById("dirSearchCSV");
+            if (box) {
+                box.addEventListener("input", filterDirectory);
+            }
+
+        } catch (err) {
+            console.error("Error crítico cargando los datos:", err);
+            root.innerHTML = "<div style='padding:20px; color:red;'>Error crítico cargando los datos.</div>";
+        }
     }
 
     async function loadClinics() {

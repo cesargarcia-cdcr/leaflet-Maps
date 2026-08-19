@@ -1,147 +1,383 @@
-/* === Data Loader: Decodificador Automático de Power Automate a localStorage === */
+/* === Data Loader: JSON -> CSV Cache === */
+
 (function () {
-  'use strict';
+    'use strict';
 
-  const CACHE_KEY = 'app_pa_csv_data_v1';
-  const urlParams = new URLSearchParams(window.location.search);
-  const encodedUrl = urlParams.get('data');
+    const STORAGE_KEY = 'app_raw_payload_cache';
 
-  let targetUrl = null;
-  if (encodedUrl && !encodedUrl.includes('…')) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const encodedUrl = urlParams.get('data');
+
+    let targetUrl = null;
+
+    function excelDateToDisplay(excelSerial) {
+
+        if (!excelSerial)
+            return "";
+
+        const date = new Date(
+                (Number(excelSerial) - 25569) * 86400 * 1000);
+
+        const days = [
+            "Sun", "Mon", "Tue",
+            "Wed", "Thu", "Fri", "Sat"
+        ];
+
+        const months = [
+            "Jan", "Feb", "Mar",
+            "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep",
+            "Oct", "Nov", "Dec"
+        ];
+
+        return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`;
+    }
+
+    // ===============================
+    // Base64 Utilities
+    // ===============================
+
+    function decodeBase64Safe(str) {
+        if (!str)
+            return '';
+
+        let clean = str.trim().replace(/\s/g, '');
+
+        const padding = clean.length % 4;
+        if (padding) {
+            clean += '='.repeat(4 - padding);
+        }
+
+        return decodeURIComponent(
+            escape(atob(clean)));
+    }
+
     try {
-      let cleanBase64 = encodedUrl.trim();
-      const padding = cleanBase64.length % 4;
-      if (padding) {
-        cleanBase64 += '='.repeat(4 - padding);
-      }
-      targetUrl = atob(decodeURIComponent(cleanBase64));
-    } catch (e) {
-      console.warn("⚠️ No se pudo decodificar el parámetro ?data=. Usando caché local.", e);
+        if (encodedUrl) {
+            targetUrl = decodeBase64Safe(encodedUrl);
+        }
+    } catch (err) {
+        console.warn('Unable to decode ?data=', err);
     }
-  }
 
-  // --- LÓGICA DEL MINIJUEGO INTERACTIVO ---
-  let callsCount = 0;
-  const avatars = ['🧑‍💼', '📞', '📋', '🎧', '💊', '👨‍⚕️'];
+    // ===============================
+    // Splash Screen
+    // ===============================
 
-  function registrarAccionJugador() {
-    callsCount++;
-    const counterEl = document.getElementById('callCounter');
-    const avatarEl = document.getElementById('agentAvatar');
+    function hideSplashScreen() {
+        const splash = document.getElementById('sync-splash');
 
-    if (counterEl) counterEl.textContent = callsCount;
+        if (!splash)
+            return;
 
-    if (avatarEl) {
-      avatarEl.classList.add('bounce');
-      if (callsCount % 3 === 0) {
-        avatarEl.textContent = avatars[Math.floor(Math.random() * avatars.length)];
-      }
-      setTimeout(() => avatarEl.classList.remove('bounce'), 80);
+        splash.style.opacity = '0';
+
+        setTimeout(() => {
+            splash.remove();
+        }, 400);
     }
-  }
 
-  window.addEventListener('keydown', registrarAccionJugador);
-  window.addEventListener('click', registrarAccionJugador);
+    // ===============================
+    // CSV Helpers
+    // ===============================
 
-  // --- PROCESAMIENTO Y CACHÉ DE DATOS ---
-  async function CargarDatosGlobales() {
-    if (targetUrl) {
-      try {
-        console.log("🌐 Conectando con Power Automate para descargar datos...");
-        const response = await fetch(targetUrl);
-        if (response.ok) {
-          const freshData = await response.json();
-          
-          // Desglosar y decodificar cada archivo del diccionario de Power Automate
-          for (const [fileKey, contentInfo] of Object.entries(freshData)) {
-            if (contentInfo && typeof contentInfo === 'object') {
-              
-              // 🎯 NUEVO: Si la propiedad es un arreglo directo (como mainProviders), guárdala directamente
-              if (Array.isArray(contentInfo)) {
-                const stringifiedArray = JSON.stringify(contentInfo);
-                localStorage.setItem(fileKey, stringifiedArray);
-                console.log(`✅ [DATA_LOADER] Arreglo directo guardado: "${fileKey}" (Registros: ${contentInfo.length})`);
-                continue; // Salta al siguiente elemento
-              }
+    function arrayToCsv(rows) {
 
-              let base64Str = contentInfo.$content || '';
-              if (base64Str) {
-                const missingPadding = base64Str.length % 4;
-                if (missingPadding) {
-                  base64Str += '='.repeat(4 - missingPadding);
-                }
-                try {
-                  const decodedContent = atob(base64Str);
-                  localStorage.setItem(fileKey, decodedContent);
-                  console.log(`✅ [DATA_LOADER] Archivo decodificado y guardado: "${fileKey}" (Longitud: ${decodedContent.length} chars)`);
-                } catch (err) {
-                  console.warn(`⚠️ [DATA_LOADER] Error decodificando el archivo ${fileKey}:`, err);
-                }
-              }
+        if (!Array.isArray(rows) || !rows.length) {
+            return '';
+        }
+
+        const headers = [
+            ...new Set(
+                rows.flatMap(row => Object.keys(row)))
+        ];
+
+        const escapeCsv = value => {
+
+            if (value === null || value === undefined) {
+                return '';
             }
+
+            return `"${String(value).replace(/"/g, '""')}"`;
+        };
+
+        return [
+            headers.join(','),
+            ...rows.map(row =>
+                headers
+                .map(header => escapeCsv(row[header]))
+                .join(','))
+        ].join('\n');
+    }
+
+    function saveCsv(name, csvText) {
+        localStorage.setItem(
+`csv_${name}`,
+            csvText);
+    }
+
+    function decodeEmbeddedCsv(base64Text) {
+        return decodeURIComponent(
+            escape(atob(base64Text)));
+    }
+
+    // ===============================
+    // Business Rules
+    // ===============================
+
+    function mergeClinicsPlusCodes(clinics, plusCodes) {
+
+        const lookup = {};
+
+        plusCodes.forEach(row => {
+
+            const key = String(
+                row.code || ""
+            ).trim();
+
+            if (key) {
+                lookup[key] = row;
+            }
+
+        });
+
+        return clinics.map(clinic => {
+
+            const abbreviation = String(
+                clinic.Abbreviation || ""
+            ).trim();
+
+            const match =
+                lookup[abbreviation] || {};
+
+            return {
+
+                ...clinic,
+
+                plusCode:
+                    match.plusCode || "",
+
+                "Health Center":
+                    match["Health Center"] || "",
+
+                "Clinic Name":
+                    match["Clinic Name"] || ""
+
+            };
+
+        });
+
+    }
+
+    // ===============================
+    // Data Sync
+    // ===============================
+
+    async function initializeData() {
+
+        if (!targetUrl) {
+            console.warn('No data URL found.');
+            hideSplashScreen();
+            return;
+        }
+
+        try {
+
+            const response = await fetch(targetUrl);
+
+            if (!response.ok) {
+                throw new Error(
+`HTTP ${response.status}`);
+            }
+
+            const payload = await response.json();
+
+            // Optional backup
+            localStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify(payload));
+
+            // ==========================
+            // clinics + plusCodes
+            // ==========================
+
+            if (
+                payload.clinics &&
+                payload.plusCodes) {
+
+                const clinicsMerged =
+                    mergeClinicsPlusCodes(
+                        payload.clinics,
+                        payload.plusCodes);
+
+                saveCsv(
+                    'clinics',
+                    arrayToCsv(clinicsMerged));
+            }
+
+            // ==========================
+            // extensions
+            // ==========================
+
+            if (payload.extensions) {
+
+                saveCsv(
+                    'extensions',
+                    arrayToCsv(payload.extensions));
+            }
+
+            // ==========================
+            // mainProviders
+            // ==========================
+
+            if (payload.mainProviders) {
+
+                saveCsv(
+                    'mainProviders',
+                    arrayToCsv(payload.mainProviders));
+            }
+
+            // ==========================
+            // providersNpi
+            // ==========================
+
+            if (payload.providersNpi) {
+
+                saveCsv(
+                    'providersNpi',
+                    arrayToCsv(payload.providersNpi));
+            }
+
+          // ==========================
+          // providersSched
+          // ==========================
+
+          if (payload.providersSchedCurr) {
+
+              const currentRows =
+    payload.providersSchedCurr || [];
+
+const nextRows =
+    payload.providersSchedNext || [];
+
+const mergedSchedule = [
+    ...currentRows,
+    ...nextRows
+];
+
+console.log(
+    "Current rows:",
+    currentRows.length
+);
+
+console.log(
+    "Next rows:",
+    nextRows.length
+);
+
+console.log(
+    "Total providersSched rows:",
+    mergedSchedule.length
+);
+
+console.log(
+    "Merged clinic codes:",
+    [...new Set(
+        mergedSchedule
+            .map(r => r.Code)
+            .filter(Boolean)
+    )].sort()
+);
+
+saveCsv(
+    "providersSched",
+    arrayToCsv(mergedSchedule)
+);
+
+              console.log(
+                  `✅ Current rows kept: ${filteredCurrent.length}`
+              );
+
+              console.log(
+                  `✅ Next rows added: ${nextRows.length}`
+              );
+
+              console.log(
+                  `✅ Total providersSched rows: ${mergedSchedule.length}`
+              );
+
+              console.log(
+              "✅ Clinic Codes:",
+              [...new Set(
+                  mergedSchedule
+                      .map(r => r.Code)
+                      .filter(Boolean)
+              )]
+          );
           }
 
-          localStorage.setItem(CACHE_KEY, JSON.stringify(freshData));
-          console.log("✅ Datos sincronizados, decodificados y guardados en localStorage con éxito.");
-          return freshData;
+            // ==========================
+            // clinicsDirectory
+            // ==========================
+
+            if (
+                payload.clinicsDirectory &&
+                payload.clinicsDirectory.$content) {
+
+                saveCsv(
+                    'clinicsDirectory',
+                    decodeEmbeddedCsv(
+                        payload.clinicsDirectory.$content));
+            }
+
+            console.log(
+                '✅ CSV cache generated successfully.');
+
+        } catch (err) {
+
+            console.error(
+                '❌ Error loading payload:',
+                err);
         }
-      } catch (e) {
-        console.warn("⚠️ Falló la red. Cargando respaldo desde localStorage...", e);
-      }
+
+        hideSplashScreen();
     }
 
-    const localCache = localStorage.getItem(CACHE_KEY);
-    if (localCache) {
-      console.log("📂 Usando datos desde el caché local.");
-      try {
-        return JSON.parse(localCache);
-      } catch (err) {
-        console.error("❌ Error al parsear el caché local:", err);
-      }
-    }
+    // ===============================
+    // Public API
+    // ===============================
 
-    console.warn("⚠️ No se obtuvieron datos de red ni del caché.");
-    return null;
-  }
+    window.obtenerCsv = function (name) {
 
-  // --- FUNCIÓN GLOBAL REQUERIDA POR MAP.JS Y DIRECTORY.JS ---
-  window.obtenerArchivo = function(nombreArchivo) {
-    // 1. Buscar si ya está decodificado individualmente
-    let contenido = localStorage.getItem(nombreArchivo);
-    if (contenido) return contenido;
+        return localStorage.getItem(
+`csv_${name}`);
+    };
 
-    // 2. Respaldo extrayendo directo del JSON general de Power Automate
-    try {
-      const cacheGeneral = localStorage.getItem(CACHE_KEY);
-      if (!cacheGeneral) return null;
+    // Optional legacy support
+    window.obtenerArchivo = function (name) {
+        return window.obtenerCsv(name);
+    };
 
-      const data = JSON.parse(cacheGeneral);
-      const archivoObj = data[nombreArchivo];
+    window.obtenerSeccion = function (name) {
+        return window.obtenerCsv(name);
+    };
 
-      if (archivoObj && archivoObj.$content) {
-        let b64 = archivoObj.$content;
-        const pad = b64.length % 4;
-        if (pad) b64 += '='.repeat(4 - pad);
+    // ===============================
+    // Boot
+    // ===============================
 
-        const binaryString = atob(b64);
-        const bytes = Uint8Array.from(binaryString, (m) => m.codePointAt(0));
-        const decodedText = new TextDecoder('utf-8').decode(bytes);
-        
-        // Guardarlo para futuras consultas
-        localStorage.setItem(nombreArchivo, decodedText);
-        return decodedText;
-      }
-    } catch (e) {
-      console.error(`❌ Error al extraer '${nombreArchivo}' del caché:`, e);
-    }
+    window.addEventListener(
+        'DOMContentLoaded',
+        async() => {
 
-    return null;
-  };
+        await initializeData();
+        console.log(
+          '✅ AppDataLoaded dispatched'
+        );
 
-  window.APP_RAW_DATA = null;
-  CargarDatosGlobales().then(data => {
-    window.APP_RAW_DATA = data;
-    window.dispatchEvent(new CustomEvent('AppDataLoaded', { detail: data }));
-  });
+        window.dispatchEvent(
+            new CustomEvent(
+                'AppDataLoaded'));
+    });
 
 })();

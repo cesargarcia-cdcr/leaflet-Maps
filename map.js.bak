@@ -1,0 +1,1022 @@
+/* === Map UI/UX Optimized (v1 - Integrado con Data Loader) === */
+'use strict';
+(function () {
+    let CLINICS = [],
+    EXT = {},
+    EXT_BY_CODE = {};
+    let map,
+    searchMarker = null,
+    searchLine = null,
+    markersLayer = null;
+
+    /* ---------- Utilities ---------- */
+    const store = {
+        get(k, d) {
+            try {
+                const v = localStorage.getItem(k);
+                return v ?? d;
+            } catch (_) {
+                return d;
+            }
+        },
+        set(k, v) {
+            try {
+                localStorage.setItem(k, v);
+            } catch (_) {}
+        }
+    };
+
+    async function loadData() {
+        try {
+            console.log("LOG_DEBUG: Iniciando loadData...");
+            
+            // 1. Cargar Clínicas (Nueva estructura)
+            const clinicsTxt = await obtenerArchivo('clinicas'); // o 'clinics' según tu mapping de archivos
+            if (clinicsTxt) {
+                CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(clinicsTxt)));
+            }
+
+            // 1.1. Cargar PowerCodes (Nuevo flujo/origen)
+            const powerCodeTxt = await obtenerArchivo('powerCode');
+            let POWER_CODES_MAP = {};
+            if (powerCodeTxt) {
+                const pcRows = CSV_rowsToObjects(CSV_parse(powerCodeTxt));
+                pcRows.forEach(row => {
+                    const abbr = String(row.Abbreviation || row.code || '').trim().toUpperCase();
+                    if (abbr) {
+                        POWER_CODES_MAP[abbr] = row;
+                    }
+                });
+                window.POWER_CODES_MAP = POWER_CODES_MAP;
+            }
+
+            // 2. Cargar Proveedores / Schedules
+            const schedTxt = await obtenerArchivo('PROVIDERS-Sched');
+            if (schedTxt) {
+                PROVIDERS_SCHED = CSV_rowsToObjects(CSV_parse(schedTxt));
+            }
+
+            // 3. Cargar Extensiones
+            const extTxt = await obtenerArchivo('extensions');
+            if (extTxt) {
+                try {
+                    const extRows = CSV_rowsToObjects(CSV_parse(extTxt));
+                    EXT = {};
+                    extRows.forEach(row => {
+                        const sec = row.section || row.Section || 'General';
+                        if (!EXT[sec]) EXT[sec] = [];
+                        EXT[sec].push(row);
+                    });
+                } catch (e) {
+                    console.error("❌ Error procesando el CSV de extensiones:", e);
+                    EXT = {};
+                }
+            } else {
+                EXT = {};
+            }
+            
+            buildExtensionsIndex();
+
+        } catch (error) {
+            console.error("❌ Error bootstrap:", error);
+        }
+    }
+
+    function mapClinicsCsvToObjects(items) {
+        if (!items || !Array.isArray(items))
+            return [];
+        const out = [],
+        seen = new Set();
+
+        for (const it of items) {
+            // Nuevas columnas que envía Power Automate
+            const name = it['Location'] || it['name'];
+            const code = it['Abbreviation'] || it['code'];
+            const city = it['City'];
+            const baseAddr = it['Address'];
+            const zip = it['Zip'];
+            const crossStreets = it['Cross streets'];
+            const hours = it['Operation Hours'];
+            const dental = it['Dental'];
+            const services = it['Offered servies'];
+            
+            const plusCode = it['plusCode'] || it['PlusCode'];
+            const nicknames = it['nicknames'];
+
+            const addr = [baseAddr, city, 'CA', zip].filter(Boolean).join(', ');
+
+            const lat = parseFloat(it['lat'] || 0);
+            const lng = parseFloat(it['lng'] || 0);
+
+            const clinic = {
+                clinicId: code ? code.toLowerCase().replace(/[^a-z0-9]+/gi, '-') : (name?.toLowerCase().replace(/[^a-z0-9]+/gi, '-') || ''),
+                code: code,
+                name: name,
+                plusCode: plusCode, 
+                address: addr,
+                city: city,
+                zipCode: zip,
+                crossStreets: crossStreets,
+                operationHours: hours,
+                dentalAvailable: dental,
+                offeredServices: services,
+                lat: lat,
+                lng: lng,
+                nicknames: nicknames
+            };
+
+            if (code && !seen.has(code)) {
+                out.push(clinic);
+                seen.add(code);
+            }
+        }
+        return out;
+    }
+
+    function buildExtensionsIndex() {
+        EXT_BY_CODE = {};
+        for (const section in EXT) {
+            if (section === 'Meta' || !Array.isArray(EXT[section]))
+                continue;
+            for (const item of EXT[section]) {
+                const code = String(item.code || '').toUpperCase();
+                if (!code)
+                    continue;
+                if (!EXT_BY_CODE[code])
+                    EXT_BY_CODE[code] = {};
+                EXT_BY_CODE[code][section] = item;
+            }
+        }
+    }
+
+    /* ---------- OLC & Geocode ---------- */
+    const CA_BOUNDS = [[32.529523, -124.482003], [42.009518, -114.131211]];
+    const CA_VIEWBOX = '-124.482003,42.009518,-114.131211,32.529523';
+    const CA_CENTER = { lat: 37.25, lng: -119.7 };
+    let __OLC_READY = null;
+
+    function ensureOLC() {
+        if (window.OpenLocationCode)
+            return Promise.resolve();
+        if (__OLC_READY)
+            return __OLC_READY;
+        const srcs = ['https://cdnjs.cloudflare.com/ajax/libs/openlocationcode/1.0.5/openlocationcode.min.js', 'https://cdn.jsdelivr.net/openlocationcode/latest/openlocationcode.min.js'];
+        __OLC_READY = new Promise(async res => {
+            for (const s of srcs) {
+                try {
+                    await new Promise((ok, ko) => {
+                        const el = document.createElement('script');
+                        el.src = s;
+                        el.async = true;
+                        el.onload = ok;
+                        el.onerror = () => ko();
+                        document.head.appendChild(el);
+                    });
+                    if (window.OpenLocationCode) {
+                        res();
+                        return;
+                    }
+                } catch (e) {}
+            }
+            res();
+        });
+        return __OLC_READY;
+    }
+
+    async function tryDecodePlusCode(input, ref) {
+        await ensureOLC().catch(() => {});
+        if (!window.OpenLocationCode)
+            return null;
+        const raw = String(input || '').trim();
+        if (!raw.includes('+'))
+            return null;
+        let code = raw,
+        loc = null;
+        if (raw.includes(',')) {
+            const [p, ...r] = raw.split(',');
+            code = String(p || '').trim().toUpperCase();
+            loc = r.join(',').trim();
+        } else
+            code = raw.toUpperCase();
+        try {
+            if (OpenLocationCode.isFull(code)) {
+                const a = OpenLocationCode.decode(code);
+                return {
+                    lat: a.latitudeCenter,
+                    lng: a.longitudeCenter
+                };
+            }
+            let refPt = ref || (map?.getCenter() && {
+                lat: map.getCenter().lat,
+                lng: map.getCenter().lng
+            }) || CA_CENTER;
+            const full = OpenLocationCode.recoverNearest(code, refPt.lat, refPt.lng);
+            const a = OpenLocationCode.decode(full);
+            return {
+                lat: a.latitudeCenter,
+                lng: a.longitudeCenter
+            };
+        } catch (_) {
+            return null;
+        }
+    }
+
+    const NOM_DELAY = 1100;
+    let __last = 0;
+    async function throttle() {
+        const now = Date.now();
+        const wait = Math.max(0, NOM_DELAY - (now - __last));
+        if (wait)
+            await new Promise(r => setTimeout(r, wait));
+        __last = Date.now();
+    }
+
+    async function geocode(q) {
+        try {
+            await throttle();
+            q = String(q ?? '').trim();
+            
+            // 1. Limpiar espacios múltiples y convertir saltos o espacios extra en espacios simples
+            q = q.replace(/\s+/g, ' ');
+
+            // 2. Si el usuario escribió la dirección solo con espacios en lugar de comas,
+            // podemos ayudar a Nominatim agregando comas lógicas si detectamos números seguidos de texto y estados
+            // O simplemente asegurarnos de que si no incluye CA/California, se los adjuntamos al final.
+            if (!/(\bCA\b|\bCalifornia\b|\bUSA\b|\d{5})/i.test(q)) {
+                q += ', CA, USA';
+            } else if (!q.includes(',')) {
+                // Si tiene datos (como un código postal o CA) pero cero comas, intentamos separar 
+                // el estado/código o simplemente dejamos que Nominatim procese la cadena limpia.
+                q = q.replace(/\b(CA|California)\b/i, ', $1, USA');
+            }
+
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=us&viewbox=${encodeURIComponent(CA_VIEWBOX)}&bounded=1&limit=5`;
+            const r = await fetch(url, {
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            if (!r.ok) return null;
+            const d = await r.json();
+            if (!Array.isArray(d) || !d.length) return null;
+
+            // Filtrar estrictamente para aceptar únicamente resultados dentro de California
+            const best = d.find(x => {
+                const name = x?.display_name || '';
+                const lat = parseFloat(x.lat);
+                const lon = parseFloat(x.lon);
+                
+                const isCaliforniaText = /(^|,\s)California(,|\s|$)/i.test(name);
+                const isInBounds = (lat >= CA_BOUNDS[0][0] && lat <= CA_BOUNDS[1][0] && 
+                                  lon >= CA_BOUNDS[0][1] && lon <= CA_BOUNDS[1][1]);
+                
+                return isCaliforniaText && isInBounds;
+            });
+
+            if (!best) {
+                console.warn("⚠️ Búsqueda rechazada: Fuera del área de servicio.");
+                return null;
+            }
+
+            return {
+                lat: +best.lat,
+                lng: +best.lon
+            };
+        } catch (_) {
+            return null;
+        }
+    }
+
+    async function resolveLocation(q) {
+        const p = await tryDecodePlusCode(q);
+        if (p)
+            return p;
+        return await geocode(q);
+    }
+
+    /* ---------- Markers ---------- */
+    async function addMarkers() {
+        if (markersLayer) {
+            map.removeLayer(markersLayer);
+            markersLayer = null;
+        }
+        markersLayer = L.layerGroup().addTo(map);
+        const bounds = L.latLngBounds();
+
+        const clinicIcon = L.icon({
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        for (const c of CLINICS) {
+            let lat = c.lat;
+            let lng = c.lng;
+
+            const plusDecoded = await tryDecodePlusCode(c.plusCode);
+            if (plusDecoded) {
+                lat = plusDecoded.lat;
+                lng = plusDecoded.lng;
+            }
+
+            if (typeof lat !== 'number' || typeof lng !== 'number') {
+                console.warn(`⚠️ Skipping marker for ${c.name}: No valid coordinates.`);
+                continue;
+            }
+
+            const m = L.marker([lat, lng], { icon: clinicIcon }).addTo(markersLayer);
+            
+            m.bindTooltip(c.code, {
+                permanent: true,
+                direction: 'polygon',
+                offset: [0, -42],
+                className: 'clinic-label'
+            });
+
+            m.on('click', () => selectClinic({
+                ...c,
+                lat,
+                lng
+            })); 
+            bounds.extend([lat, lng]);
+        }
+
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, {
+                padding: [40, 40]
+            });
+
+            if (map.getZoom() > 9) {
+                map.setZoom(10);
+            }
+        }
+    }
+
+    /* ---------- Centrado Inteligente dejando espacio para el Panel ---------- */
+    function selectClinic(c) {
+        renderSelectedClinic(c);
+
+        map.fitBounds(L.latLngBounds([[c.lat, c.lng]]), {
+            paddingTopLeft: [0, 0],
+            paddingBottomRight: [380, 0],
+            maxZoom: 11,
+            animate: true,
+            duration: 0.5
+        });
+    }
+
+    /* ---------- Sheet render (Counters + Toggle) ---------- */
+    function renderSelectedClinic(c, distance) {
+        const panel = document.getElementById('clinic-info-body');
+        if (!panel)
+            return;
+        const nb = s => String(s || '').replace(/\s*\/\s*/g, '&nbsp;/&nbsp;').replace(/\s{2,}/g, ' ').trim();
+
+        const now = new Date();
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
+
+        const linkedProviders = (window.APP_DATA?.providersByCode?.[c.code.toUpperCase()] || [])
+        .filter(p => String(p.Date || '').trim() === todayStr);
+
+        let html = '';
+
+        html += `
+  <div style="margin-bottom:20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+      <div style="font-weight:800; font-size:1.3rem; color:#0f172a; line-height:1.2;">🏥 ${c.name}</div>
+      ${distance !== undefined ? `<div style="font-size:.75rem; font-weight:700; color:#1d4ed8; background:#dbeafe; padding:4px 10px; border-radius:20px; white-space:nowrap;">📍 ${distance.toFixed(1)} km</div>` : ''}
+    </div>
+    <div style="margin-top:8px; font-size:0.85rem; color:#475569; display:flex; align-items:center; gap:6px;">
+      <span>📌</span> <span>${c.address ?? ''}</span>
+    </div>
+    ${c.crossStreets ? `<div style="margin-top:4px; font-size:0.8rem; color:#64748b;">Cross Streets: ${c.crossStreets}</div>` : ''}
+    ${c.operationHours ? `<div style="margin-top:4px; font-size:0.8rem; color:#059669; font-weight:600;">🕒 ${c.operationHours}</div>` : ''}
+    ${c.offeredServices ? `<div style="margin-top:6px; font-size:0.8rem; color:#4338ca;">💼 Services: ${c.offeredServices}</div>` : ''}
+  </div>`;
+
+        const sections = EXT_BY_CODE[c.code] ? Object.keys(EXT_BY_CODE[c.code]) : [];
+
+        if (!sections.length && linkedProviders.length === 0) {
+            panel.innerHTML = html + `<div class='empty-state'>ℹ️ No extensions or schedule available</div>`;
+            openSheet();
+            return;
+        }
+
+        if (sections.length > 0) {
+            const order = ['Medical', 'Optical', 'Dental', 'MH'];
+            const ordered = [...order.filter(s => sections.includes(s)), ...sections.filter(s => !order.includes(s)).sort()];
+
+            html += `<div class="modern-stack extensions-panel">
+                  <div class="modern-header">📞 Extensions & Lines</div>
+                  <div class="modern-body">`;
+
+            ordered.forEach((sec) => {
+                const v = EXT_BY_CODE[c.code][sec] || {};
+                const rows = [];
+                if (v.front)
+                    rows.push({ label: 'Front', value: nb(v.front) });
+                if (v.back)
+                    rows.push({ label: 'Back', value: nb(v.back) });
+                if (!v.front && !v.back && v.ext)
+                    rows.push({ label: 'EXT', value: nb(v.ext) });
+
+                html += `
+            <div class="modern-ext-group">
+              <div class="modern-ext-title">
+                <span>🔹 ${sec}</span>
+                ${v.phone ? `<span style="color:#2563eb; font-weight:600;">${v.phone}</span>` : ''}
+              </div>
+              ${rows.map(r => `
+                <div class="modern-grid-row">
+                  <div class="modern-lbl">${r.label}</div>
+                  <div class="modern-val">${r.value}</div>
+                </div>
+              `).join('')}
+            </div>`;
+            });
+
+            html += `</div></div>`;
+        }
+
+        html += `<div class="modern-stack providers-panel">
+              <div class="modern-header">🧑‍⚕️ On Duty Today (${todayStr})</div>
+              <div class="modern-body">`;
+
+        if (linkedProviders.length > 0) {
+            html += linkedProviders.map(p => `
+            <div class="provider-row" style="padding: 6px 0; border-bottom: 1px dashed #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+                <div style="flex: 1; display: flex; align-items: center; gap: 6px;">
+                    <span style="color: #475569; font-family: monospace; font-weight: 700; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 1px 5px; border-radius: 3px; font-size: 0.75rem;">
+                        🆔 ${p['Provider ID'] || 'N/A'}
+                    </span>
+                    <a href="#" 
+                       onclick="event.preventDefault(); showProviderPopover('${p['Provider ID'] || ''}', '${p['Employee Name'].replace(/'/g, "\\'")}')" 
+                       style="color: #4f46e5; text-decoration: none; font-weight: 700; cursor: pointer;"
+                       onmouseover="this.style.textDecoration='underline'; this.style.color='#1e1b4b';" 
+                       onmouseout="this.style.textDecoration='none'; this.style.color='#4f46e5';">
+                       ${p['Employee Name']}
+                    </a>
+                    <span style="color:#64748b; font-size:0.75rem;">${p.Specialty ? `[${p.Specialty}]` : ''}</span>
+                </div>
+                <span class="provider-badge">${p['JOB NAME'] ?? 'MD'}</span>
+            </div>
+        `).join('');
+        } else {
+            html += `<div style="font-size:0.8rem; color:#64748b; text-align:center; padding: 4px 0;">
+                    📅 No providers scheduled for today.
+                 </div>`;
+        }
+
+        html += `</div></div>`;
+
+        panel.innerHTML = html;
+        openSheet();
+        setTimeout(() => AppMap.invalidate(), 100);
+    }
+
+    window.routeToProviderDirectory = function(providerName) {
+        if (typeof window.navigateTo === 'function') {
+            window.navigateTo('provider-directory');
+        }
+
+        setTimeout(() => {
+            const searchInput = document.getElementById('masterProviderSearch');
+            if (searchInput) {
+                searchInput.value = providerName;
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }, 50);
+    };
+
+    function openSheet() {
+        const s = document.getElementById('place-sheet');
+        if (s) {
+            s.classList.add('open');
+            s.setAttribute('aria-hidden', 'false');
+        }
+    }
+    function closeSheet() {
+        const s = document.getElementById('place-sheet');
+        if (s) {
+            s.classList.remove('open');
+            s.setAttribute('aria-hidden', 'true');
+        }
+    }
+    window.closePlaceSheet = closeSheet;
+
+    /* ---------- Search & Picker ---------- */
+    function getClinicByCode(code) {
+        const n = String(code ?? '').toUpperCase().trim();
+        return CLINICS.find(c => c.code?.toUpperCase().trim() === n);
+    }
+    
+    function getClinicBySearch(q) {
+        let c = getClinicByCode(q);
+        if (c)
+            return c;
+            
+        const n = String(q ?? '').toLowerCase().trim();
+        return CLINICS.find(c => {
+            const nameMatch = c.name?.toLowerCase().trim() === n || c.name?.toLowerCase().includes(n);
+            const nicknameMatch = String(c.nicknames || '').toLowerCase().includes(n);
+            return nameMatch || nicknameMatch;
+        });
+    }
+
+    function populateClinicPickers() {
+    const dl = document.getElementById('clinicNameList');
+    if (!dl) return;
+    
+    const ordered = [...CLINICS].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    let optionsHtml = ordered.map(c => {
+        const nicknames = String(c.nicknames || '').split(',').map(n => n.trim()).filter(Boolean);
+        const nickStr = nicknames.length ? ` (${nicknames.join(', ')})` : '';
+        return `<option value="${c.name}${nickStr}" data-type="clinic" data-code="${c.code}"></option>`;
+    });
+
+    const now = new Date();
+    const todayStr = `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()]} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][now.getMonth()]} ${now.getDate()}`;
+    const seenPairs = new Set();
+
+    const providers = window.APP_DATA?.providersByCode;
+    if (providers) {
+        for (const code in providers) {
+            (providers[code] || []).forEach(p => {
+                if (String(p.Date || '').trim() === todayStr && p['Employee Name']) {
+                    const uniqueKey = `${p['Provider ID']}-${code}`;
+                    if (!seenPairs.has(uniqueKey)) {
+                        const pId = String(p['Provider ID'] || '').trim();
+                        const pName = String(p['Employee Name'] || '').trim();
+                        const pSpec = p.Specialty ?? p['JOB NAME'] ?? 'MD';
+                        
+                        optionsHtml.push(
+                            `<option value="${pName}" label="🆔 ${pId} -> Hoy en ${code} (${pSpec})"></option>`,
+                            `<option value="${pId}" label="👨‍⚕️ ${pName} -> Hoy en ${code} (${pSpec})"></option>`
+                        );
+                        seenPairs.add(uniqueKey);
+                    }
+                }
+            });
+        }
+    }
+
+    dl.innerHTML = optionsHtml.join('');
+}
+
+async function findNearest() {
+    const sel = document.getElementById('clinicSelect');
+    const chosen = sel?.selectedOptions?.[0]?.dataset?.code;
+    if (chosen) {
+        const c = getClinicByCode(chosen);
+        if (c?.lat && c.lng) {
+            selectClinic(c);
+            return;
+        }
+    }
+
+    const searchInput = document.getElementById('searchInput');
+    const q = (searchInput?.value ?? '').trim();
+    if (!q) return;
+
+    const now = new Date();
+    const todayStr = `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()]} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][now.getMonth()]} ${now.getDate()}`;
+    
+    let providerTargetCode = null;
+    let matchedProviderName = null;
+
+    const providers = window.APP_DATA?.providersByCode;
+    if (providers) {
+        for (const code in providers) {
+            const found = (providers[code] || []).find(p => 
+                String(p.Date || '').trim() === todayStr && (
+                    String(p['Employee Name'] || '').toLowerCase().includes(q.toLowerCase()) ||
+                    String(p['Provider ID'] || '').trim() === q
+                )
+            );
+            if (found) {
+                providerTargetCode = code;
+                matchedProviderName = found['Employee Name'];
+                break;
+            }
+        }
+    }
+
+    if (providerTargetCode) {
+        const c = getClinicByCode(providerTargetCode);
+        if (c?.lat && c.lng) {
+            selectClinic(c);
+            if (searchInput) searchInput.value = matchedProviderName;
+            return;
+        }
+    }
+
+    const bySearch = getClinicBySearch(q);
+    if (bySearch?.lat) {
+        selectClinic(bySearch);
+        return;
+    }
+    
+    const g = await resolveLocation(q);
+    if (!g) {
+        alert('Address/Plus Code/Provider not found.');
+        return;
+    }
+    
+    if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+    if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
+
+    searchMarker = L.circleMarker([g.lat, g.lng], {
+        radius: 7, color: '#dc2626', fillColor: '#dc2626', fillOpacity: 0.8, weight: 2
+    }).addTo(map).bindPopup('📍 Dirección de Búsqueda');
+
+    let candidates = [];
+    for (const c of CLINICS) {
+        let targetLat = c.lat;
+        let targetLng = c.lng;
+
+        const plusDecoded = await tryDecodePlusCode(c.plusCode);
+        if (plusDecoded) {
+            targetLat = plusDecoded.lat;
+            targetLng = plusDecoded.lng;
+        }
+
+        if (!targetLat || !targetLng) continue;
+
+        const R = 6371, toRad = d => d * Math.PI / 180;
+        const dLat = toRad(targetLat - g.lat), dLng = toRad(targetLng - g.lng);
+        const s1 = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(g.lat)) * Math.cos(toRad(targetLat)) * Math.sin(dLng / 2) ** 2;
+        const dGeom = 2 * R * Math.asin(Math.sqrt(s1));
+        
+        candidates.push({ clinic: c, lat: targetLat, lng: targetLng, dGeom });
+    }
+
+    candidates.sort((a, b) => a.dGeom - b.dGeom);
+    const finalists = candidates.slice(0, 3);
+    if (!finalists.length) return;
+
+    let bestMatch = null;
+    let minDrivingDistance = Infinity;
+    let bestRouteGeometry = null;
+    
+    for (const f of finalists) {
+        try {
+            const url = `https://router.project-osrm.org/route/v1/driving/${g.lng},${g.lat};${f.lng},${f.lat}?overview=full&geometries=geojson`;
+            const response = await fetch(url);
+            if (!response.ok) continue;
+            
+            const data = await response.json();
+            const route = data.routes?.[0];
+            if (!route) continue;
+
+            const drivingDistKm = route.distance / 1000;
+            if (drivingDistKm < minDrivingDistance) {
+                minDrivingDistance = drivingDistKm;
+                bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
+                bestRouteGeometry = route.geometry;
+            }
+        } catch {
+            if (!bestMatch) {
+                minDrivingDistance = f.dGeom;
+                bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
+            }
+        }
+    }
+
+    if (bestMatch) {
+        renderSelectedClinic(bestMatch, minDrivingDistance);
+        
+        if (bestRouteGeometry) {
+            const coordinates = bestRouteGeometry.coordinates.map(coord => [coord[1], coord[0]]);
+            searchLine = L.polyline(coordinates, {
+                color: '#2563eb', weight: 4, opacity: 0.85, lineJoin: 'round'
+            }).addTo(map);
+        } else {
+            searchLine = L.polyline([[g.lat, g.lng], [bestMatch.lat, bestMatch.lng]], {
+                color: '#dc2626', weight: 2, opacity: 0.6, dashArray: '5,5'
+            }).addTo(map);
+        }
+
+        const routeBounds = searchLine.getBounds();
+        routeBounds.extend([g.lat, g.lng]);
+        map.fitBounds(routeBounds, { padding: [60, 60], maxZoom: 14 });
+    }
+}
+
+    function clearSearch() {
+        const box = document.getElementById('searchInput');
+        if (box)
+            box.value = '';
+        const sel = document.getElementById('clinicSelect');
+        if (sel)
+            sel.value = '';
+        const panel = document.getElementById('clinic-info-body');
+        if (panel) {
+            panel.innerHTML = `<div class="empty-state">Selecciona una clínica o busca por dirección/código.</div>`;
+        }
+        closeSheet();
+        if (searchMarker) {
+            map.removeLayer(searchMarker);
+            searchMarker = null;
+        }
+        if (searchLine) {
+            map.removeLayer(searchLine);
+            searchLine = null;
+        }
+    }
+
+    /* ---------- Basemaps & Switching ---------- */
+    function buildBaseLayers() {
+        const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        });
+        const baseGray = L.tileLayer('https://{s}.tile.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
+            maxZoom: 20,
+            attribution: '© Stadia Maps, © OpenMapTiles, © OpenStreetMap'
+        });
+        const baseDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            attribution: '© CARTO'
+        });
+        const layers = {
+            '🗺️ Standard': baseOSM,
+            '🌫️ Gray': baseGray,
+            '🌙 Dark': baseDark
+        };
+        const pref = store.get('map:base', '🗺️ Standard');
+        const chosen = layers[pref] || baseOSM;
+        chosen.addTo(map);
+        L.control.layers(layers, {}, {
+            position: 'topright',
+            collapsed: true
+        }).addTo(map);
+        map.on('baselayerchange', e => {
+            const key = Object.keys(layers).find(k => layers[k] === e.layer) || '🗺️ Standard';
+            store.set('map:base', key);
+        });
+    }
+
+    /* ---------- Extras: Fullscreen & Geolocate ---------- */
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen?.();
+            document.body.classList.add('fullscreen-map');
+        } else {
+            document.exitFullscreen?.();
+            document.body.classList.remove('fullscreen-map');
+        }
+        setTimeout(() => AppMap.invalidate(), 200);
+    }
+    
+    function geolocate() {
+        if (!navigator.geolocation) {
+            alert('Geolocation not supported');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(pos => {
+            const { latitude, longitude } = pos.coords;
+            const p = [latitude, longitude];
+            const mk = L.circleMarker(p, {
+                radius: 7,
+                color: '#16a34a',
+                fillColor: '#16a34a',
+                fillOpacity: .85,
+                weight: 2
+            }).addTo(map).bindPopup('📍 You are here');
+            mk.openPopup();
+            map.setView(p, 14);
+        }, () => {
+            alert('Geolocation error');
+        });
+    }
+
+    function wireShortcuts() {
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                document.getElementById('searchInput')?.focus();
+            }
+            if (e.key === 'Escape') {
+                closeSheet();
+            }
+            if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'f') {
+                toggleFullscreen();
+            }
+            if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'g') {
+                geolocate();
+            }
+        });
+    }
+
+    /* ---------- Bootstrap (Seguro con Fallback para evitar bloqueos) ---------- */
+    const startApp = async () => {
+        if (map) return;
+        try {
+            map = L.map('map', {
+                zoomControl: true,
+                maxBounds: CA_BOUNDS,
+                maxBoundsViscosity: .8
+            }).setView([34.25, -119.10], 10);
+            
+            buildBaseLayers();
+            await loadData();
+            
+            for (const c of CLINICS) {
+                if (typeof c.lat !== 'number' || typeof c.lng !== 'number') {
+                    const g = await tryDecodePlusCode(c.plusCode);
+                    if (g) {
+                        c.lat = g.lat;
+                        c.lng = g.lng;
+                    }
+                }
+            }
+            addMarkers();
+            populateClinicPickers();
+            wireShortcuts();
+            setTimeout(() => map.invalidateSize(), 200);
+        } catch (e) {
+            console.error('❌ Error bootstrap:', e);
+        }
+    };
+
+    if (window.datosListos && typeof window.datosListos.then === 'function') {
+        window.datosListos.then(startApp).catch((err) => {
+            console.warn('⚠️ Falló datosListos, arrancando mapa...', err);
+            startApp();
+        });
+    } else {
+        window.addEventListener('DOMContentLoaded', startApp);
+    }
+
+    // Respaldo por si datosListos nunca responde
+    setTimeout(() => {
+        if (!map) {
+            console.warn('⏳ Tiempo agotado. Forzando render de mapa...');
+            startApp();
+        }
+    }, 4000);
+
+    /* ---------- Expose ---------- */
+    window.findNearest = findNearest;
+    window.clearSearch = clearSearch;
+    window.AppMap = {
+        invalidate() {
+            try { map?.invalidateSize(); } catch (_) {}
+        },
+        toggleFullscreen,
+        geolocate
+    };
+
+    /* ---------- CSV Helpers ---------- */
+    function CSV_parse(text) {
+        const rows = [];
+        let f = "",
+        row = [],
+        q = false;
+        text = String(text ?? '').replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+        for (let i = 0; i < text.length; i++) {
+            const c = text[i];
+            if (q) {
+                if (c == '"') {
+                    if (text[i + 1] == '"') {
+                        f += '"';
+                        i++;
+                        continue;
+                    }
+                    q = false;
+                    continue;
+                }
+                f += c;
+                continue;
+            }
+            if (c == '"') {
+                q = true;
+                continue;
+            }
+            if (c == ',') {
+                row.push(f);
+                f = "";
+                continue;
+            }
+            if (c == '\n') {
+                row.push(f);
+                rows.push(row);
+                row = [];
+                f = "";
+                continue;
+            }
+            f += c;
+        }
+        row.push(f);
+        rows.push(row);
+        return rows;
+    }
+    
+    function CSV_rowsToObjects(rows) {
+        const headers = (rows.shift() ?? []).map(h => String(h ?? '').trim());
+        const out = [];
+        for (const r of rows) {
+            if (!r || !r.some(v => String(v ?? '').trim().length))
+                continue;
+            const o = {};
+            for (let i = 0; i < headers.length; i++) {
+                o[headers[i] ?? `Col${i}`] = String(r[i] ?? '').trim();
+            }
+            out.push(o);
+        }
+        return out;
+    }
+    
+    /* ---------- Motor Popover Cumplimiento (Do's & Don'ts) ---------- */
+    async function showProviderPopover(providerId, providerName) {
+        removeProviderPopover();
+
+        let masterList = window.APP_DATA?.Main_Providers_csv || [];
+        
+        if (masterList.length === 0 && typeof obtenerArchivo === 'function') {
+            try {
+                const textMain = await obtenerArchivo('Main-Providers');
+                if (textMain) {
+                    masterList = CSV_rowsToObjects(CSV_parse(textMain));
+                }
+            } catch (err) {
+                console.error("❌ Error recuperando Main-Providers:", err);
+            }
+        }
+
+        const doc = masterList.find(m => {
+            const mId = String(m['Provider ID'] || '').trim();
+            const mName = String(m['Provider'] || '').toLowerCase().trim();
+            return (providerId && mId === String(providerId).trim()) || 
+                   (mName === providerName.toLowerCase().trim());
+        });
+
+        if (!doc) {
+            console.warn(`⚠️ No se encontraron directrices para: ${providerName}`);
+            alert(`No se encontraron directrices registradas para el proveedor: ${providerName}`);
+            return;
+        }
+
+        const docName = String(doc['Provider'] || providerName).trim();
+        const docDegree = String(doc['Dr Degree'] || '').trim();
+        const docSpec = String(doc['Specialty'] || 'General Medicine').trim();
+        const docLang = String(doc['Languages '] || doc['Languages'] || '').trim();
+        const docNpi = String(doc['NPI'] || 'N/A').trim();
+        const docDos = String(doc["Do's ✔"] || '').trim();
+        const docDonts = String(doc["Don'ts ❌"] || '').trim();
+
+        const backdrop = document.createElement('div');
+        backdrop.id = 'pdir-popover-backdrop';
+        backdrop.style = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.2); z-index:99999; display:flex; align-items:center; justify-content:center;';
+        
+        const popover = document.createElement('div');
+        popover.id = 'pdir-popover-card';
+        popover.style = 'width:440px; max-width:90vw; background:#ffffff; padding:18px; border-radius:8px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); border:1px solid #e2e8f0; animation: pdirPopIn 0.18s ease-out; font-family: system-ui, -apple-system, sans-serif;';
+
+        let guidelinesHtml = '<div style="margin-top:10px; font-size:0.8rem; color:#64748b; text-align:center; font-style:italic;">⚠️ Sin directrices de agendamiento registradas.</div>';
+        if (docDos || docDonts) {
+            guidelinesHtml = `
+                <div class="pdir-guidelines-box" style="margin-top:12px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem; line-height:1.5;">
+                    ${docDos ? `<div class="pdir-do-line" style="color:#16a34a; margin-bottom:8px;"><strong>Do's ✔:</strong> ${docDos}</div>` : ''}
+                    ${docDonts ? `<div class="pdir-dont-line" style="color:#dc2626;"><strong>Don'ts ❌:</strong> ${docDonts}</div>` : ''}
+                </div>
+            `;
+        }
+
+        popover.innerHTML = `
+            <div class="pdir-card-top" style="display:flex; justify-content:space-between; align-items:start; gap:10px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
+                <div style="flex:1;">
+                    <h4 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">${docName}${docDegree ? `, ${docDegree}` : ''}</h4>
+                    <div style="font-size:0.75rem; color:#64748b; margin-top:4px; display:flex; flex-direction:column; gap:2px;">
+                        <span>🔑 Provider ID: <strong>${providerId || 'N/A'}</strong> | 🌐 NPI: <strong>${docNpi}</strong></span>
+                        ${docLang ? `<span style="margin-top:2px;">🗣️ ${docLang}</span>` : ''}
+                    </div>
+                </div>
+                <span class="pdir-badge" style="background:#e0e7ff; color:#4338ca; font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:4px; white-space:nowrap;">${docSpec}</span>
+            </div>
+            ${guidelinesHtml}
+            <div style="margin-top:14px; text-align:right;">
+                <button onclick="removeProviderPopover()" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#475569; padding:6px 14px; border-radius:4px; font-size:0.8rem; font-weight:600; cursor:pointer; transition: background 0.15s;">Cerrar</button>
+            </div>
+        `;
+
+        backdrop.appendChild(popover);
+        document.body.appendChild(backdrop);
+
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) removeProviderPopover();
+        });
+    }
+
+    function removeProviderPopover() {
+        const existing = document.getElementById('pdir-popover-backdrop');
+        if (existing) existing.remove();
+    }
+
+    window.showProviderPopover = showProviderPopover;
+    window.removeProviderPopover = removeProviderPopover;
+})();

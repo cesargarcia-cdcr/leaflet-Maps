@@ -199,6 +199,20 @@
     }
 }
 
+// Loading screen 
+
+function updateProgress(percent, message) {
+    const bar = document.getElementById('bt-progress-bar');
+    const textPercent = document.getElementById('bt-percentage');
+    const statusText = document.getElementById('sync-status');
+    
+    if (bar) bar.style.width = `${percent}%`;
+    if (textPercent) textPercent.innerText = `${percent}%`;
+    if (statusText && message) statusText.innerText = message;
+}
+
+
+
     /* ======= Expose to window ======= */
     window.navigateTo = navigateTo;
     window.resetForm = resetForm;
