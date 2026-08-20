@@ -1,383 +1,453 @@
-/* === Data Loader: JSON -> CSV Cache === */
+/* ====================================
+   DATA LOADER
+   ETL de datasets
+==================================== */
 
 (function () {
-    'use strict';
 
-    const STORAGE_KEY = 'app_raw_payload_cache';
+    "use strict";
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const encodedUrl = urlParams.get('data');
-
-    let targetUrl = null;
-
-    function excelDateToDisplay(excelSerial) {
-
-        if (!excelSerial)
-            return "";
-
-        const date = new Date(
-                (Number(excelSerial) - 25569) * 86400 * 1000);
-
-        const days = [
-            "Sun", "Mon", "Tue",
-            "Wed", "Thu", "Fri", "Sat"
-        ];
-
-        const months = [
-            "Jan", "Feb", "Mar",
-            "Apr", "May", "Jun",
-            "Jul", "Aug", "Sep",
-            "Oct", "Nov", "Dec"
-        ];
-
-        return `${days[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`;
-    }
-
-    // ===============================
-    // Base64 Utilities
-    // ===============================
-
-    function decodeBase64Safe(str) {
-        if (!str)
-            return '';
-
-        let clean = str.trim().replace(/\s/g, '');
-
-        const padding = clean.length % 4;
-        if (padding) {
-            clean += '='.repeat(4 - padding);
-        }
-
-        return decodeURIComponent(
-            escape(atob(clean)));
-    }
-
-    try {
-        if (encodedUrl) {
-            targetUrl = decodeBase64Safe(encodedUrl);
-        }
-    } catch (err) {
-        console.warn('Unable to decode ?data=', err);
-    }
-
-    // ===============================
-    // Splash Screen
-    // ===============================
-
-    function hideSplashScreen() {
-        const splash = document.getElementById('sync-splash');
-
-        if (!splash)
-            return;
-
-        splash.style.opacity = '0';
-
-        setTimeout(() => {
-            splash.remove();
-        }, 400);
-    }
-
-    // ===============================
+    //--------------------------------------------------
     // CSV Helpers
-    // ===============================
+    //--------------------------------------------------
 
     function arrayToCsv(rows) {
 
-        if (!Array.isArray(rows) || !rows.length) {
-            return '';
+        if (
+            !Array.isArray(rows) ||
+            rows.length === 0
+        ) {
+            return "";
         }
 
         const headers = [
+
             ...new Set(
-                rows.flatMap(row => Object.keys(row)))
+                rows.flatMap(
+                    row => Object.keys(row)
+                )
+            )
+
         ];
 
-        const escapeCsv = value => {
+        const csvRows = [];
 
-            if (value === null || value === undefined) {
-                return '';
-            }
+        csvRows.push(
+            headers.join(",")
+        );
 
-            return `"${String(value).replace(/"/g, '""')}"`;
-        };
+        rows.forEach(row => {
 
-        return [
-            headers.join(','),
-            ...rows.map(row =>
+            const line =
                 headers
-                .map(header => escapeCsv(row[header]))
-                .join(','))
-        ].join('\n');
+                .map(header => {
+
+                    const value =
+                        row[header];
+
+                    if (
+                        value === null ||
+                        value === undefined
+                    ) {
+                        return "";
+                    }
+
+                    return `"${String(value)
+                        .replace(/"/g, '""')}"`;
+
+                })
+                .join(",");
+
+            csvRows.push(line);
+
+        });
+
+        return csvRows.join("\n");
+
     }
 
-    function saveCsv(name, csvText) {
+    function saveCsv(
+        name,
+        csvText
+    ) {
+
         localStorage.setItem(
-`csv_${name}`,
-            csvText);
+            `csv_${name}`,
+            csvText
+        );
+
     }
 
-    function decodeEmbeddedCsv(base64Text) {
-        return decodeURIComponent(
-            escape(atob(base64Text)));
+    function saveDataset(
+        name,
+        rows
+    ) {
+
+        saveCsv(
+            name,
+            arrayToCsv(rows)
+        );
+
     }
 
-    // ===============================
-    // Business Rules
-    // ===============================
+    //--------------------------------------------------
+    // Payload
+    //--------------------------------------------------
 
-    function mergeClinicsPlusCodes(clinics, plusCodes) {
+    function getPayload() {
+
+        const raw =
+            localStorage.getItem(
+                "cache_payload"
+            );
+
+        if (!raw) {
+            return null;
+        }
+
+        return JSON.parse(raw);
+
+    }
+
+
+    //--------------------------------------------------
+    // clinicLookup
+    //--------------------------------------------------
+
+function generateClinicLookup(payload) {
+
+    saveDataset(
+        "clinicLookup",
+        payload.clinicLookup || []
+    );
+
+}
+
+    //--------------------------------------------------
+    // Clinics
+    //--------------------------------------------------
+
+    function generateClinics(
+        payload
+    ) {
+
+        const clinics =
+            payload.clinics || [];
+
+        const plusCodes =
+            payload.plusCodes || [];
 
         const lookup = {};
 
         plusCodes.forEach(row => {
 
-            const key = String(
-                row.code || ""
-            ).trim();
+            const key =
+                String(
+                    row.code || ""
+                ).trim();
 
             if (key) {
+
                 lookup[key] = row;
+
             }
 
         });
 
-        return clinics.map(clinic => {
+        const merged =
+            clinics.map(clinic => {
 
-            const abbreviation = String(
-                clinic.Abbreviation || ""
-            ).trim();
+                const code =
+                    String(
+                        clinic.Abbreviation || ""
+                    ).trim();
 
-            const match =
-                lookup[abbreviation] || {};
+                const extra =
+                    lookup[code] || {};
 
-            return {
+                return {
 
-                ...clinic,
+                    ...clinic,
 
-                plusCode:
-                    match.plusCode || "",
+                    plusCode:
+                        extra.plusCode || "",
 
-                "Health Center":
-                    match["Health Center"] || "",
+                    "Health Center":
+                        extra["Health Center"] || "",
 
-                "Clinic Name":
-                    match["Clinic Name"] || ""
+                    "Clinic Name":
+                        extra["Clinic Name"] || ""
 
-            };
+                };
 
-        });
+            });
+
+        saveDataset(
+            "clinics",
+            merged
+        );
+
+        console.log(
+            `✅ clinics: ${merged.length}`
+        );
 
     }
 
-    // ===============================
-    // Data Sync
-    // ===============================
+    //--------------------------------------------------
+    // Providers Schedule
+    //--------------------------------------------------
 
-    async function initializeData() {
+    
+    function generateProvidersSched(
+    payload
+) {
 
-        if (!targetUrl) {
-            console.warn('No data URL found.');
-            hideSplashScreen();
+    const rows = [
+
+        ...(payload.providersSchedCurr || []),
+
+        ...(payload.providersSchedNext || [])
+
+    ];
+
+    const merged = {};
+
+    rows.forEach(row => {
+
+        const providerId =
+            String(
+                row["Provider ID"] || ""
+            ).trim();
+
+        const healthCenter =
+            String(
+
+                row["Health Center"] ||
+                row["Health Center "] ||
+                ""
+
+            )
+            .trim()
+            .toUpperCase();
+
+        if (
+            !providerId ||
+            !healthCenter
+        ) {
             return;
         }
 
+        const key =
+            `${providerId}|${healthCenter}`;
+
+        if (!merged[key]) {
+
+            merged[key] = {};
+
+        }
+
+        Object.entries(row)
+            .forEach(
+                ([field, value]) => {
+
+                    if (
+                        value !== "" &&
+                        value !== null &&
+                        value !== undefined
+                    ) {
+
+                        merged[key][field] =
+                            value;
+
+                    }
+
+                }
+            );
+
+    });
+
+    saveDataset(
+        "providersSched",
+        Object.values(
+            merged
+        )
+    );
+
+    console.log(
+        `✅ providersSched: ${
+            Object.keys(merged).length
+        }`
+    );
+
+}
+
+       //--------------------------------------------------
+    // Straight datasets
+    //--------------------------------------------------
+
+    function generateExtensions(
+        payload
+    ) {
+
+        saveDataset(
+            "extensions",
+            payload.extensions || []
+        );
+
+    }
+
+    function generateMainProviders(
+        payload
+    ) {
+
+        saveDataset(
+            "mainProviders",
+            payload.mainProviders || []
+        );
+
+    }
+
+    function generateProvidersNpi(
+        payload
+    ) {
+
+        saveDataset(
+            "providersNpi",
+            payload.providersNpi || []
+        );
+
+    }
+
+    //--------------------------------------------------
+    // Clinics Directory
+    //--------------------------------------------------
+
+    function generateClinicsDirectory(
+        payload
+    ) {
+
+        const dir =
+            payload.clinicsDirectory;
+
+        if (
+            !dir ||
+            !dir.$content
+        ) {
+            return;
+        }
+
+        const decoded =
+            decodeURIComponent(
+                escape(
+                    atob(
+                        dir.$content
+                    )
+                )
+            );
+
+        saveCsv(
+            "clinicsDirectory",
+            decoded
+        );
+
+    }
+
+    //--------------------------------------------------
+    // Main
+    //--------------------------------------------------
+
+    async function initializeData() {
+
         try {
 
-            const response = await fetch(targetUrl);
+            const payload =
+                getPayload();
 
-            if (!response.ok) {
-                throw new Error(
-`HTTP ${response.status}`);
+            if (!payload) {
+
+                console.warn(
+                    "cache_payload not found"
+                );
+
+                return;
+
             }
 
-            const payload = await response.json();
+            generateClinicLookup(
+                payload
+            );
 
-            // Optional backup
-            localStorage.setItem(
-                STORAGE_KEY,
-                JSON.stringify(payload));
+            generateClinics(
+                payload
+            );
 
-            // ==========================
-            // clinics + plusCodes
-            // ==========================
+            generateProvidersSched(
+                payload
+            );
 
-            if (
-                payload.clinics &&
-                payload.plusCodes) {
+            generateExtensions(
+                payload
+            );
 
-                const clinicsMerged =
-                    mergeClinicsPlusCodes(
-                        payload.clinics,
-                        payload.plusCodes);
+            generateMainProviders(
+                payload
+            );
 
-                saveCsv(
-                    'clinics',
-                    arrayToCsv(clinicsMerged));
-            }
+            generateProvidersNpi(
+                payload
+            );
 
-            // ==========================
-            // extensions
-            // ==========================
-
-            if (payload.extensions) {
-
-                saveCsv(
-                    'extensions',
-                    arrayToCsv(payload.extensions));
-            }
-
-            // ==========================
-            // mainProviders
-            // ==========================
-
-            if (payload.mainProviders) {
-
-                saveCsv(
-                    'mainProviders',
-                    arrayToCsv(payload.mainProviders));
-            }
-
-            // ==========================
-            // providersNpi
-            // ==========================
-
-            if (payload.providersNpi) {
-
-                saveCsv(
-                    'providersNpi',
-                    arrayToCsv(payload.providersNpi));
-            }
-
-          // ==========================
-          // providersSched
-          // ==========================
-
-          if (payload.providersSchedCurr) {
-
-              const currentRows =
-    payload.providersSchedCurr || [];
-
-const nextRows =
-    payload.providersSchedNext || [];
-
-const mergedSchedule = [
-    ...currentRows,
-    ...nextRows
-];
-
-console.log(
-    "Current rows:",
-    currentRows.length
-);
-
-console.log(
-    "Next rows:",
-    nextRows.length
-);
-
-console.log(
-    "Total providersSched rows:",
-    mergedSchedule.length
-);
-
-console.log(
-    "Merged clinic codes:",
-    [...new Set(
-        mergedSchedule
-            .map(r => r.Code)
-            .filter(Boolean)
-    )].sort()
-);
-
-saveCsv(
-    "providersSched",
-    arrayToCsv(mergedSchedule)
-);
-
-              console.log(
-                  `✅ Current rows kept: ${filteredCurrent.length}`
-              );
-
-              console.log(
-                  `✅ Next rows added: ${nextRows.length}`
-              );
-
-              console.log(
-                  `✅ Total providersSched rows: ${mergedSchedule.length}`
-              );
-
-              console.log(
-              "✅ Clinic Codes:",
-              [...new Set(
-                  mergedSchedule
-                      .map(r => r.Code)
-                      .filter(Boolean)
-              )]
-          );
-          }
-
-            // ==========================
-            // clinicsDirectory
-            // ==========================
-
-            if (
-                payload.clinicsDirectory &&
-                payload.clinicsDirectory.$content) {
-
-                saveCsv(
-                    'clinicsDirectory',
-                    decodeEmbeddedCsv(
-                        payload.clinicsDirectory.$content));
-            }
+            generateClinicsDirectory(
+                payload
+            );
 
             console.log(
-                '✅ CSV cache generated successfully.');
+                "✅ ETL Complete"
+            );
+
+            window.dispatchEvent(
+                new CustomEvent(
+                    "AppDataLoaded"
+                )
+            );
 
         } catch (err) {
 
             console.error(
-                '❌ Error loading payload:',
-                err);
+                "Data Loader Error",
+                err
+            );
+
         }
 
-        hideSplashScreen();
     }
 
-    // ===============================
-    // Public API
-    // ===============================
+    //--------------------------------------------------
+    // Public
+    //--------------------------------------------------
 
-    window.obtenerCsv = function (name) {
+    window.obtenerCsv =
+        function (name) {
 
-        return localStorage.getItem(
-`csv_${name}`);
-    };
+            return localStorage.getItem(
+                `csv_${name}`
+            );
 
-    // Optional legacy support
-    window.obtenerArchivo = function (name) {
-        return window.obtenerCsv(name);
-    };
+        };
 
-    window.obtenerSeccion = function (name) {
-        return window.obtenerCsv(name);
-    };
+    window.obtenerArchivo =
+        window.obtenerCsv;
 
-    // ===============================
+    window.obtenerSeccion =
+        window.obtenerCsv;
+
+    //--------------------------------------------------
     // Boot
-    // ===============================
+    //--------------------------------------------------
 
     window.addEventListener(
-        'DOMContentLoaded',
-        async() => {
-
-        await initializeData();
-        console.log(
-          '✅ AppDataLoaded dispatched'
-        );
-
-        window.dispatchEvent(
-            new CustomEvent(
-                'AppDataLoaded'));
-    });
+        "PayloadReady",
+        initializeData
+    );
 
 })();

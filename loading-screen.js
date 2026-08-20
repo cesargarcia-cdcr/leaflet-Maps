@@ -1,92 +1,311 @@
+/* ====================================
+   LOADING SCREEN
+   Descarga payload y lo almacena
+==================================== */
+
 function updateProgress(percent, message, state = "CARGANDO") {
-    const bar = document.getElementById('bt-progress-bar');
-    const textPercent = document.getElementById('bt-percentage');
-    const statusText = document.getElementById('sync-status');
-    const stateText = document.getElementById('bt-state-text');
-    
-    if (bar) bar.style.width = `${percent}%`;
-    if (textPercent) textPercent.innerText = `${percent}%`;
-    if (statusText && message) statusText.innerText = message;
-    if (stateText) stateText.innerText = state;
-}
 
-async function checkAndSyncData() {
-    const splash = document.getElementById('sync-splash');
+    const bar =
+        document.getElementById(
+            "bt-progress-bar"
+        );
 
-    try {
-        updateProgress(10, "Conectando con Power Automate...", "CONECTANDO");
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const encodedData = urlParams.get('data');
-        
-        if (!encodedData) {
-            console.warn("⚠️ No hay parámetro 'data'. Saltando sincronización online.");
-            hideSplash(splash);
-            return;
-        }
+    const textPercent =
+        document.getElementById(
+            "bt-percentage"
+        );
 
-        const powerAutomateUrl = atob(encodedData);
+    const statusText =
+        document.getElementById(
+            "sync-status"
+        );
 
-        // Timeout de seguridad de 8 segundos para evitar bucles infinitos por red lenta
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const stateText =
+        document.getElementById(
+            "bt-state-text"
+        );
 
-        updateProgress(30, "Descargando datos de SharePoint...", "DESCARGANDO");
-        const response = await fetch(powerAutomateUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
+    if (bar) {
+        bar.style.width =
+            `${percent}%`;
+    }
 
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
-        }
+    if (textPercent) {
+        textPercent.innerText =
+            `${percent}%`;
+    }
 
-        const jsonData = await response.json();
+    if (statusText && message) {
+        statusText.innerText =
+            message;
+    }
 
-        updateProgress(60, "Procesando tablas de datos...", "PROCESANDO");
-        const keys = Object.keys(jsonData);
-        let count = 0;
-
-        for (let key of keys) {
-            const dataValue = jsonData[key];
-            const stringContent = typeof dataValue === 'object' ? JSON.stringify(dataValue) : String(dataValue);
-            const obfuscatedData = btoa(encodeURIComponent(stringContent));
-            
-            localStorage.setItem(`cache_${key}`, obfuscatedData);
-            count++;
-            
-            let p = 60 + Math.round((count / keys.length) * 35);
-            updateProgress(p, `Guardando: ${key}`, "INDEXANDO");
-        }
-
-        localStorage.setItem('app_data_version', new Date().toISOString().split('T')[0]);
-        
-        updateProgress(100, "¡Sincronización completa!", "¡LISTO!");
-        setTimeout(() => hideSplash(splash, true), 500);
-
-    } catch (error) {
-        console.error("⚠️ Error o timeout en sincronización. Usando caché local:", error);
-        updateProgress(100, "Cargando modo local...", "OFFLINE");
-        setTimeout(() => hideSplash(splash), 800);
+    if (stateText) {
+        stateText.innerText =
+            state;
     }
 }
 
-function SairLoopDeCarga() {
-    // Función auxiliar global por si necesitas romperlo manualmente desde la consola del navegador
-    const splash = document.getElementById('sync-splash');
-    if (splash) splash.style.display = 'none';
-}
+function getPowerAutomateUrl() {
 
-function hideSplash(splashElement, reload = false) {
-    if (!splashElement) return;
-    splashElement.style.opacity = '0';
-    setTimeout(() => {
-        splashElement.style.display = 'none';
-        if (reload && !localStorage.getItem('loaded_once')) {
-            localStorage.setItem('loaded_once', 'true');
-            location.reload(); // Recarga limpia una sola vez tras la primera sync
+    try {
+
+        const params =
+            new URLSearchParams(
+                window.location.search
+            );
+
+        const encoded =
+            params.get("data");
+
+        if (!encoded) {
+            return null;
         }
-    }, 400);
+
+        return atob(encoded);
+
+    } catch (err) {
+
+        console.error(
+            "Invalid Power Automate URL",
+            err
+        );
+
+        return null;
+    }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-    checkAndSyncData();
-});
+function savePayload(payload) {
+
+    localStorage.setItem(
+        "cache_payload",
+        JSON.stringify(payload)
+    );
+}
+
+function saveIndividualCaches(payload) {
+
+    const keys =
+        Object.keys(payload);
+
+    let count = 0;
+
+    keys.forEach(key => {
+
+        try {
+
+            localStorage.setItem(
+
+                `cache_${key}`,
+
+                JSON.stringify(
+                    payload[key]
+                )
+
+            );
+
+            count++;
+
+        } catch (err) {
+
+            console.warn(
+                `Unable to cache ${key}`,
+                err
+            );
+
+        }
+
+    });
+
+    return count;
+}
+
+function hideSplash(
+    splashElement,
+    reload = false
+) {
+
+    if (!splashElement) {
+        return;
+    }
+
+    splashElement.style.opacity =
+        "0";
+
+    setTimeout(() => {
+
+        splashElement.style.display =
+            "none";
+
+        if (
+            reload &&
+            !localStorage.getItem(
+                "loaded_once"
+            )
+        ) {
+
+            localStorage.setItem(
+                "loaded_once",
+                "true"
+            );
+
+            location.reload();
+        }
+
+    }, 400);
+
+}
+
+async function checkAndSyncData() {
+
+    const splash =
+        document.getElementById(
+            "sync-splash"
+        );
+
+    try {
+
+        updateProgress(
+            10,
+            "Conectando con Power Automate...",
+            "CONECTANDO"
+        );
+
+        const url =
+            getPowerAutomateUrl();
+
+        if (!url) {
+
+            console.warn(
+                "No data parameter found."
+            );
+
+            hideSplash(splash);
+
+            return;
+        }
+
+        const controller =
+            new AbortController();
+
+        const timeoutId =
+            setTimeout(
+                () => controller.abort(),
+                10000
+            );
+
+        updateProgress(
+            30,
+            "Descargando datos...",
+            "DESCARGANDO"
+        );
+
+        const response =
+            await fetch(
+                url,
+                {
+                    signal:
+                        controller.signal
+                }
+            );
+
+        clearTimeout(
+            timeoutId
+        );
+
+        if (!response.ok) {
+
+            throw new Error(
+                `HTTP ${response.status}`
+            );
+
+        }
+
+        const payload =
+            await response.json();
+
+        updateProgress(
+            60,
+            "Guardando payload...",
+            "PROCESANDO"
+        );
+
+        savePayload(payload);
+
+        updateProgress(
+            75,
+            "Indexando datasets...",
+            "INDEXANDO"
+        );
+
+        const datasetCount =
+            saveIndividualCaches(
+                payload
+            );
+
+        localStorage.setItem(
+            "app_data_version",
+            new Date()
+                .toISOString()
+                .split("T")[0]
+        );
+
+        updateProgress(
+            100,
+            `Datasets: ${datasetCount}`,
+            "LISTO"
+        );
+
+        console.log(
+            "✅ Payload downloaded"
+        );
+
+        console.log(
+            "✅ cache_payload saved"
+        );
+
+        window.dispatchEvent(
+            new CustomEvent(
+                "PayloadReady"
+            )
+        );
+
+        setTimeout(() => {
+
+            hideSplash(
+                splash
+            );
+
+        }, 500);
+
+    } catch (error) {
+
+        console.error(
+            "⚠️ Sync failed",
+            error
+        );
+
+        updateProgress(
+            100,
+            "Modo local",
+            "OFFLINE"
+        );
+
+        setTimeout(() => {
+
+            hideSplash(
+                splash
+            );
+
+        }, 1000);
+    }
+}
+
+window.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        checkAndSyncData();
+
+    }
+);

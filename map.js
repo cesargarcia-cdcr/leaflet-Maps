@@ -40,77 +40,36 @@
 
     /* ---------- Data Load ---------- */
     async function loadData() {
+        // console.log("📡 Cargando fuentes de datos...");
 
-        console.log("📡 Loading cached datasets...");
-
-        // ==========================
-        // Clinics
-        // ==========================
+        // 1. Load Clinics (Source of truth for keys)
         const clinicsTxt = obtenerCsv("clinics");
-
         if (clinicsTxt) {
-            CLINICS = mapClinicsCsvToObjects(
-                    CSV_rowsToObjects(
-                        CSV_parse(clinicsTxt)));
-
-            console.log(
-`✅ Clinics loaded: ${CLINICS.length}`);
-        } else {
-            console.warn("⚠️ csv_clinics not found");
+            CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(clinicsTxt)));
         }
 
-        // ==========================
-        // Provider Schedule
-        // ==========================
+        // 2. Load Providers and map by "Health Center" code
         const provTxt = obtenerCsv("providersSched");
-
         if (provTxt) {
+            const provRows = CSV_rowsToObjects(CSV_parse(provTxt));
 
-            const provRows =
-                CSV_rowsToObjects(
-                    CSV_parse(provTxt));
-
-            console.log("Headers:");
-            console.log(Object.keys(provRows[0] || {}));
-
-            console.log("First row:");
-            console.log(provRows[0]);
-
+            // verificar qe exista
             window.APP_DATA = window.APP_DATA || {};
 
-            window.APP_DATA.providersByCode =
-                provRows.reduce((acc, row) => {
+            // Group providers by their clinic short code (e.g., "ESV", "OXN")
+            window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
+                const code = String(row["Code"] || "").trim().toUpperCase();
+                if (!acc[code])
+                    acc[code] = [];
+                acc[code].push(row);
+                return acc;
+            }, {});
+        }
 
-                    const code = String(
-                            row["Code"] || "")
-                        .trim()
-                        .toUpperCase();
-
-                    if (!code)
-                        return acc;
-
-                    if (!acc[code]) {
-                        acc[code] = [];
-                    }
-
-                    acc[code].push(row);
-
-                    return acc;
-
-                }, {});
-
-            console.log(
-                "Provider groups:",
-                Object.keys(window.APP_DATA.providersByCode));
-
-            console.log(
-`✅ Provider schedule loaded: ${provRows.length}`);
-        };
-
-        // ==========================
-        // Extensions
-        // ==========================
-        const extTxt = obtenerCsv("extensions");
+        // 3. Load Extensions and map by "code"
+        const extTxt =
+            obtenerCsv(
+                "extensions");
 
         if (extTxt) {
 
@@ -123,8 +82,8 @@
             extRows.forEach(row => {
 
                 const section =
-                    row.Section ||
                     row.section ||
+                    row.Section ||
                     "General";
 
                 if (!EXT[section]) {
@@ -132,31 +91,16 @@
                 }
 
                 EXT[section].push(row);
+
             });
 
-            console.log(
-`✅ Extensions loaded: ${extRows.length}`);
-
-            console.log("Extension first row:");
-            console.log(extRows[0]);
-
-            console.log("Extension headers:");
-            console.log(Object.keys(extRows[0] || {}));
-
         }
-
         buildExtensionsIndex();
     }
 
     function mapClinicsCsvToObjects(items) {
-        console.log(
-            "✅ Clinics loaded:",
-            CLINICS.length);
 
-        console.log(
-            "First clinic:",
-            CLINICS[0]);
-        if (!Array.isArray(items)) {
+        if (!items || !Array.isArray(items)) {
             return [];
         }
 
@@ -165,85 +109,87 @@
 
         for (const it of items) {
 
-            const code = String(
-                    it.Abbreviation || "").trim();
+            const code =
+                String(
+                    it["Abbreviation"] || "").trim();
 
-            const name = String(
-                    it.Location || "").trim();
+            const name =
+                String(
+                    it["Location"] ||
+                    it["Clinic Name"] ||
+                    "").trim();
 
-            const plusCode = String(
-                    it.plusCode || "").trim();
+            const plusCode =
+                String(
+                    it["plusCode"] || "").trim();
 
             const address = [
-                it.Address,
-                it.City,
-                it.Zip
+
+                it["Address"],
+
+                it["City"],
+
+                it["Zip"]
+
             ]
             .filter(Boolean)
             .join(", ");
 
             const clinic = {
+
                 clinicId:
-                it.ItemInternalId ||
-                code,
+                code ||
+
+                name
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/gi, "-"),
 
                 code,
+
                 name,
+
                 plusCode,
 
                 address,
 
                 lat: null,
+
                 lng: null,
 
                 nicknames: ""
+
             };
 
-            if (code && !seen.has(code)) {
+            if (
+                code &&
+                !seen.has(code)) {
+
                 out.push(clinic);
+
                 seen.add(code);
+
             }
+
         }
 
         return out;
+
     }
 
     function buildExtensionsIndex() {
-
         EXT_BY_CODE = {};
-
-        console.log("EXT =", EXT);
-
         for (const section in EXT) {
-
-            console.log("SECTION =", section);
-
-            if (!Array.isArray(EXT[section])) {
-                console.log("NOT ARRAY");
+            if (section === 'Meta' || !Array.isArray(EXT[section]))
                 continue;
-            }
-
             for (const item of EXT[section]) {
-
-                console.log("ITEM =", item);
-
-                const code = String(
-                        item.Code || "");
-
+                const code = String(item.Code || item.code || '').trim().toUpperCase();
                 if (!code)
                     continue;
-
-                if (!EXT_BY_CODE[code]) {
+                if (!EXT_BY_CODE[code])
                     EXT_BY_CODE[code] = {};
-                }
-
                 EXT_BY_CODE[code][section] = item;
             }
         }
-
-        console.log(
-            "EXT_BY_CODE",
-            EXT_BY_CODE);
     }
 
     /* ---------- OLC & Geocode ---------- */
@@ -446,32 +392,6 @@
         });
     }
 
-    function excelDateToJS(excelDate) {
-
-        if (!excelDate)
-            return null;
-
-        return new Date(
-            (Number(excelDate) - 25569) * 86400 * 1000);
-
-    }
-
-    function isTodayExcelDate(excelDate) {
-
-        const d = excelDateToJS(excelDate);
-
-        if (!d)
-            return false;
-
-        const now = new Date();
-
-        return (
-            d.getFullYear() === now.getFullYear() &&
-            d.getMonth() === now.getMonth() &&
-            d.getDate() === now.getDate());
-
-    }
-
     /* ---------- Sheet render (Counters + Toggle) ---------- */
     function renderSelectedClinic(c, distance) {
         const panel = document.getElementById('clinic-info-body');
@@ -484,71 +404,10 @@
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
 
-        console.log("========== DEBUG CLINIC ==========");
-        console.log("Clinic code:", c.code);
-        console.log("Today:", todayStr);
-
-        console.log(
-            "Provider groups:",
-            Object.keys(window.APP_DATA.providersByCode || {}));
-
-        const clinicProviders =
-            window.APP_DATA.providersByCode?.[
-                c.code.toUpperCase()
-            ] || [];
-
-        console.log(
-            "Providers for clinic:",
-            clinicProviders.length);
-
-        console.log(
-            "Sample provider:",
-            clinicProviders[0]);
-
-        /*         const linkedProviders = (window.APP_DATA.providersByCode?.[c.code.toUpperCase()] || [])
+        /* const linkedProviders = (window.APP_DATA.providersByCode?.[c.code.toUpperCase()] || [])
         .filter(p => String(p.Date || '').trim() === todayStr); */
+        const linkedProviders = window.APP_DATA.providersByCode?.[c.code.toUpperCase()] || [];
 
-        // TEMP DEBUG
-const linkedProviders = clinicProviders;
-
-console.log(
-    "After date filter (disabled):",
-    linkedProviders.length
-);
-
-if (clinicProviders.length > 0) {
-
-    console.log(
-        "todayStr:",
-        todayStr
-    );
-
-    console.log(
-        "provider excel date:",
-        clinicProviders[0].Date
-    );
-
-    console.log(
-        "provider js date:",
-        excelDateToJS(
-            clinicProviders[0].Date
-        )
-    );
-
-}
-
-        console.log(
-            "todayStr:",
-            todayStr);
-
-        console.log(
-            "provider excel date:",
-            clinicProviders[0]?.Date);
-
-        console.log(
-            "provider js date:",
-            excelDateToJS(
-                clinicProviders[0]?.Date));
 
         let html = '';
 
@@ -1109,8 +968,6 @@ if (clinicProviders.length > 0) {
                 }
             }
             addMarkers();
-            console.log("CLINICS =", CLINICS.length);
-            console.log(CLINICS.slice(0, 3));
             populateClinicPickers();
             wireShortcuts();
             setTimeout(() => map.invalidateSize(), 200);
