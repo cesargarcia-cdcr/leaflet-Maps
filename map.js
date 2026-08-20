@@ -403,11 +403,13 @@
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
-
-        /* const linkedProviders = (window.APP_DATA.providersByCode?.[c.code.toUpperCase()] || [])
-        .filter(p => String(p.Date || '').trim() === todayStr); */
-        const linkedProviders = window.APP_DATA.providersByCode?.[c.code.toUpperCase()] || [];
-
+        const linkedProviders = (window.APP_DATA.providersByCode?.[c.code.toUpperCase()] || []).filter(p => {
+            const shift = String(p[todayStr] || '').trim();
+            return shift !== '';
+        }).map(p => ({
+                ...p,
+                todayShift: String(p[todayStr] || '').trim()
+            }));
 
         let html = '';
 

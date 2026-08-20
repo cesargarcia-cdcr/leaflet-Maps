@@ -198,88 +198,55 @@ function generateClinicLookup(payload) {
     //--------------------------------------------------
 
     
-    function generateProvidersSched(
-    payload
-) {
-
-    const rows = [
-
-        ...(payload.providersSchedCurr || []),
-
-        ...(payload.providersSchedNext || [])
-
-    ];
-
-    const merged = {};
-
-    rows.forEach(row => {
-
-        const providerId =
-            String(
-                row["Provider ID"] || ""
-            ).trim();
-
-        const healthCenter =
-            String(
-
-                row["Health Center"] ||
-                row["Health Center "] ||
-                ""
-
-            )
-            .trim()
-            .toUpperCase();
-
-        if (
-            !providerId ||
-            !healthCenter
-        ) {
-            return;
-        }
-
-        const key =
-            `${providerId}|${healthCenter}`;
-
-        if (!merged[key]) {
-
-            merged[key] = {};
-
-        }
-
-        Object.entries(row)
-            .forEach(
-                ([field, value]) => {
-
-                    if (
-                        value !== "" &&
-                        value !== null &&
-                        value !== undefined
-                    ) {
-
-                        merged[key][field] =
-                            value;
-
-                    }
-
+    function generateProvidersSched(payload) {
+        const rows = [...(payload.providersSchedCurr || []), ...(payload.providersSchedNext || [])];
+        const merged = {};
+        rows.forEach(row => {
+            const providerId = String(row["Provider ID"] || "").trim();
+            const healthCenter = String(row["Health Center"] || row["Health Center "] || "").trim().toUpperCase();
+            if (!providerId || !healthCenter) {
+                return;
+            }
+            const key = `${providerId}|${healthCenter}`;
+            if (!merged[key]) {
+                merged[key] = {};
+            }
+            Object.entries(row).forEach(([field, value]) => {
+                if (value !== "" && value !== null && value !== undefined) {
+                    merged[key][field] = value;
                 }
-            );
+            });
+        });
+        saveDataset("providersSched", Object.values(merged));
+        console.log(`✅ providersSched: ${Object.keys(merged).length}`);
+    }
 
-    });
-
-    saveDataset(
-        "providersSched",
-        Object.values(
-            merged
-        )
-    );
-
-    console.log(
-        `✅ providersSched: ${
-            Object.keys(merged).length
-        }`
-    );
-
-}
+    function generateProviderScheduleDaily(payload) {
+        const rows = [...(payload.providersSchedCurr || []), ...(payload.providersSchedNext || [])];
+        const dailyRows = [];
+        rows.forEach(provider => {
+            Object.keys(provider).forEach(field => {
+                const value = String(provider[field] || "").trim();
+                if (!value) {
+                    return;
+                }
+                if (/^[A-Z][a-z]{2}\s[A-Z][a-z]{2}\s\d{1,2}$/.test(field)) {
+                    dailyRows.push({
+                        Code: provider["Code"],
+                        "Health Center": provider["Health Center"],
+                        "Provider ID": provider["Provider ID"],
+                        NPI: provider["NPI"],
+                        "Employee Name": provider["Employee Name"],
+                        "JOB NAME": provider["JOB NAME"],
+                        Specialty: provider["Specialty"],
+                        Date: field,
+                        Schedule: value
+                    });
+                }
+            });
+        });
+        saveDataset("providerScheduleDaily", dailyRows);
+    }
 
        //--------------------------------------------------
     // Straight datasets

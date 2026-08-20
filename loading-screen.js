@@ -297,7 +297,7 @@ async function checkAndSyncData() {
                 splash
             );
 
-        }, 1000);
+        }, 1500);
     }
 }
 
