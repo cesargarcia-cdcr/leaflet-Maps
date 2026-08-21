@@ -1159,4 +1159,28 @@
 
     window.showProviderPopover = showProviderPopover;
     window.removeProviderPopover = removeProviderPopover;
+    
+    // 🖱️ Cerrar automáticamente el panel 'place-sheet' al hacer clic fuera de él
+    document.addEventListener('click', (e) => {
+        const sheet = document.getElementById('place-sheet');
+        if (!sheet) return;
+
+        // Verificar si el panel está abierto actualmente
+        const isOpen = sheet.classList.contains('open') || sheet.getAttribute('aria-hidden') === 'false';
+        if (!isOpen) return;
+
+        // Comprobar si el clic ocurrió dentro del panel, sobre un marcador o sobre un tooltip del mapa
+        const clickedInsideSheet = sheet.contains(e.target);
+        const clickedMarker = e.target.closest('.leaflet-marker-icon');
+        const clickedTooltip = e.target.closest('.leaflet-tooltip');
+
+        // Si se hizo clic fuera del panel y no en un marcador/etiqueta del mapa, ciérralo de forma limpia
+        if (!clickedInsideSheet && !clickedMarker && !clickedTooltip) {
+            if (typeof window.closePlaceSheet === 'function') {
+                window.closePlaceSheet();
+            } else {
+                closeSheet();
+            }
+        }
+    });
 })();
