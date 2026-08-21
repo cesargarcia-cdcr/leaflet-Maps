@@ -52,34 +52,29 @@
         try {
             console.log("📂 [PROVIDER_LOG] Iniciando lectura de datos de proveedores...");
             
-            let mainTxt = null;
-            if (typeof window.obtenerArchivo === 'function') {
-                // 🎯 Apuntar directamente a la clave exacta que arroja Power Automate
-                mainTxt = await window.obtenerArchivo('mainProviders');
+            let mainTxt = localStorage.getItem('csv_mainProviders');
+            if (!mainTxt && typeof window.obtenerArchivo === 'function') {
+                mainTxt = await window.obtenerArchivo('csv_mainProviders');
             }
-            if (!mainTxt) {
-                mainTxt = localStorage.getItem('mainProviders');
-            }
+            masterList = mainTxt ? parseStandardCSV(mainTxt) : [];
 
-            if (mainTxt) {
-                if (typeof mainTxt === 'string' && (mainTxt.trim().startsWith('[') || mainTxt.trim().startsWith('{'))) {
-                    try {
-                        const parsed = JSON.parse(mainTxt);
-                        masterList = Array.isArray(parsed) ? parsed : (parsed.value || parsed.mainProviders || []);
-                    } catch (e) {
-                        masterList = parseStandardCSV(mainTxt);
-                    }
-                } else if (Array.isArray(mainTxt)) {
-                    masterList = mainTxt;
-                } else {
-                    masterList = parseStandardCSV(mainTxt);
+            let schedTxt = localStorage.getItem('csv_providersSched');
+            if (!schedTxt && typeof window.obtenerArchivo === 'function') {
+                schedTxt = await window.obtenerArchivo('csv_providersSched');
+            }
+            PROVIDERS_SCHED = schedTxt ? parseStandardCSV(schedTxt) : [];
+
+            // 🎯 Crear un mapa rápido de horarios por Provider ID
+            globalScheduleMap = {};
+            PROVIDERS_SCHED.forEach(row => {
+                const pId = String(row["Provider ID"] || "").trim();
+                if (pId) {
+                    globalScheduleMap[pId] = row; // Guarda la fila con todas sus fechas futuras
                 }
-            } else {
-                console.warn("⚠️ [PROVIDER_LOG] No se encontró la llave mainProviders en el caché.");
-                masterList = [];
-            }
+            });
 
-            console.log(`✅ [PROVIDER_LOG] Registros cargados con éxito: ${masterList.length}`);
+            console.log(`✅ [PROVIDER_LOG] Registros cargados: ${masterList.length}, Schedule registros: ${PROVIDERS_SCHED.length}`);
+            
             renderDirectory();
             initAutocomplete();
 
@@ -191,6 +186,46 @@
                 return;
             }
 
+            // ==========================================================
+            // 🎯 NUEVO: Extracción de días con presencia activa (solo turnos con números)
+            // ==========================================================
+            let scheduleHtml = '';
+            const schedRow = globalScheduleMap[docId] || globalScheduleMap[docName.toLowerCase()];
+            
+            if (schedRow) {
+                const ignoreCols = new Set([
+                    "iteminternal id", "iteminternalid", "provider id", "npi", 
+                    "code", "health center", "report employee name", "employee name", 
+                    "job name", "column1", "specialty"
+                ]);
+
+                const dateEntries = Object.entries(schedRow).filter(([key, val]) => {
+                    const cleanKey = key.trim().toLowerCase();
+                    const cleanVal = String(val || "").trim();
+                    return !ignoreCols.has(cleanKey) && cleanVal !== "" && /\d/.test(cleanVal);
+                });
+
+                if (dateEntries.length > 0) {
+                    let badges = dateEntries.map(([date]) => `
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 4px; text-align:center; font-size:0.75rem; color:#334155; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
+                            <span style="color:#16a34a; margin-right:2px;">✔</span> ${date}
+                        </div>
+                    `).join('');
+
+                    scheduleHtml = `
+                        <div style="margin-top:14px; padding-top:10px; border-top:1px dashed #cbd5e1;">
+                            <div style="font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:8px; display:flex; align-items:center; gap:4px;">
+                                📅 Días con Presencia Programada (${dateEntries.length})
+                            </div>
+                            <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:6px; max-height:160px; overflow-y:auto; padding-right:2px;">
+                                ${badges}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            // ==========================================================
+
             let guidelinesHtml = '';
             if (docDos || docDonts || docEpic) {
                 guidelinesHtml = `
@@ -218,6 +253,7 @@
                         <span class="pdir-badge">${docSpec}</span>
                     </div>
                     ${guidelinesHtml}
+                    ${scheduleHtml}
                 </div>
             `);
         });
@@ -228,7 +264,7 @@
             grid.innerHTML = htmlArr.join('');
         }
     }
-
+    
     function initMasterProviderDirectory() {
         const searchInput = document.getElementById('masterProviderSearch');
         if (searchInput && !searchInput.__wired) {

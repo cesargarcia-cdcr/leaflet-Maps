@@ -951,11 +951,18 @@
     /* ---------- Bootstrap ---------- */
     window.addEventListener('AppDataLoaded', async() => {
         try {
+            // Si el mapa ya existe, lo eliminamos limpiamente para evitar conflictos
+            if (map) {
+                map.remove();
+                map = null;
+            }
+
             map = L.map('map', {
                 zoomControl: true,
                 maxBounds: CA_BOUNDS,
                 maxBoundsViscosity: .8
             }).setView([34.25, -119.10], 10);
+            
             buildBaseLayers();
             await loadData();
             buildExtensionsIndex();
