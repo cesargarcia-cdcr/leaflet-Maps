@@ -482,29 +482,29 @@
               <div class="modern-body">`;
 
         if (linkedProviders.length > 0) {
-            html += linkedProviders.map(p => `
-            <div class="provider-row" style="padding: 6px 0; border-bottom: 1px dashed #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
-                <div style="flex: 1; display: flex; align-items: center; gap: 6px;">
-                    <span style="color: #475569; font-family: monospace; font-weight: 700; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 1px 5px; border-radius: 3px; font-size: 0.75rem;">
-                        🆔 ${p['Provider ID'] || 'N/A'}
-                    </span>
-                    <a href="#" 
-                       onclick="event.preventDefault(); showProviderPopover('${p['Provider ID'] || ''}', '${p['Employee Name'].replace(/'/g, "\\'")}')" 
-                       style="color: #4f46e5; text-decoration: none; font-weight: 700; cursor: pointer;"
-                       onmouseover="this.style.textDecoration='underline'; this.style.color='#1e1b4b';" 
-                       onmouseout="this.style.textDecoration='none'; this.style.color='#4f46e5';">
-                       ${p['Employee Name']}
-                    </a>
-                    <span style="color:#64748b; font-size:0.75rem;">${p.Specialty ? `[${p.Specialty}]` : ''}</span>
-                </div>
-                <span class="provider-badge">${p['JOB NAME'] ?? 'MD'}</span>
+        html += linkedProviders.map(p => `
+        <div class="provider-row" style="padding: 6px 0; border-bottom: 1px dashed #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+            <div style="flex: 1; display: flex; align-items: center; gap: 6px;">
+                <span style="color: #475569; font-family: monospace; font-weight: 700; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 1px 5px; border-radius: 3px; font-size: 0.75rem;">
+                    🆔 ${p['Provider ID'] || 'N/A'}
+                </span>
+                <a href="#" 
+                   onclick="event.preventDefault(); window.showProviderModalById('${p['Provider ID'] || ''}')" 
+                   style="color: #4f46e5; text-decoration: none; font-weight: 700; cursor: pointer;"
+                   onmouseover="this.style.textDecoration='underline'; this.style.color='#1e1b4b';" 
+                   onmouseout="this.style.textDecoration='none'; this.style.color='#4f46e5';">
+                   ${p['Employee Name']}
+                </a>
+                <span style="color:#64748b; font-size:0.75rem;">${p.Specialty ? `[${p.Specialty}]` : ''}</span>
             </div>
-        `).join('');
-        } else {
-            html += `<div style="font-size:0.8rem; color:#64748b; text-align:center; padding: 4px 0;">
-                    📅 No providers scheduled for today.
-                 </div>`;
-        }
+            <span class="provider-badge">${p['JOB NAME'] ?? 'MD'}</span>
+        </div>
+    `).join('');
+    } else {
+        html += `<div style="font-size:0.8rem; color:#64748b; text-align:center; padding: 4px 0;">
+                📅 No providers scheduled for today.
+             </div>`;
+    }
 
         html += `</div></div>`;
 
@@ -513,24 +513,13 @@
         setTimeout(() => AppMap.invalidate(), 100);
     }
 
-    // Función puente para comunicar el mapa con el directorio de proveedores
-    window.routeToProviderDirectory = function (providerName) {
-        // 1. Cambiar de pestaña usando el enrutador de tu notes.js
-        if (typeof window.navigateTo === 'function') {
-            window.navigateTo('provider-directory');
+    // 🌐 Función puente para abrir el modal del proveedor por ID o nombre desde el mapa
+    window.routeToProviderDirectory = function (providerIdOrName) {
+        if (typeof window.showProviderModalById === 'function') {
+            window.showProviderModalById(providerIdOrName);
+        } else {
+            console.warn("⚠️ showProviderModalById no está disponible todavía en el directorio.");
         }
-
-        // 2. Inyectar el nombre en el buscador del directorio y disparar el filtrado
-        setTimeout(() => {
-            const searchInput = document.getElementById('masterProviderSearch');
-            if (searchInput) {
-                searchInput.value = providerName;
-                // Disparar el evento input para que provider-directory.js reaccione e implemente el autocompletado
-                searchInput.dispatchEvent(new Event('input', {
-                        bubbles: true
-                    }));
-            }
-        }, 50); // Pequeña pausa para asegurar que el DOM de la pestaña ya esté visible
     };
 
     function openSheet() {
@@ -1068,87 +1057,89 @@
     }
 
     /* ---------- Motor del Popover de Cumplimiento (Do's & Don'ts) ---------- */
-    /* ---------- Motor del Popover de Cumplimiento (Do's & Don'ts) ---------- */
-    async function showProviderPopover(providerId, providerName) {
-        // 1. Eliminar cualquier popover previo para evitar duplicados
+    async function showProviderPopover(providerId) {
         removeProviderPopover();
 
-        // 2. Intentar buscar el registro en la memoria global
-        let masterList = window.APP_DATA?.Main_Providers_csv || [];
+        // Limpiar y asegurar que extraigamos el ID de 6 dígitos que empieza con 715
+        const rawId = String(providerId || '').trim();
+        const cleanTargetId = rawId.match(/715\d{3}/)?.[0] || rawId;
 
-        // Paracaídas: Si la lista de memoria está vacía, hacer un fetch veloz al CSV físico
-        if (masterList.length === 0) {
-            try {
-                const responseMain = await fetch('/Main-Providers.csv');
-                if (responseMain.ok) {
-                    const textMain = await responseMain.text();
-                    // Usamos el parseador nativo que ya tienes integrado en map.js
-                    if (typeof CSV_parse === 'function' && typeof CSV_rowsToObjects === 'function') {
-                        masterList = CSV_rowsToObjects(CSV_parse(textMain));
-                    }
-                }
-            } catch (err) {
-                console.error("❌ Error de comunicación con Main-Providers.csv:", err);
-            }
-        }
-
-        // Buscar coincidencia exacta usando la Clave Primaria (Provider ID) o el Nombre como respaldo
-        const doc = masterList.find(m => {
-            const mId = String(m['Provider ID'] || '').trim();
-            const mName = String(m['Provider'] || '').toLowerCase().trim();
-            return (providerId && mId === String(providerId).trim()) ||
-            (mName === providerName.toLowerCase().trim());
-        });
-
-        if (!doc) {
-            console.warn(`⚠️ No se encontraron directrices de cumplimiento para: ${providerName}`);
-            alert(`No se encontraron directrices registradas en Main-Providers.csv para el proveedor: ${providerName}`);
+        if (!cleanTargetId || cleanTargetId === 'N/A' || cleanTargetId === 'undefined' || cleanTargetId.length !== 6) {
+            alert("⚠️ Este proveedor no cuenta con un Provider ID válido de 6 dígitos asignado.");
             return;
         }
 
-        // Extracción limpia mapeando los encabezados reales de tu Main-Providers.csv
-        const docName = String(doc['Provider'] || providerName).trim();
+        // Obtener la lista maestra desde la memoria global de la app
+        let masterList = 
+            window.APP_DATA?.csv_mainProviders || 
+            window.APP_DATA?.Main_Providers_csv || 
+            window.mainProvidersList || 
+            [];
+
+        if (masterList.length === 0 && window.APP_DATA) {
+            const foundKey = Object.keys(window.APP_DATA).find(k => Array.isArray(window.APP_DATA[k]) && window.APP_DATA[k].length > 0);
+            if (foundKey) {
+                masterList = window.APP_DATA[foundKey];
+            }
+        }
+
+        // Búsqueda exacta comparando con la columna 'Provider ID'
+        const doc = masterList.find(m => {
+            if (!m) return false;
+            const mId = String(m['Provider ID'] || m['provider id'] || m['ID'] || '').trim();
+            return mId === cleanTargetId;
+        });
+
+        if (!doc) {
+            console.warn(`⚠️ No se encontraron directrices registradas para el Provider ID: ${cleanTargetId}`);
+            alert(`No se encontraron directrices registradas para el Provider ID: ${cleanTargetId}`);
+            return;
+        }
+
+        // Extracción limpia usando las columnas exactas de csv_mainProviders
+        const docName = String(doc['Provider'] || 'Desconocido').trim();
         const docDegree = String(doc['Dr Degree'] || '').trim();
         const docSpec = String(doc['Specialty'] || 'General Medicine').trim();
         const docLang = String(doc['Languages '] || doc['Languages'] || '').trim();
         const docNpi = String(doc['NPI'] || 'N/A').trim();
+        
         const docDos = String(doc["Do's ✔"] || '').trim();
         const docDonts = String(doc["Don'ts ❌"] || '').trim();
 
-        // 3. Crear el contenedor del Popover y el fondo oscuro transparente
+        // Crear el contenedor del Popover y el fondo oscuro transparente
         const backdrop = document.createElement('div');
         backdrop.id = 'pdir-popover-backdrop';
         backdrop.style = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.2); z-index:99999; display:flex; align-items:center; justify-content:center;';
 
         const popover = document.createElement('div');
         popover.id = 'pdir-popover-card';
-        popover.style = 'width:440px; max-width:90vw; background:#ffffff; padding:18px; border-radius:8px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); border:1px solid #e2e8f0; animation: pdirPopIn 0.18s ease-out; font-family: system-ui, -apple-system, sans-serif;';
+        popover.style = 'width:440px; max-width:90vw; background:#ffffff; padding:18px; border-radius:8px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); border:1px solid #e2e8f0; font-family: system-ui, -apple-system, sans-serif;';
 
-        // 4. Armar la estructura HTML interna inyectando Do's & Don'ts
+        // Armar la estructura HTML interna de Do's & Don'ts
         let guidelinesHtml = '<div style="margin-top:10px; font-size:0.8rem; color:#64748b; text-align:center; font-style:italic;">⚠️ Sin directrices de agendamiento registradas.</div>';
         if (docDos || docDonts) {
             guidelinesHtml = `
-                <div class="pdir-guidelines-box" style="margin-top:12px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem; line-height:1.5;">
-                    ${docDos ? `<div class="pdir-do-line" style="color:#16a34a; margin-bottom:8px;"><strong>Do's ✔:</strong> ${docDos}</div>` : ''}
-                    ${docDonts ? `<div class="pdir-dont-line" style="color:#dc2626;"><strong>Don'ts ❌:</strong> ${docDonts}</div>` : ''}
+                <div style="margin-top:12px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem; line-height:1.5;">
+                    ${docDos ? `<div style="color:#16a34a; margin-bottom:8px;"><strong>Do's ✔:</strong> ${docDos}</div>` : ''}
+                    ${docDonts ? `<div style="color:#dc2626;"><strong>Don'ts ❌:</strong> ${docDonts}</div>` : ''}
                 </div>
             `;
         }
 
         popover.innerHTML = `
-            <div class="pdir-card-top" style="display:flex; justify-content:space-between; align-items:start; gap:10px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:start; gap:10px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
                 <div style="flex:1;">
                     <h4 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">${docName}${docDegree ? `, ${docDegree}` : ''}</h4>
                     <div style="font-size:0.75rem; color:#64748b; margin-top:4px; display:flex; flex-direction:column; gap:2px;">
-                        <span>🔑 Provider ID: <strong>${providerId || 'N/A'}</strong> | 🌐 NPI: <strong>${docNpi}</strong></span>
-                        ${docLang ? `<span style="margin-top:2px;">🗣️ ${docLang}</span>` : ''}
+                        <span>🔑 Provider ID: <strong>${cleanTargetId}</strong> | 🌐 NPI: <strong>${docNpi}</strong></span>
+                        ${docLang ? `<span>🗣️ ${docLang}</span>` : ''}
                     </div>
                 </div>
-                <span class="pdir-badge" style="background:#e0e7ff; color:#4338ca; font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:4px; white-space:nowrap;">${docSpec}</span>
+                <span style="background:#e0e7ff; color:#4338ca; font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:4px; white-space:nowrap;">${docSpec}</span>
             </div>
             ${guidelinesHtml}
             <div style="margin-top:14px; text-align:right;">
-                <button onclick="removeProviderPopover()" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#475569; padding:6px 14px; border-radius:4px; font-size:0.8rem; font-weight:600; cursor:pointer; transition: background 0.15s;">Cerrar</button>
+                <button onclick="removeProviderPopover()" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#475569; padding:6px 14px; border-radius:4px; font-size:0.8rem; font-weight:600; cursor:pointer;">Cerrar</button>
             </div>
         `;
 
@@ -1156,8 +1147,7 @@
         document.body.appendChild(backdrop);
 
         backdrop.addEventListener('click', (e) => {
-            if (e.target === backdrop)
-                removeProviderPopover();
+            if (e.target === backdrop) removeProviderPopover();
         });
     }
 

@@ -276,4 +276,78 @@
 
     preloadProviderData();
     window.initMasterProviderDirectory = initMasterProviderDirectory;
+    
+    // 🌐 Exponer la función globalmente para que map.js pueda llamarla
+    window.showProviderModalById = function(providerIdOrName) {
+        if (!providerIdOrName) return;
+        const target = String(providerIdOrName).trim().toLowerCase();
+
+        const doc = masterList.find(m => {
+            if (!m) return false;
+            const mId = String(m['Provider ID'] || m['provider id'] || m['ID'] || '').trim().toLowerCase();
+            const mName = String(m['Provider'] || m['provider'] || '').trim().toLowerCase();
+            return mId === target || mName === target;
+        });
+
+        if (!doc) {
+            console.warn(`⚠️ No se encontró información para: ${providerIdOrName}`);
+            alert(`No se encontraron directrices registradas para: ${providerIdOrName}`);
+            return;
+        }
+
+        const docName = String(doc['Provider'] || 'Desconocido').trim();
+        const docDegree = String(doc['Dr Degree'] || '').trim();
+        const docSpec = String(doc['Specialty'] || 'General Medicine').trim();
+        const docId = String(doc['Provider ID'] || '').trim();
+        const docNpi = String(doc['NPI'] || 'N/A').trim();
+        const docLang = String(doc['Languages '] || doc['Languages'] || '').trim();
+        const docEpic = String(doc['Epic Headers'] || '').trim();
+        
+        const docDos = String(doc["Do's ✔"] || '').trim();
+        const docDonts = String(doc["Don'ts ❌"] || '').trim();
+
+        const backdrop = document.createElement('div');
+        backdrop.id = 'pdir-popover-backdrop';
+        backdrop.style = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.3); z-index:99999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(2px);';
+
+        const popover = document.createElement('div');
+        popover.id = 'pdir-popover-card';
+        popover.style = 'width:460px; max-width:90vw; background:#ffffff; padding:20px; border-radius:10px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.25); border:1px solid #e2e8f0; font-family: system-ui, -apple-system, sans-serif;';
+
+        let guidelinesHtml = '<div style="margin-top:12px; font-size:0.8rem; color:#64748b; text-align:center; font-style:italic;">⚠️ Sin directrices de agendamiento registradas.</div>';
+        if (docDos || docDonts || docEpic) {
+            guidelinesHtml = `
+                <div style="margin-top:14px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; font-size:0.85rem; line-height:1.5;">
+                    ${docEpic ? `<div style="color:#0284c7; margin-bottom:6px; font-size:0.8rem;">💻 <strong>Epic:</strong> ${docEpic}</div>` : ''}
+                    ${docDos ? `<div style="color:#16a34a; margin-bottom:6px;"><strong>Do's ✔:</strong> ${docDos}</div>` : ''}
+                    ${docDonts ? `<div style="color:#dc2626;"><strong>Don'ts ❌:</strong> ${docDonts}</div>` : ''}
+                </div>
+            `;
+        }
+
+        popover.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:start; gap:10px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
+                <div style="flex:1;">
+                    <h4 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">${docName}${docDegree ? `, ${docDegree}` : ''}</h4>
+                    <div style="font-size:0.75rem; color:#64748b; margin-top:4px; display:flex; flex-direction:column; gap:2px;">
+                        <span>🔑 Provider ID: <strong>${docId || 'N/A'}</strong> | 🌐 NPI: <strong>${docNpi}</strong></span>
+                        ${docLang ? `<span>🗣️ ${docLang}</span>` : ''}
+                    </div>
+                </div>
+                <span style="background:#e0e7ff; color:#4338ca; font-size:0.7rem; font-weight:700; padding:4px 8px; border-radius:4px; white-space:nowrap;">${docSpec}</span>
+            </div>
+            ${guidelinesHtml}
+            <div style="margin-top:16px; text-align:right;">
+                <button onclick="document.getElementById('pdir-popover-backdrop')?.remove()" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#475569; padding:6px 16px; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer;">Cerrar</button>
+            </div>
+        `;
+
+        backdrop.appendChild(popover);
+        document.body.appendChild(backdrop);
+
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) backdrop.remove();
+        });
+    };
+    
 })();
