@@ -1,5 +1,5 @@
 /* ====================================
-   LOADING SCREEN (Con control diario y sincronización manual)
+   LOADING SCREEN (Con Popup Automático y Loop de Cierre)
 ==================================== */
 
 function updateProgress(percent, message, state = "CARGANDO") {
@@ -12,6 +12,149 @@ function updateProgress(percent, message, state = "CARGANDO") {
     if (textPercent) textPercent.innerText = `${percent}%`;
     if (statusText && message) statusText.innerText = message;
     if (stateText) stateText.innerText = state;
+}
+
+// --- VERIFICACIÓN PURA DE LA URL DEL LOGO ---
+function checkSharePointLogo() {
+    return new Promise((resolve) => {
+        const logoUrl = "https://clinicasdelcaminoreal.sharepoint.com/sites/ACSI/_api/siteiconmanager/getsitelogo?type=%271%27&hash=638573522516023947";
+        const img = new Image();
+        
+        const timeout = setTimeout(() => {
+            img.src = "";
+            resolve(false);
+        }, 4000);
+
+        img.onload = function() {
+            clearTimeout(timeout);
+            resolve(true);
+        };
+
+        img.onerror = function() {
+            clearTimeout(timeout);
+            resolve(false);
+        };
+
+        img.src = logoUrl + "&t=" + new Date().getTime();
+    });
+}
+
+// --- FLUJO INTELIGENTE EN CASCADA ---
+async function verifySharePointSession() {
+    console.log("🔍 Verificando sesión de SharePoint...");
+
+    // 1. Intento inicial
+    let active = await checkSharePointLogo();
+    if (active) return true;
+
+    // 2. Segundo intento rápido por si fue un fallo de red momentáneo
+    await new Promise(r => setTimeout(r, 800));
+    active = await checkSharePointLogo();
+    if (active) return true;
+
+    // 3. Si falla totalmente, activa el bloqueo y el popup automático
+    console.warn("⚠️ Sesión expirada. Activando bloqueo y lanzando popup automático.");
+    triggerAutomaticLoginFlow();
+    return false;
+}
+
+// --- BLOQUEO Y LOOP AUTOMÁTICO DE VALIDACIÓN ---
+function triggerAutomaticLoginFlow() {
+    const splash = document.getElementById("sync-splash");
+    if (splash) splash.style.display = "none";
+
+    if (document.getElementById("sp-lock-screen")) return;
+
+    const lockScreen = document.createElement("div");
+    lockScreen.id = "sp-lock-screen";
+    lockScreen.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(15, 23, 42, 0.98); z-index: 999999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        color: white; font-family: system-ui, sans-serif; text-align: center; padding: 20px;
+    `;
+    
+    const sharePointSiteUrl = "https://clinicasdelcaminoreal.sharepoint.com/sites/ACSI";
+
+    lockScreen.innerHTML = `
+        <div style="max-width: 440px; background: #1e293b; padding: 35px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155;">
+            <h2 style="margin-top: 0; color: #f87171; font-size: 22px;">Iniciando Sesión</h2>
+            <p id="lock-status-text" style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+                Se ha abierto una ventana emergente para autenticar tu sesión corporativa. Completa tu acceso allí.
+            </p>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; color: #38bdf8; font-size: 13px; font-weight: 500;">
+                <div style="width: 14px; height: 14px; border: 2px solid #38bdf8; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                Esperando a que inicies sesión...
+            </div>
+            <button id="btn-reopen-popup" style="margin-top: 20px; background: #334155; color: #cbd5e1; border: none; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; width: 100%;">
+                Volver a abrir ventana de login si se cerró
+            </button>
+        </div>
+        <style>
+            @keyframes spin { to { transform: rotate(360deg); } }
+        </style>
+    `;
+    
+    document.body.appendChild(lockScreen);
+
+    let loginWindow = null;
+
+    // Función para abrir la ventana emergente
+    const openPopup = () => {
+        const width = 600;
+        const height = 700;
+        const left = (window.screen.width / 2) - (width / 2);
+        const top = (window.screen.height / 2) - (height / 2);
+
+        loginWindow = window.open(
+            sharePointSiteUrl, 
+            "SharePointLoginPopup", 
+            `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes`
+        );
+
+        if (!loginWindow) {
+            document.getElementById("lock-status-text").innerHTML = "El navegador bloqueó la ventana automática.<br><b>Por favor haz clic abajo para abrirla:</b>";
+            const btn = document.getElementById("btn-reopen-popup");
+            btn.style.background = "#3b82f6";
+            btn.style.color = "white";
+            btn.innerText = "Abrir Ventana de Login";
+        }
+    };
+
+    // 1. Lanzar el popup automáticamente de inmediato
+    openPopup();
+
+    // Botón manual de respaldo por si el navegador bloquea el popup inicial
+    document.getElementById("btn-reopen-popup").addEventListener("click", () => {
+        if (!loginWindow || loginWindow.closed) {
+            openPopup();
+        }
+    });
+
+    // 2. Loop de sondeo (Polling): Comprueba el logo cada 2 segundos en segundo plano
+    const sessionPollInterval = setInterval(async () => {
+        const active = await checkSharePointLogo();
+        
+        if (active) {
+            console.log("✅ ¡Sesión detectada exitosamente en el loop! Cerrando popup y continuando...");
+            
+            // Detener el loop
+            clearInterval(sessionPollInterval);
+
+            // Cerrar la ventana del popup si sigue abierta
+            try {
+                if (loginWindow && !loginWindow.closed) {
+                    loginWindow.close();
+                }
+            } catch (e) {
+                console.warn("No se pudo cerrar el popup automáticamente:", e);
+            }
+
+            // Quitar la pantalla de bloqueo y reanudar la app
+            lockScreen.remove();
+            checkAndSyncData();
+        }
+    }, 2000);
 }
 
 function getPowerAutomateUrl() {
@@ -60,61 +203,53 @@ function hideSplash(splashElement) {
     }, 400);
 }
 
-// --- NÚCLEO DE DESCARGA CON STREAM Y PROGRESO REAL ---
+// --- NÚCLEO DE DESCARGA CON ENVÍO DE USUARIO A POWER AUTOMATE ---
 async function fetchAndProcessData(isManual = false) {
     const splash = document.getElementById("sync-splash");
     if (isManual) showSplash(splash);
 
     try {
-        updateProgress(10, "Conectando con Power Automate...", "CONECTANDO");
-        const url = getPowerAutomateUrl();
-
-        if (!url) {
+        updateProgress(10, "Verificando credenciales...", "VERIFICANDO");
+        
+        let baseUrl = getPowerAutomateUrl();
+        if (!baseUrl) {
             console.warn("No data parameter found.");
             hideSplash(splash);
             return false;
         }
 
+        // 1. Obtener el correo del usuario (puedes extraerlo del perfil de SharePoint o usar una variable temporal/almacenada)
+        // Por ahora, puedes usar una variable o recuperarlo de donde lo tengas guardado tras el login:
+        const currentUserEmail = localStorage.getItem("user_email") || "cgarcia@clinicasdelcaminoreal.com";
+
+        // 2. Adjuntar el correo como parámetro query (?userEmail=...) a la URL del flujo
+        const separator = baseUrl.includes("?") ? "&" : "?";
+        const secureUrlWithUser = `${baseUrl}${separator}userEmail=${encodeURIComponent(currentUserEmail)}`;
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-        const response = await fetch(url, { signal: controller.signal });
+        // 3. Llamar al flujo de Power Automate pasando la URL con el correo integrado
+        const response = await fetch(secureUrlWithUser, { signal: controller.signal });
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            throw new Error(`Acceso denegado o error en el servidor (HTTP ${response.status})`);
         }
-
-        const contentLength = response.headers.get("content-length");
-        const total = contentLength ? parseInt(contentLength, 10) : 0;
-        let loaded = 0;
 
         const reader = response.body.getReader();
         const chunks = [];
+        let loaded = 0;
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            
             chunks.push(value);
             loaded += value.length;
-
-            if (total > 0) {
-                const downloadPercent = Math.min(Math.round((loaded / total) * 50) + 20, 70);
-                const mbLoaded = (loaded / (1024 * 1024)).toFixed(1);
-                const mbTotal = (total / (1024 * 1024)).toFixed(1);
-                
-                updateProgress(
-                    downloadPercent, 
-                    `Descargando datos... (${mbLoaded}MB / ${mbTotal}MB)`, 
-                    "DESCARGANDO"
-                );
-            } else {
-                updateProgress(50, `Descargando datos... (${(loaded / 1024).toFixed(0)} KB)`, "DESCARGANDO");
-            }
+            updateProgress(50, `Descargando datos... (${(loaded / 1024).toFixed(0)} KB)`, "DESCARGANDO");
         }
 
-        updateProgress(72, "Ensamblando datos...", "PROCESANDO");
+        updateProgress(72, "Procesando paquetes...", "PROCESANDO");
 
         const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
         const allChunks = new Uint8Array(totalLength);
@@ -128,17 +263,13 @@ async function fetchAndProcessData(isManual = false) {
         const jsonString = decoder.decode(allChunks);
         const payload = JSON.parse(jsonString);
 
-        updateProgress(82, "Guardando respaldo local...", "GUARDANDO");
+        updateProgress(90, "Guardando datasets...", "GUARDANDO");
         savePayload(payload);
+        saveIndividualCaches(payload);
 
-        updateProgress(90, "Indexando datasets...", "INDEXANDO");
-        const datasetCount = saveIndividualCaches(payload);
+        localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
 
-        const todayStr = new Date().toISOString().split("T")[0];
-        localStorage.setItem("app_data_version", todayStr);
-
-        updateProgress(100, `Datasets listos: ${datasetCount}`, "LISTO");
-        console.log("✅ Payload downloaded & cached successfully");
+        updateProgress(100, "¡Sincronización exitosa!", "LISTO");
 
         setTimeout(() => {
             hideSplash(splash);
@@ -148,14 +279,12 @@ async function fetchAndProcessData(isManual = false) {
         return true;
 
     } catch (error) {
-        console.error("⚠️ Sync failed", error);
-        updateProgress(100, "Error en descarga / Modo local", "ERROR");
+        console.error("⚠️ Validación o sincronización fallida:", error);
+        updateProgress(100, "Acceso no autorizado / Error", "ERROR");
 
         setTimeout(() => {
             hideSplash(splash);
-            if (localStorage.getItem("cache_payload")) {
-                window.dispatchEvent(new CustomEvent("PayloadReady"));
-            }
+            triggerAutomaticLogonFlow(); // Si falla, abre el popup de nuevo
         }, 1500);
 
         return false;
@@ -165,11 +294,14 @@ async function fetchAndProcessData(isManual = false) {
 // --- COMPROBACIÓN DIARIA ---
 async function checkAndSyncData() {
     const splash = document.getElementById("sync-splash");
+    
+    const sessionActive = await verifySharePointSession();
+    if (!sessionActive) return; // Si la sesión no está activa, detiene el flujo y lanza el popup automático
+
     const lastVersionDate = localStorage.getItem("app_data_version");
     const todayStr = new Date().toISOString().split("T")[0];
     const hasPayload = localStorage.getItem("cache_payload");
 
-    // Si ya descargó hoy, salta la pantalla de carga y arranca con la caché local
     if (lastVersionDate === todayStr && hasPayload) {
         console.log("⚡ Datos ya actualizados hoy. Usando caché local.");
         if (splash) splash.style.display = "none";
@@ -177,13 +309,16 @@ async function checkAndSyncData() {
         return;
     }
 
-    // Si es un día nuevo o falta caché, ejecuta la descarga inicial
     await fetchAndProcessData(false);
 }
 
 // --- BOTÓN MANUAL ---
 window.triggerManualSync = async function() {
     console.log("🔄 Sincronización manual iniciada por el usuario...");
+    
+    const sessionActive = await verifySharePointSession();
+    if (!sessionActive) return;
+
     await fetchAndProcessData(true);
 };
 

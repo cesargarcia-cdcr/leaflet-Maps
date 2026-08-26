@@ -1,0 +1,341 @@
+/* Guidelines_Info/Guidelines_Info.css */
+
+:root {
+    /* Paleta de Colores de Citas */
+    --clinic-hours: #FFF2CC;
+    --clinic-secondary: #CCF2FF;
+    --internal-med: #00C5CD;
+    --walk-in: #00B050;
+    --er-follow: #FFC000;
+    --cpe-infant: #FF0000;
+    --procedure: #ED7D31;
+    --lunch: #D9D9D9;
+    
+    /* Nuevos colores para OBGYN y Pediatría extendida */
+    --peds-imms: #7030A0;
+    --ob-prenatal: #E2EFDA;
+    
+    --text-dark: #2D3748;
+    --border-color: #E2E8F0;
+}
+
+/* Contenedor Principal */
+.guide-container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.3;
+    color: var(--text-dark);
+    font-size: 11px;
+}
+
+.guide-title-block {
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+}
+
+.guide-title-block h1 { margin: 0; color: #1A365D; font-size: 12px; font-weight: bold; }
+.guide-title-block h2 { margin: 1px 0 0 0; color: #4A5568; font-size: 9px; font-weight: normal; }
+.guide-container h3 { color: #2D3748; font-size: 10px; margin: 8px 0 4px 0; border-left: 3px solid #1A365D; padding-left: 4px; font-weight: 600; }
+
+/* Grid de Quick Reference */
+.guide-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.guide-card {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 4px;
+    background: #F8FAFC;
+}
+
+.card-header {
+    font-weight: bold;
+    padding: 2px;
+    border-radius: 3px;
+    margin-bottom: 3px;
+    text-align: center;
+    font-size: 9px;
+    color: #1A365D;
+}
+
+.guide-card ul {
+    margin: 0;
+    padding-left: 10px;
+    font-size: 9px;
+    list-style-type: square;
+}
+
+/* Sistema de Bloques Horarios (Timeline) */
+.timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.time-row {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+    background: #FFFFFF;
+    min-height: 20px;
+}
+
+.time-label {
+    width: 52px;
+    padding: 2px;
+    background: #F1F5F9;
+    font-weight: bold;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.slots-container {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: row;
+}
+
+.slot {
+    flex: 1;
+    padding: 2px 4px;
+    font-size: 9px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid rgba(0,0,0,0.04);
+    color: #1A365D;
+}
+
+.slot:last-child { border-right: none; }
+
+/* Clases de Fondos Mapeadas */
+.bg-clinic { background-color: var(--clinic-hours); }
+.bg-secondary { background-color: var(--clinic-secondary); }
+.bg-internal { background-color: var(--internal-med); color: #FFF; }
+.bg-walkin { background-color: var(--walk-in); color: #FFF; }
+.bg-er { background-color: var(--er-follow); }
+.bg-cpe { background-color: var(--cpe-infant); color: #FFF; }
+.bg-procedure { background-color: var(--procedure); color: #FFF; }
+.bg-lunch { background-color: var(--lunch); color: #64748B; font-style: italic; }
+.bg-imms { background-color: var(--peds-imms); color: #FFF; }
+.bg-prenatal { background-color: var(--ob-prenatal); }
+.bg-empty { background-color: #FFFFFF; }
+
+/* Soporte Móvil / Ventanas Pequeñas */
+@media (max-width: 380px) {
+    .slots-container { flex-direction: column; }
+    .slot { border-right: none; border-bottom: 1px solid rgba(0,0,0,0.04); }
+    .slot:last-child { border-bottom: none; }
+}
+
+/* Directory */
+
+/* --- EXTENSION DIRECTORY MODULAR CSS ADDITIONS --- */
+
+/* Parent grid override for dynamic sizing */
+.directory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+/* Base Card structure modifying guide-card footprint */
+.directory-card {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px;
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Card Accent Categorization System borders */
+.hq-border { border-top: 3px solid #1A365D; }
+.operational-border { border-top: 3px solid #ED7D31; }
+.clinic-border { border-top: 3px solid #00C5CD; }
+
+/* Header element rules targeting the corporate phone ledger look */
+.dir-header {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 6px;
+    border-radius: 4px;
+    color: #1A365D;
+    text-align: left;
+}
+
+.dir-meta {
+    font-size: 8.5px;
+    color: #718096;
+    padding: 2px 6px 4px 6px;
+    border-bottom: 1px dashed var(--border-color);
+    margin-bottom: 4px;
+}
+
+/* Internal department tracking structures inside each sheet element */
+.dept-group {
+    margin-top: 4px;
+    background: #F8FAFC;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.dept-title {
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #4A5568;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
+}
+
+/* Clean, split-justified layout system for names and phone extensions */
+.dir-list {
+    margin: 0 !important;
+    padding: 0 !important;
+    list-style-type: none !important;
+}
+
+.dir-list li {
+    font-size: 9.5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.02);
+}
+
+.dir-list li:last-child {
+    border-bottom: none;
+}
+
+/* Numerical layout elements matching timeline styling values */
+.ext {
+    font-family: monospace;
+    font-weight: bold;
+    color: #2B6CB0;
+    font-size: 10px;
+    background: #EBF8FF;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+.ext.badge {
+    background: #FFF5F5;
+    color: #C53030;
+    border: 1px solid #FEB2B2;
+}
+
+.text-highlight {
+    background: #FFFFAF;
+    border-radius: 3px;
+}
+
+/* Target Header Custom Utility Background colors */
+.bg-corporate { background-color: #CCF2FF; }
+.bg-is { background-color: #FFF2CC; }
+.bg-ops { background-color: #E2EFDA; }
+.bg-clinic-primary { background-color: #E2E8F0; }
+
+/* --- EXTENSION DIRECTORY MASTER ADDITIONS --- */
+
+/* Parent flexible flex grid framework */
+.dir-free-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+/* Master free-form card module base */
+.dir-free-card {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px;
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+/* Specific Card-top context labeling systems */
+.card-top-header {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1A365D;
+    padding-bottom: 4px;
+    border-bottom: 2px solid #1A365D;
+    margin-bottom: 6px;
+}
+
+.card-top-subtext {
+    font-size: 8.5px;
+    color: #4A5568;
+    margin-top: -4px;
+    margin-bottom: 6px;
+    font-style: italic;
+}
+
+/* Inner departmental breakdowns */
+.dir-dept-block {
+    background: #F8FAFC;
+    padding: 6px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+
+.dir-dept-block:last-child {
+    margin-bottom: 0;
+}
+
+.dir-dept-title {
+    font-size: 9px;
+    font-weight: 700;
+    color: #4A5568;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+/* Individual item alignment */
+.dir-contact-list {
+    margin: 0 !important;
+    padding: 0 !important;
+    list-style: none !important;
+}
+
+.dir-contact-list li {
+    font-size: 9px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+}
+
+/* Clean numerical highlighting badge style */
+.num-badge {
+    font-family: monospace;
+    font-weight: bold;
+    color: #2B6CB0;
+    background: #EBF8FF;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 9.5px;
+}
+
+.num-badge.alert-line {
+    background: #FFF5F5;
+    color: #C53030;
+}
