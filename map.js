@@ -395,22 +395,43 @@
     /* ---------- Sheet render (Counters + Toggle) ---------- */
     function renderSelectedClinic(c, distance) {
         const panel = document.getElementById('clinic-info-body');
-        if (!panel)
-            return;
+        if (!panel) return;
         const nb = s => String(s || '').replace(/\s*\/\s*/g, '&nbsp;/&nbsp;').replace(/\s{2,}/g, ' ').trim();
 
         const now = new Date();
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const todayStr = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()}`;
-        const linkedProviders = (window.APP_DATA.providersByCode?.[c.code.toUpperCase()] || []).filter(p => {
-            const shift = String(p[todayStr] || '').trim();
-            return shift !== '';
-        }).map(p => ({
-                ...p,
-                todayShift: String(p[todayStr] || '').trim()
-            }));
+        
+        // Generate possible date formats to match against CSV columns robustly
+        const dayName = days[now.getDay()];
+        const monthName = months[now.getMonth()];
+        const dayNum = now.getDate();
+        const dayNumPadded = String(dayNum).padStart(2, '0');
 
+        const possibleDateKeys = [
+            `${dayName} ${monthName} ${dayNum}`,       // Sat Aug 29
+            `${dayName} ${monthName} ${dayNumPadded}`,   // Sat Aug 09
+            `${monthName} ${dayNum}`,                    // Aug 29
+            `${now.getMonth() + 1}/${dayNum}/${now.getFullYear()}` // 8/29/2026
+        ];
+
+        const clinicCode = String(c?.code || '').trim().toUpperCase();
+        const rawProviders = window.APP_DATA?.providersByCode?.[clinicCode] || [];
+
+        const linkedProviders = rawProviders.filter(p => {
+            // Find which date key exists in this row
+            const matchedKey = possibleDateKeys.find(k => p[k] !== undefined && String(p[k]).trim() !== '');
+            if (matchedKey) {
+                p._matchedDateKey = matchedKey;
+                return true;
+            }
+            return false;
+        }).map(p => ({
+            ...p,
+            todayShift: String(p[p._matchedDateKey] || '').trim()
+        }));
+
+        const todayDisplayStr = `${dayName} ${monthName} ${dayNum}`;
         let html = '';
 
         html += `
@@ -443,21 +464,9 @@
             ordered.forEach((sec) => {
                 const v = EXT_BY_CODE[c.code][sec] || {};
                 const rows = [];
-                if (v.front)
-                    rows.push({
-                        label: 'Front',
-                        value: nb(v.front)
-                    });
-                if (v.back)
-                    rows.push({
-                        label: 'Back',
-                        value: nb(v.back)
-                    });
-                if (!v.front && !v.back && v.ext)
-                    rows.push({
-                        label: 'EXT',
-                        value: nb(v.ext)
-                    });
+                if (v.front) rows.push({ label: 'Front', value: nb(v.front) });
+                if (v.back) rows.push({ label: 'Back', value: nb(v.back) });
+                if (!v.front && !v.back && v.ext) rows.push({ label: 'EXT', value: nb(v.ext) });
 
                 html += `
             <div class="modern-ext-group">
@@ -478,18 +487,18 @@
         }
 
         html += `<div class="modern-stack providers-panel">
-              <div class="modern-header">🧑‍⚕️ On Duty Today (${todayStr})</div>
+              <div class="modern-header">🧑‍⚕️ On Duty Today (${todayDisplayStr})</div>
               <div class="modern-body">`;
 
         if (linkedProviders.length > 0) {
-        html += linkedProviders.map(p => `
+            html += linkedProviders.map(p => `
         <div class="provider-row" style="padding: 6px 0; border-bottom: 1px dashed #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
             <div style="flex: 1; display: flex; align-items: center; gap: 6px;">
                 <span style="color: #475569; font-family: monospace; font-weight: 700; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 1px 5px; border-radius: 3px; font-size: 0.75rem;">
                     🆔 ${p['Provider ID'] || 'N/A'}
                 </span>
                 <a href="#" 
-                   onclick="event.preventDefault(); window.showProviderModalById('${p['Provider ID'] || ''}')" 
+                   onclick="event.preventDefault(); window.showProviderPopover('${p['Provider ID'] || ''}')" 
                    style="color: #4f46e5; text-decoration: none; font-weight: 700; cursor: pointer;"
                    onmouseover="this.style.textDecoration='underline'; this.style.color='#1e1b4b';" 
                    onmouseout="this.style.textDecoration='none'; this.style.color='#4f46e5';">
@@ -500,11 +509,11 @@
             <span class="provider-badge">${p['JOB NAME'] ?? 'MD'}</span>
         </div>
     `).join('');
-    } else {
-        html += `<div style="font-size:0.8rem; color:#64748b; text-align:center; padding: 4px 0;">
+        } else {
+            html += `<div style="font-size:0.8rem; color:#64748b; text-align:center; padding: 4px 0;">
                 📅 No providers scheduled for today.
              </div>`;
-    }
+        }
 
         html += `</div></div>`;
 

@@ -114,14 +114,14 @@
     // clinicLookup
     //--------------------------------------------------
 
-function generateClinicLookup(payload) {
+    function generateClinicLookup(payload) {
 
-    saveDataset(
-        "clinicLookup",
-        payload.clinicLookup || []
-    );
+        saveDataset(
+            "clinicLookup",
+            payload.clinicLookup || []
+        );
 
-}
+    }
 
     //--------------------------------------------------
     // Clinics
@@ -197,7 +197,6 @@ function generateClinicLookup(payload) {
     // Providers Schedule
     //--------------------------------------------------
 
-    
     function generateProvidersSched(payload) {
         const rows = [...(payload.providersSchedCurr || []), ...(payload.providersSchedNext || [])];
         const merged = {};
@@ -246,9 +245,10 @@ function generateClinicLookup(payload) {
             });
         });
         saveDataset("providerScheduleDaily", dailyRows);
+        console.log(`✅ providerScheduleDaily: ${dailyRows.length}`);
     }
 
-       //--------------------------------------------------
+    //--------------------------------------------------
     // Straight datasets
     //--------------------------------------------------
 
@@ -352,6 +352,11 @@ function generateClinicLookup(payload) {
                 payload
             );
 
+            // 🎯 Added back so future schedule days parse correctly
+            generateProviderScheduleDaily(
+                payload
+            );
+
             generateExtensions(
                 payload
             );
@@ -416,5 +421,8 @@ function generateClinicLookup(payload) {
         "PayloadReady",
         initializeData
     );
+
+    console.log("✅ Data loading complete. The force is with us.");
+    window.dispatchEvent(new Event('AppDataReady'));
 
 })();

@@ -12,11 +12,11 @@
     <link rel="stylesheet" href="notes.css"> 
     <link rel="stylesheet" href="map.css"> 
     <link rel="stylesheet" href="directory.css">
-    <link rel="stylesheet" href="Guidelines_Info/Guidelines_Info.css">
+    <link rel="stylesheet" href="Guidelines_Info.css">
     <link rel="stylesheet" href="provider-directory.css">
     <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
     <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
-    
+
 </head>
 <body>
     <!-- loading screen -->
@@ -49,7 +49,7 @@
                 <div class="nav-item" onclick="navigateTo('directory')">Clinic Directory</div>
                 <div class="nav-item" onclick="navigateTo('provider-directory')">Provider Directory</div>
                 <div class="nav-item" onclick="navigateTo('info')">Guidelines & Info</div>
-                <div class="nav-item" onclick="navigateTo('admin')">Admin</div>
+                <!-- <div class="nav-item" onclick="navigateTo('admin')">Admin</div> -->
 
                 <div style="margin-top:auto;">
                     <hr style="opacity:0.2;">
@@ -188,64 +188,78 @@
                 </div>
             </section>
             
-            <section class="card" id="admin-section" style="display:none">
-                <div class="control-panel">
-                    <select id="selectorArchivos" onchange="cargarDesdeSelector()">
-                    </select>
-                    <button onclick="recargarArchivoActual()">🔄 Reload</button>
-                    <button onclick="agregarFila()">➕ Add Row</button>
-                    <button onclick="agregarColumna()">➕ Add Column</button>
-                    <button onclick="guardarCambios()">💾 Save</button>
-                </div>
-                <div id="admin-table"></div>
-            </section>
+            <!-- <section class="card" id="admin-section" style="display:none; padding: 20px;"> -->
+                <!-- <h2>🛠️ Panel de Administración - OPFS Local y Sincronización</h2> -->
+                <!-- <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;"> -->
+                    <!-- Administra tus archivos locales en el navegador y publica los cambios hacia SharePoint. -->
+                <!-- </p> -->
+
+                <!-- <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 12px; max-width: 550px;"> -->
+                    <!-- <div> -->
+                        <!-- <label style="display: block; font-weight: bold; font-size: 12px; color: #334155; margin-bottom: 5px;">📁 Seleccionar Carpeta de Guías:</label> -->
+                        <!-- <input type="file" id="opfs-file-uploader" webkitdirectory directory multiple style="font-size: 12px; width: 100%;" /> -->
+                    <!-- </div> -->
+                    
+                    <!-- <div style="display: flex; gap: 8px; flex-wrap: wrap;"> -->
+                        <!-- <button onclick="subirArchivosAOPFS()" style="background: #0284c7; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;"> -->
+                            <!-- 💾 Guardar en Navegador -->
+                        <!-- </button> -->
+                        <!-- <button id="btn-actualizar-opfs" style="background: #64748b; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;"> -->
+                            <!-- 📂 Actualizar Explorador -->
+                        <!-- </button> -->
+                        <!-- <button onclick="generarYGuardarManifestLocal()" style="background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;"> -->
+                            <!-- ⚙️ Generar Manifest Local -->
+                        <!-- </button> -->
+                        <!-- <button onclick="subirManifestASharePoint()" style="background: #8b5cf6; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;"> -->
+                            <!-- ☁️ Subir a SharePoint -->
+                        <!-- </button> -->
+                    <!-- </div> -->
+                    <!-- <div style="margin-top: 10px; border-top: 1px solid #cbd5e1; padding-top: 10px;"> -->
+                        <!-- <strong style="font-size: 12px; color: #334155;">🗂️ Explorador de Almacenamiento Local:</strong> -->
+                        <!-- <div id="opfs-tree-view" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 12px; margin-top: 6px;"> -->
+                            <!-- <span style="color: #94a3b8;">Haz clic en "Actualizar Explorador" para cargar la vista...</span> -->
+                        <!-- </div> -->
+                    <!-- </div> -->
+                <!-- </div> -->
+            <!-- </section> -->
         </div>
     </div>
 
     <div class="toast" id="toast">✓ Copied to clipboard!</div>
 
-    <script>
-            window.APP_DATA = window.APP_DATA || {};
-            window.APP_FILES = window.APP_FILES || {};
 
-            window.registerDataFile = function(config, data) {
-                if (!window.APP_FILES[config.file]) {
-                    window.APP_FILES[config.file] = config;
-                }
-                window.APP_DATA[config.dataKey] = data;
-                console.log("📁 Registered:", config.file);
-            };
-    </script>
-    <script>
-    function openModal(id) {
-        var modal = document.getElementById(id);
-        var overlay = document.getElementById('overlay');
-        if (modal && overlay) {
-            modal.style.display = 'block';
-            overlay.style.display = 'block';
-        }
-    }
 
-    function closeAll() {
-        var modals = document.getElementsByClassName('modal');
-        for (var i = 0; i < modals.length; i++) {
-            modals[i].style.display = 'none';
-        }
-        var overlay = document.getElementById('overlay');
-        if (overlay) {
-            overlay.style.display = 'none';
-        }
-    }
-</script>
-	<script src="data-loader.js"></script>
+<script src="loading-screen.js"></script>
     <script src="notes.js"></script>
+    <script src="admin.js"></script>
+    <script src="Guidelines_Info.js"></script>
+    <script src="Guidelines_Info/Double_Booking/Double_Booking_1-3.js"></script>
+    
+    <!-- Data Loader -->
+    <script src="data-loader.js"></script>
+
+    <!-- Map & Provider Directory (Loaded after data is confirmed) -->
     <script src="map.js"></script>
-    <!-- <script src="directory.js"></script> -->
-    <script src="admin.js"></script> 
-    <script src="block-F12.js"></script>
-    <script src="Guidelines_Info/Guidelines_Info.js"></script>
-    <script src="Guidelines_Info/Dooble_Booking/Double_Booking_1-3.js"></script>
     <script src="provider-directory.js"></script>
-    <script src="loading-screen.js"></script>
+
+    <script>
+        // Listen for when data-loader finishes ETL
+        window.addEventListener('AppDataReady', function() {
+            console.log("🚀 Data ready. Hiding loading screen and unlocking dashboard.");
+            
+            var loader = document.getElementById('loading-overlay');
+            if (loader) {
+                loader.style.display = 'none'; // Hide the loading screen smoothly
+            }
+        });
+    </script>
+
+    <!-- 2. All Scripts Load Cleanly & Instantly (No race conditions possible) -->
+    <script src="notes.js"></script>
+    <script src="admin.js"></script>
+    <script src="Guidelines_Info.js"></script>
+    <script src="Guidelines_Info/Double_Booking/Double_Booking_1-3.js"></script>
+    <script src="map.js"></script>
+    <script src="provider-directory.js"></script>
 </body>
 </html>
