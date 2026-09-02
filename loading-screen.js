@@ -243,7 +243,7 @@ async function syncGuidelinesInBackground(baseUrl) {
     }
 }
 
-// --- MAIN FETCH ENGINE (Action-less Request for Data Loader) ---
+// --- MAIN FETCH ENGINE ---
 async function fetchAndProcessData(isManual = false) {
     const splash = document.getElementById("sync-splash");
     
@@ -261,7 +261,6 @@ async function fetchAndProcessData(isManual = false) {
             return false;
         }
         
-        // Action-less request to fetch datasets (clinics, schedules, extensions, etc.)
         const csvController = new AbortController();
         const csvTimeout = setTimeout(() => csvController.abort(), 35000);
 
@@ -279,19 +278,19 @@ async function fetchAndProcessData(isManual = false) {
 
         const csvPayload = await csvResponse.json();
         
-        // Save core payload so data-loader.js can immediately ingest it
+        // Sobrescribe limpiamente el payload y actualiza la marca de tiempo exacta de la descarga
         localStorage.setItem("cache_payload", JSON.stringify(csvPayload));
         localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
+        localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
 
         updateProgress(100, "Ready!", "READY");
 
-        // Dismiss splash screen and signal data-loader.js to start ETL processing
         setTimeout(() => {
             hideSplash(splash);
             window.dispatchEvent(new CustomEvent("PayloadReady"));
         }, 300);
 
-        // Trigger OPFS guidelines file sync quietly in the background
+        // Dispara la sincronización silenciosa de OPFS en segundo plano
         setTimeout(() => {
             syncGuidelinesInBackground(baseUrl);
         }, 1000);
@@ -306,32 +305,67 @@ async function fetchAndProcessData(isManual = false) {
     }
 }
 
-// --- LIFECYCLE BOOTSTRAP ---
+// --- RESTRUCTURED LIFECYCLE BOOTSTRAP (1-HOUR FRESHNESS RULE) ---
+const CACHE_EXPIRATION_MS = 60 * 60 * 1000; // 1 hora de vigencia
+
 async function checkAndSyncData() {
     const splash = document.getElementById("sync-splash");
-    
-    if (!await verifySharePointSession()) return;
-
-    const lastVersionDate = localStorage.getItem("app_data_version");
-    const todayStr = new Date().toISOString().split("T")[0];
+    const lastSyncStr = localStorage.getItem("app_last_sync_timestamp");
     const hasPayload = localStorage.getItem("cache_payload");
+    const now = Date.now();
 
-    if (lastVersionDate === todayStr && hasPayload) {
-        console.log("Data already up to date today. Using local cache.");
+    // 1. REGLA DE 1 HORA: Si el caché existe y tiene menos de 1 hora, se carga instantáneamente sin splash screen
+    if (hasPayload && lastSyncStr && (now - parseInt(lastSyncStr, 10) < CACHE_EXPIRATION_MS)) {
+        console.log("⚡ Caché vigente (< 1 hora). Cargando datos locales instantáneamente...");
         if (splash) splash.style.display = "none";
         window.dispatchEvent(new CustomEvent("PayloadReady"));
         
-        // Kick off background sync for guidelines even if local cache is fresh
+        // Ejecuta la sincronización de guías en OPFS silenciosamente en el fondo
         const baseUrl = getPowerAutomateUrl();
-        if (baseUrl) setTimeout(() => syncGuidelinesInBackground(baseUrl), 1500);
+        if (baseUrl) {
+            setTimeout(() => syncGuidelinesInBackground(baseUrl), 1500);
+        }
         return;
     }
 
-    await fetchAndProcessData(false);
+    // 2. Si expiró la hora (o no hay caché), verificamos sesión y descargamos datos frescos
+    const sessionActive = await verifySharePointSession().catch(() => false);
+    
+    if (!sessionActive) {
+        console.warn("⚠️ Sesión de SharePoint inactiva. Resguardando caché anterior...");
+        if (splash) splash.style.display = "none";
+        
+        if (hasPayload) {
+            window.dispatchEvent(new CustomEvent("PayloadReady"));
+        } else {
+            console.error("❌ No hay caché local disponible y la verificación de sesión falló.");
+            updateProgress(100, "Connection Error & No Local Cache", "ERROR");
+        }
+        return;
+    }
+
+    try {
+        console.log("🌐 Caché expirado o ausente. Descargando datos frescos de SharePoint...");
+        const success = await fetchAndProcessData(false);
+        
+        if (!success && hasPayload) {
+            console.warn("⚠️ Falló la descarga, respaldando con caché anterior...");
+            if (splash) splash.style.display = "none";
+            window.dispatchEvent(new CustomEvent("PayloadReady"));
+        }
+    } catch (error) {
+        console.error("❌ Error en el proceso de sincronización. Manteniendo caché previo...", error);
+        if (splash) splash.style.display = "none";
+        if (hasPayload) {
+            window.dispatchEvent(new CustomEvent("PayloadReady"));
+        }
+    }
 }
 
 window.triggerManualSync = async function() {
-    console.log("Manual synchronization triggered by user...");
+    console.log("Sincronización manual solicitada por el usuario...");
+    // Al ser manual, limpiamos el timestamp para forzar la descarga independientemente del tiempo transcurrido
+    localStorage.removeItem("app_last_sync_timestamp");
     if (await verifySharePointSession()) {
         await fetchAndProcessData(true);
     }

@@ -1,202 +1,141 @@
 /* ====================================
-   DATA LOADER
-   ETL de datasets
+DATA LOADER
+ETL de datasets
 ==================================== */
 
 (function () {
-
     "use strict";
-
     //--------------------------------------------------
     // CSV Helpers
     //--------------------------------------------------
-
     function arrayToCsv(rows) {
-
         if (
             !Array.isArray(rows) ||
-            rows.length === 0
-        ) {
+            rows.length === 0) {
             return "";
         }
-
         const headers = [
-
             ...new Set(
                 rows.flatMap(
-                    row => Object.keys(row)
-                )
-            )
-
+                    row => Object.keys(row)))
         ];
-
         const csvRows = [];
-
         csvRows.push(
-            headers.join(",")
-        );
-
+            headers.join(","));
         rows.forEach(row => {
-
             const line =
                 headers
                 .map(header => {
-
                     const value =
                         row[header];
-
                     if (
                         value === null ||
-                        value === undefined
-                    ) {
+                        value === undefined) {
                         return "";
                     }
-
                     return `"${String(value)
-                        .replace(/"/g, '""')}"`;
-
+                    .replace(/"/g, '""')}"`;
                 })
                 .join(",");
-
             csvRows.push(line);
-
         });
-
         return csvRows.join("\n");
-
     }
-
     function saveCsv(
         name,
-        csvText
-    ) {
-
+        csvText) {
         localStorage.setItem(
-            `csv_${name}`,
-            csvText
-        );
-
+`csv_${name}`,
+            csvText);
     }
-
     function saveDataset(
         name,
-        rows
-    ) {
-
+        rows) {
         saveCsv(
             name,
-            arrayToCsv(rows)
-        );
-
+            arrayToCsv(rows));
     }
-
     //--------------------------------------------------
     // Payload
     //--------------------------------------------------
-
     function getPayload() {
-
         const raw =
             localStorage.getItem(
-                "cache_payload"
-            );
-
+                "cache_payload");
         if (!raw) {
             return null;
         }
-
         return JSON.parse(raw);
-
     }
-
-
     //--------------------------------------------------
     // clinicLookup
     //--------------------------------------------------
-
     function generateClinicLookup(payload) {
-
         saveDataset(
             "clinicLookup",
-            payload.clinicLookup || []
-        );
-
+            payload.clinicLookup || []);
     }
 
     //--------------------------------------------------
-    // Clinics
+    // Clinics (Mapeo estricto con las columnas exactas)
     //--------------------------------------------------
-
-    function generateClinics(
-        payload
-    ) {
-
-        const clinics =
-            payload.clinics || [];
-
-        const plusCodes =
-            payload.plusCodes || [];
+    function generateClinics(payload) {
+        const clinics = payload.clinics || [];
+        const plusCodes = payload.plusCodes || [];
 
         const lookup = {};
-
         plusCodes.forEach(row => {
-
-            const key =
-                String(
-                    row.code || ""
-                ).trim();
-
+            const key = String(row.code || row.Abbreviation || "").trim().toUpperCase();
             if (key) {
-
-                lookup[key] = row;
-
+                lookup[key] = row.plusCode || row.plus_code || "";
             }
-
         });
 
-        const merged =
-            clinics.map(clinic => {
+        // Definimos las columnas estrictas en el orden requerido
+        const exactHeaders = ["code", "Location", "City", "Address", "ZipCode", "PlusCode", "lat", "lng"];
 
-                const code =
-                    String(
-                        clinic.Abbreviation || ""
-                    ).trim();
+        const rows = clinics.map(clinic => {
+            const code = String(clinic.code || clinic.Abbreviation || clinic.Code || "").trim().toUpperCase();
+            const plusCode = lookup[code] || clinic.PlusCode || clinic.plusCode || "";
+            
+            const rawLat = clinic.lat ?? clinic.Lat ?? clinic.LAT ?? "";
+            const rawLng = clinic.lng ?? clinic.Lng ?? clinic.LNG ?? "";
+            
+            const lat = rawLat !== "" ? parseFloat(rawLat) : "";
+            const lng = rawLng !== "" ? parseFloat(rawLng) : "";
 
-                const extra =
-                    lookup[code] || {};
+            return {
+                code: code,
+                Location: clinic.Location || "",
+                City: clinic.City || "",
+                Address: clinic.Address || "",
+                ZipCode: clinic.ZipCode || "",
+                PlusCode: plusCode,
+                lat: !isNaN(lat) ? lat : "",
+                lng: !isNaN(lng) ? lng : ""
+            };
+        });
 
-                return {
+        // Generamos el CSV manualmente respetando el orden estricto de las columnas
+        const csvRows = [exactHeaders.join(",")];
+        rows.forEach(row => {
+            const line = exactHeaders.map(header => {
+                const value = row[header];
+                if (value === null || value === undefined) {
+                    return '""';
+                }
+                return `"${String(value).replace(/"/g, '""')}"`;
+            }).join(",");
+            csvRows.push(line);
+        });
 
-                    ...clinic,
-
-                    plusCode:
-                        extra.plusCode || "",
-
-                    "Health Center":
-                        extra["Health Center"] || "",
-
-                    "Clinic Name":
-                        extra["Clinic Name"] || ""
-
-                };
-
-            });
-
-        saveDataset(
-            "clinics",
-            merged
-        );
-
-        console.log(
-            `✅ clinics: ${merged.length}`
-        );
-
+        saveCsv("clinics", csvRows.join("\n"));
+        console.log(`✅ clinics: ${rows.length} processed with exact columns.`);
     }
-
+    
     //--------------------------------------------------
     // Providers Schedule
     //--------------------------------------------------
-
     function generateProvidersSched(payload) {
         const rows = [...(payload.providersSchedCurr || []), ...(payload.providersSchedNext || [])];
         const merged = {};
@@ -219,7 +158,6 @@
         saveDataset("providersSched", Object.values(merged));
         console.log(`✅ providersSched: ${Object.keys(merged).length}`);
     }
-
     function generateProviderScheduleDaily(payload) {
         const rows = [...(payload.providersSchedCurr || []), ...(payload.providersSchedNext || [])];
         const dailyRows = [];
@@ -247,182 +185,106 @@
         saveDataset("providerScheduleDaily", dailyRows);
         console.log(`✅ providerScheduleDaily: ${dailyRows.length}`);
     }
-
     //--------------------------------------------------
     // Straight datasets
     //--------------------------------------------------
-
     function generateExtensions(
-        payload
-    ) {
-
+        payload) {
         saveDataset(
             "extensions",
-            payload.extensions || []
-        );
-
+            payload.extensions || []);
     }
-
     function generateMainProviders(
-        payload
-    ) {
-
+        payload) {
         saveDataset(
             "mainProviders",
-            payload.mainProviders || []
-        );
-
+            payload.mainProviders || []);
     }
-
     function generateProvidersNpi(
-        payload
-    ) {
-
+        payload) {
         saveDataset(
             "providersNpi",
-            payload.providersNpi || []
-        );
-
+            payload.providersNpi || []);
     }
-
     //--------------------------------------------------
     // Clinics Directory
     //--------------------------------------------------
-
     function generateClinicsDirectory(
-        payload
-    ) {
-
+        payload) {
         const dir =
             payload.clinicsDirectory;
-
         if (
             !dir ||
-            !dir.$content
-        ) {
+            !dir.$content) {
             return;
         }
-
         const decoded =
             decodeURIComponent(
                 escape(
                     atob(
-                        dir.$content
-                    )
-                )
-            );
-
+                        dir.$content)));
         saveCsv(
             "clinicsDirectory",
-            decoded
-        );
-
+            decoded);
     }
-
     //--------------------------------------------------
     // Main
     //--------------------------------------------------
-
-    async function initializeData() {
-
+    function initializeData() {
         try {
-
             const payload =
                 getPayload();
-
             if (!payload) {
-
                 console.warn(
-                    "cache_payload not found"
-                );
-
+                    "cache_payload not found");
                 return;
-
             }
-
             generateClinicLookup(
-                payload
-            );
-
+                payload);
             generateClinics(
-                payload
-            );
-
+                payload);
             generateProvidersSched(
-                payload
-            );
-
+                payload);
             // 🎯 Added back so future schedule days parse correctly
             generateProviderScheduleDaily(
-                payload
-            );
-
+                payload);
             generateExtensions(
-                payload
-            );
-
+                payload);
             generateMainProviders(
-                payload
-            );
-
+                payload);
             generateProvidersNpi(
-                payload
-            );
-
+                payload);
             generateClinicsDirectory(
-                payload
-            );
-
+                payload);
             console.log(
-                "✅ ETL Complete"
-            );
-
+                "✅ ETL Complete");
             window.dispatchEvent(
                 new CustomEvent(
-                    "AppDataLoaded"
-                )
-            );
-
+                    "AppDataLoaded"));
         } catch (err) {
-
             console.error(
                 "Data Loader Error",
-                err
-            );
-
+                err);
         }
-
     }
-
     //--------------------------------------------------
     // Public
     //--------------------------------------------------
-
     window.obtenerCsv =
-        function (name) {
-
-            return localStorage.getItem(
-                `csv_${name}`
-            );
-
-        };
-
+    function (name) {
+        return localStorage.getItem(
+`csv_${name}`);
+    };
     window.obtenerArchivo =
         window.obtenerCsv;
-
     window.obtenerSeccion =
         window.obtenerCsv;
-
     //--------------------------------------------------
     // Boot
     //--------------------------------------------------
-
     window.addEventListener(
         "PayloadReady",
-        initializeData
-    );
-
+        initializeData);
     console.log("✅ Data loading complete. The force is with us.");
     window.dispatchEvent(new Event('AppDataReady'));
-
 })();
