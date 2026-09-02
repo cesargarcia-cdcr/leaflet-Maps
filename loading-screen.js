@@ -157,9 +157,10 @@ async function writeItemToOPFS(item, guidelinesDir) {
     await writable.close();
 }
 
-// --- UI SPLASH HELPERS ---
+// --- UI SPLASH HELPERS (Fixed pointer-events for map dragging) ---
 function showSplash(splashElement) {
     if (!splashElement) return;
+    splashElement.style.pointerEvents = "auto";
     splashElement.style.display = "flex";
     splashElement.style.opacity = "1";
 }
@@ -167,7 +168,13 @@ function showSplash(splashElement) {
 function hideSplash(splashElement) {
     if (!splashElement) return;
     splashElement.style.opacity = "0";
-    setTimeout(() => { splashElement.style.display = "none"; }, 400);
+    splashElement.style.pointerEvents = "none"; // CRITICAL: Stop invisible splash from blocking mouse drag on map
+    setTimeout(() => { 
+        splashElement.style.display = "none"; 
+        if (window.AppMap && typeof window.AppMap.invalidateSize === 'function') {
+            window.AppMap.invalidateSize();
+        }
+    }, 400);
 }
 
 // --- BACKGROUND OPFS SYNC (Guidelines & Files) ---
@@ -234,7 +241,7 @@ async function syncGuidelinesInBackground(baseUrl) {
                     await writeItemToOPFS(item, guidelinesDir);
                 }
             } catch (err) {
-                // Silent catch for background file downloads
+                // Non-blocking background file download error catch
             }
         }
         console.log("Background OPFS guidelines sync completed successfully.");
@@ -278,7 +285,7 @@ async function fetchAndProcessData(isManual = false) {
 
         const csvPayload = await csvResponse.json();
         
-        // Sobrescribe limpiamente el payload y actualiza la marca de tiempo exacta de la descarga
+        // Clean overwrite of local cache and fresh timestamps
         localStorage.setItem("cache_payload", JSON.stringify(csvPayload));
         localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
         localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
@@ -290,7 +297,6 @@ async function fetchAndProcessData(isManual = false) {
             window.dispatchEvent(new CustomEvent("PayloadReady"));
         }, 300);
 
-        // Dispara la sincronización silenciosa de OPFS en segundo plano
         setTimeout(() => {
             syncGuidelinesInBackground(baseUrl);
         }, 1000);
@@ -305,8 +311,8 @@ async function fetchAndProcessData(isManual = false) {
     }
 }
 
-// --- RESTRUCTURED LIFECYCLE BOOTSTRAP (1-HOUR FRESHNESS RULE) ---
-const CACHE_EXPIRATION_MS = 60 * 60 * 1000; // 1 hora de vigencia
+// --- LIFECYCLE BOOTSTRAP (1-HOUR FRESHNESS & AUTO-SYNC) ---
+const CACHE_EXPIRATION_MS = 60 * 60 * 1000; // 1 Hour
 
 async function checkAndSyncData() {
     const splash = document.getElementById("sync-splash");
@@ -314,13 +320,12 @@ async function checkAndSyncData() {
     const hasPayload = localStorage.getItem("cache_payload");
     const now = Date.now();
 
-    // 1. REGLA DE 1 HORA: Si el caché existe y tiene menos de 1 hora, se carga instantáneamente sin splash screen
+    // 1. If cache is valid (< 1 hour), load immediately without splash screen
     if (hasPayload && lastSyncStr && (now - parseInt(lastSyncStr, 10) < CACHE_EXPIRATION_MS)) {
-        console.log("⚡ Caché vigente (< 1 hora). Cargando datos locales instantáneamente...");
+        console.log("⚡ Valid local cache (< 1 hour). Loading instantly...");
         if (splash) splash.style.display = "none";
         window.dispatchEvent(new CustomEvent("PayloadReady"));
         
-        // Ejecuta la sincronización de guías en OPFS silenciosamente en el fondo
         const baseUrl = getPowerAutomateUrl();
         if (baseUrl) {
             setTimeout(() => syncGuidelinesInBackground(baseUrl), 1500);
@@ -328,33 +333,33 @@ async function checkAndSyncData() {
         return;
     }
 
-    // 2. Si expiró la hora (o no hay caché), verificamos sesión y descargamos datos frescos
+    // 2. Otherwise, verify session and download fresh data
     const sessionActive = await verifySharePointSession().catch(() => false);
     
     if (!sessionActive) {
-        console.warn("⚠️ Sesión de SharePoint inactiva. Resguardando caché anterior...");
+        console.warn("⚠️ SharePoint session inactive. Falling back to local cache...");
         if (splash) splash.style.display = "none";
         
         if (hasPayload) {
             window.dispatchEvent(new CustomEvent("PayloadReady"));
         } else {
-            console.error("❌ No hay caché local disponible y la verificación de sesión falló.");
+            console.error("❌ No local cache available and session verification failed.");
             updateProgress(100, "Connection Error & No Local Cache", "ERROR");
         }
         return;
     }
 
     try {
-        console.log("🌐 Caché expirado o ausente. Descargando datos frescos de SharePoint...");
+        console.log("🌐 Cache expired or missing. Downloading fresh data from SharePoint...");
         const success = await fetchAndProcessData(false);
         
         if (!success && hasPayload) {
-            console.warn("⚠️ Falló la descarga, respaldando con caché anterior...");
+            console.warn("⚠️ Download failed, falling back to previous cache...");
             if (splash) splash.style.display = "none";
             window.dispatchEvent(new CustomEvent("PayloadReady"));
         }
     } catch (error) {
-        console.error("❌ Error en el proceso de sincronización. Manteniendo caché previo...", error);
+        console.error("❌ Synchronization error. Maintaining previous cache...", error);
         if (splash) splash.style.display = "none";
         if (hasPayload) {
             window.dispatchEvent(new CustomEvent("PayloadReady"));
@@ -362,10 +367,27 @@ async function checkAndSyncData() {
     }
 }
 
+// --- AUTOMATIC 1-HOUR BACKGROUND REFRESH TIMER ---
+function initAutoSyncTimer() {
+    setInterval(async () => {
+        console.log("⏰ 1-hour automatic sync interval reached. Checking for updates...");
+        const sessionActive = await checkSharePointLogo().catch(() => false);
+        if (sessionActive) {
+            localStorage.removeItem("app_last_sync_timestamp");
+            localStorage.removeItem("cache_payload");
+            await fetchAndProcessData(false);
+            console.log("✅ Automatic hourly background data refresh completed successfully.");
+        } else {
+            console.warn("⚠️ Session inactive during automatic hourly check. Skipping this cycle.");
+        }
+    }, CACHE_EXPIRATION_MS);
+}
+
 window.triggerManualSync = async function() {
-    console.log("Sincronización manual solicitada por el usuario...");
-    // Al ser manual, limpiamos el timestamp para forzar la descarga independientemente del tiempo transcurrido
+    console.log("Manual synchronization requested by user...");
     localStorage.removeItem("app_last_sync_timestamp");
+    localStorage.removeItem("cache_payload"); 
+    
     if (await verifySharePointSession()) {
         await fetchAndProcessData(true);
     }
@@ -373,4 +395,5 @@ window.triggerManualSync = async function() {
 
 window.addEventListener("DOMContentLoaded", () => {
     checkAndSyncData();
+    initAutoSyncTimer(); // Start the 1-hour recurring timer
 });

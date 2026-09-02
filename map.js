@@ -686,15 +686,13 @@
         });
     }
 
-    window.addEventListener('AppDataLoaded', async() => {
+    window.addEventListener('AppDataLoaded', async () => {
     try {
-        // 1. Si la variable del mapa existe, remúevela formalmente
         if (map && typeof map.remove === 'function') {
             map.remove();
             map = null;
         }
 
-        // 2. Limpieza de seguridad en el DOM por si Leaflet guardó el ID en el div
         const mapContainer = document.getElementById('map');
         if (mapContainer && mapContainer._leaflet_id) {
             mapContainer._leaflet_id = null; 
@@ -702,12 +700,17 @@
 
         const CA_BOUNDS = [[32.529523, -124.482003], [42.009518, -114.131211]];
         
-        // 3. Ahora sí, inicializa el mapa de manera segura
+        // Initialize map with explicit dragging options enabled for GitHub Pages/iframe environments
         map = L.map('map', {
             zoomControl: true,
+            dragging: true, // Explicitly force mouse dragging
+            tap: true,      // Support touch interaction
             maxBounds: CA_BOUNDS,
             maxBoundsViscosity: .8
         }).setView([34.25, -119.10], 10);
+        
+        // Expose map globally so loading-screen.js can call invalidateSize() after splash removal
+        window.AppMap = map;
         
         buildBaseLayers();
         await loadData();
@@ -726,9 +729,10 @@
         await addMarkers();
         populateClinicPickers();
         wireShortcuts();
+        
         setTimeout(() => map.invalidateSize(), 200);
     } catch (e) {
-        console.error('bootstrap', e);
+        console.error('Map bootstrap error:', e);
     }
 });
 

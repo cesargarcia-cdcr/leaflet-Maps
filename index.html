@@ -235,10 +235,15 @@
     <script src="Guidelines_Info.js"></script>
     <script src="Guidelines_Info/Double_Booking/Double_Booking_1-3.js"></script>
     
-    <!-- Data Loader -->
+    <!-- 1. Core Data Loader & Engine -->
+    <script src="loading-screen_2.js"></script>
     <script src="data-loader.js"></script>
 
-    <!-- Map & Provider Directory (Loaded after data is confirmed) -->
+    <!-- 2. Feature Scripts (Loaded ONCE) -->
+    <script src="notes.js"></script>
+    <script src="admin.js"></script>
+    <script src="Guidelines_Info.js"></script>
+    <script src="Guidelines_Info/Double_Booking/Double_Booking_1-3.js"></script>
     <script src="map.js"></script>
     <script src="provider-directory.js"></script>
 
@@ -249,17 +254,9 @@
             
             var loader = document.getElementById('loading-overlay');
             if (loader) {
-                loader.style.display = 'none'; // Hide the loading screen smoothly
+                loader.style.display = 'none'; 
             }
         });
     </script>
-
-    <!-- 2. All Scripts Load Cleanly & Instantly (No race conditions possible) -->
-    <script src="notes.js"></script>
-    <script src="admin.js"></script>
-    <script src="Guidelines_Info.js"></script>
-    <script src="Guidelines_Info/Double_Booking/Double_Booking_1-3.js"></script>
-    <script src="map.js"></script>
-    <script src="provider-directory.js"></script>
 </body>
 </html>
