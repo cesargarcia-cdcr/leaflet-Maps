@@ -108,7 +108,6 @@ function triggerAutomaticLoginFlow() {
         if (!loginWindow || loginWindow.closed) openPopup();
     });
 
-    // 🔓 Botón de bypass Offline
     document.getElementById("btn-offline-mode").addEventListener("click", async () => {
         console.log("🔓 User requested offline mode bypass...");
         try { if (loginWindow && !loginWindow.closed) loginWindow.close(); } catch (e) {}
@@ -144,6 +143,19 @@ function getPowerAutomateUrl() {
         console.error("Invalid Power Automate URL", err);
         return null;
     }
+}
+
+// --- PURGA QUIRÚRGICA DE DATASETS (SIN TOCAR SESIÓN NI CONFIGS) ---
+function clearLocalDatasetsCache() {
+    console.log("🧹 Purgando exclusivamente los datasets de caché en localStorage...");
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith("csv_") || key === "cache_payload")) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
 }
 
 // --- OPFS & LOCALSTORAGE BRIDGE HELPERS ---
@@ -197,11 +209,12 @@ function hideSplash(splashElement) {
     }, 400);
 }
 
-// --- BACKGROUND OPFS SYNC ---
-async function syncGuidelinesInBackground(baseUrl) {
+// --- BACKGROUND OPFS SYNC (GENERIC) ---
+async function syncContentInBackground(baseUrl) {
     try {
         const rootDir = await navigator.storage.getDirectory();
         const guidelinesDir = await rootDir.getDirectoryHandle("Guidelines_Info", { create: true });
+        const directoryDir = await guidelinesDir.getDirectoryHandle("Directory", { create: true });
 
         const manifestController = new AbortController();
         const manifestTimeout = setTimeout(() => manifestController.abort(), 35000);
@@ -216,42 +229,55 @@ async function syncGuidelinesInBackground(baseUrl) {
         
         if (!manifestResponse.ok) return;
         
-        const manifestPayload = await manifestResponse.json();
-        const manifestData = manifestPayload.manifest || manifestPayload.files || manifestPayload.data || manifestPayload.items || manifestPayload;
-        
-        let itemsArray = Array.isArray(manifestData) ? manifestData : Object.values(manifestData).flat();
-        if (!Array.isArray(itemsArray)) return;
+        const payload = await manifestResponse.json();
+        const guidelinesItems = payload.guidelines || [];
+        const directoryItems = payload.directory || [];
+        const fallbackItems = (!payload.guidelines && !payload.directory) 
+            ? (payload.manifest || payload.files || payload.data || payload.items || payload) 
+            : [];
 
-        const fileItems = itemsArray.filter(item => {
-            const type = (item.type || "").toLowerCase();
-            const name = item.name || "";
-            return type !== "directory" && type !== "folder" && name.includes(".");
-        });
+        let generalArray = Array.isArray(fallbackItems) ? fallbackItems : Object.values(fallbackItems).flat();
 
-        for (const item of fileItems) {
-            try {
-                let rawPath = item.path || "";
-                if (rawPath.endsWith("/") && item.name) rawPath += item.name;
-                const cleanFilePath = rawPath.replace(/([^:]\/)\/+/g, "$1");
+        async function processAndDownloadFiles(items, targetDir) {
+            if (!Array.isArray(items)) return;
 
-                const downloadController = new AbortController();
-                const downloadTimeout = setTimeout(() => downloadController.abort(), 20000);
-                
-                const downloadResponse = await fetch(baseUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: cleanFilePath }),
-                    signal: downloadController.signal
-                });
-                clearTimeout(downloadTimeout);
+            const fileItems = items.filter(item => {
+                const type = (item.type || "").toLowerCase();
+                const name = item.name || "";
+                return type !== "directory" && type !== "folder" && name.includes(".");
+            });
 
-                if (downloadResponse.ok) {
-                    item.content = await downloadResponse.text();
-                    await writeItemToOPFS_Helper(item, guidelinesDir);
-                }
-            } catch (err) {}
+            for (const item of fileItems) {
+                try {
+                    let rawPath = item.path || "";
+                    if (rawPath.endsWith("/") && item.name) rawPath += item.name;
+                    const cleanFilePath = rawPath.replace(/([^:]\/)\/+/g, "$1");
+
+                    const downloadController = new AbortController();
+                    const downloadTimeout = setTimeout(() => downloadController.abort(), 20000);
+                    
+                    const downloadResponse = await fetch(baseUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: cleanFilePath }),
+                        signal: downloadController.signal
+                    });
+                    clearTimeout(downloadTimeout);
+
+                    if (downloadResponse.ok) {
+                        item.content = await downloadResponse.text();
+                        await writeItemToOPFS_Helper(item, targetDir);
+                    }
+                } catch (err) {}
+            }
         }
-    } catch (bgErr) {}
+
+        await processAndDownloadFiles(guidelinesItems.length > 0 ? guidelinesItems : generalArray, guidelinesDir);
+        await processAndDownloadFiles(directoryItems, directoryDir);
+
+    } catch (bgErr) {
+        console.warn("⚠️ Error en la sincronización en segundo plano:", bgErr);
+    }
 }
 
 async function writeItemToOPFS_Helper(item, guidelinesDir) {
@@ -311,6 +337,9 @@ async function fetchAndProcessData(isManual = false) {
         const csvPayload = await csvResponse.json();
         const payloadString = JSON.stringify(csvPayload);
         
+        // 🧹 Purga limpia de datasets viejos antes de escribir los nuevos
+        clearLocalDatasetsCache();
+
         // 💾 1. GUARDAR EN OPFS COMO FUENTE DE VERDAD PRINCIPAL
         await writeDatasetToOPFS("cache_payload.json", payloadString);
         
@@ -318,6 +347,7 @@ async function fetchAndProcessData(isManual = false) {
         await restoreCacheFromOPFSToLocalStorage();
         
         localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
+        localStorage.setItem("app_last_sync_date", new Date().toISOString().split("T")[0]);
         localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
 
         updateProgress(100, "Ready!", "READY");
@@ -327,7 +357,7 @@ async function fetchAndProcessData(isManual = false) {
             window.dispatchEvent(new CustomEvent("PayloadReady"));
         }, 300);
 
-        setTimeout(() => syncGuidelinesInBackground(baseUrl), 1000);
+        setTimeout(() => syncContentInBackground(baseUrl), 1000);
 
         return true;
 
@@ -344,30 +374,32 @@ async function checkAndSyncData() {
     const splash = document.getElementById("sync-splash");
     const todayStr = new Date().toISOString().split("T")[0];
     const lastSyncDate = localStorage.getItem("app_last_sync_date");
+    const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
     const hasLocalPayload = localStorage.getItem("cache_payload");
 
-    const isFirstTimeToday = (lastSyncDate !== todayStr);
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    const isDifferentDay = (lastSyncDate !== todayStr);
+    const isFresh = (Date.now() - lastTimestamp) < ONE_HOUR_MS;
 
-    // 1. Same-day launch with existing local cache
-    if (!isFirstTimeToday && hasLocalPayload) {
-        console.log("⚡ Same-day launch. Loading instantly...");
+    // 1. Si es el mismo día y la información tiene menos de 1 hora, cargamos instantáneamente
+    if (!isDifferentDay && isFresh && hasLocalPayload) {
+        console.log("⚡ Same-day & fresh cache (< 1 hour). Loading instantly...");
         if (splash) splash.style.display = "none";
         window.dispatchEvent(new CustomEvent("PayloadReady"));
         
         const baseUrl = getPowerAutomateUrl();
-        if (baseUrl) setTimeout(() => syncGuidelinesInBackground(baseUrl), 2000);
+        if (baseUrl) setTimeout(() => syncContentInBackground(baseUrl), 2000);
         return;
     }
 
-    // 2. First launch of day -> Verify SharePoint session
-    console.log("🌅 Verifying SharePoint session for daily sync...");
+    // 2. Si es día diferente o ya pasó más de 1 hora, verificamos sesión y sincronizamos
+    console.log("🌅 Verifying SharePoint session for sync...");
     const sessionActive = await verifySharePointSession().catch(() => false);
     
     if (!sessionActive) {
         console.warn("⚠️ SharePoint session inactive or offline. Falling back to OPFS backup...");
         if (splash) splash.style.display = "none";
         
-        // Intentar restaurar desde OPFS en modo offline automático
         const restored = await restoreCacheFromOPFSToLocalStorage();
         if (restored || hasLocalPayload) {
             window.dispatchEvent(new CustomEvent("PayloadReady"));
@@ -377,12 +409,10 @@ async function checkAndSyncData() {
         return;
     }
 
-    // 3. Online & Authenticated -> Fetch fresh data to OPFS
+    // 3. Online & Authenticated -> Fetch fresh data
     try {
         const success = await fetchAndProcessData(true);
-        if (success) {
-            localStorage.setItem("app_last_sync_date", todayStr);
-        } else {
+        if (!success) {
             await restoreCacheFromOPFSToLocalStorage();
             if (splash) splash.style.display = "none";
             window.dispatchEvent(new CustomEvent("PayloadReady"));
@@ -395,41 +425,33 @@ async function checkAndSyncData() {
     }
 }
 
-// --- 20-MINUTE AWAY SILENT BACKGROUND SYNC TRIGGER ---
+// --- 20-MINUTE AWAY BACKGROUND SYNC MONITOR (COMBINED WITH 1-HOUR RULE) ---
 let awayTimer = null;
 const AWAY_THRESHOLD_MS = 20 * 60 * 1000; // 20 Minutes
+const ONE_HOUR_MS = 60 * 60 * 1000;
 
 function initAwaySyncMonitor() {
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             awayTimer = setTimeout(async () => {
-                console.log("🌙 App hidden for 20+ minutes. Running silent background sync...");
+                console.log("🌙 App hidden for 20+ minutes. Evaluating freshness for background sync...");
+                
+                const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
+                const elapsed = Date.now() - lastTimestamp;
+                
+                if (elapsed < ONE_HOUR_MS) {
+                    console.log("⚡ Data is still fresh (< 1 hour). Skipping background sync.");
+                    return;
+                }
+
                 const sessionActive = await checkSharePointLogo().catch(() => false);
                 if (sessionActive) {
                     const baseUrl = getPowerAutomateUrl();
                     if (baseUrl) {
                         try {
-                            const response = await fetch(baseUrl, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({})
-                            });
-                            
-                            if (response.ok) {
-                                const csvPayload = await response.json();
-                                const payloadString = JSON.stringify(csvPayload);
-        
-                                // 💾 Guardar en OPFS como fuente de verdad y refrescar espejo local
-                                await writeDatasetToOPFS("cache_payload.json", payloadString);
-                                await restoreCacheFromOPFSToLocalStorage();
-                                
-                                localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
-                                localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
-
-                                console.log("✅ Silent background sync updated OPFS and local cache successfully.");
-                            }
-                            
-                            await syncGuidelinesInBackground(baseUrl);
+                            console.log("🔄 Background sync triggered: Data older than 1 hour.");
+                            await fetchAndProcessData(false);
+                            await syncContentInBackground(baseUrl);
                         } catch (err) {
                             console.warn("Silent background sync network error:", err);
                         }
@@ -450,6 +472,7 @@ function initAwaySyncMonitor() {
 window.triggerManualSync = async function() {
     console.log("Manual synchronization requested by user...");
     localStorage.removeItem("app_last_sync_date");
+    localStorage.removeItem("app_last_sync_timestamp");
     
     if (await verifySharePointSession()) {
         await fetchAndProcessData(true);
