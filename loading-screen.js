@@ -212,71 +212,102 @@ function hideSplash(splashElement) {
 // --- BACKGROUND OPFS SYNC (GENERIC) ---
 async function syncContentInBackground(baseUrl) {
     try {
+        console.log("🔄 Iniciando sincronización de contenido en segundo plano...");
         const rootDir = await navigator.storage.getDirectory();
-        const guidelinesDir = await rootDir.getDirectoryHandle("Guidelines_Info", { create: true });
-        const directoryDir = await guidelinesDir.getDirectoryHandle("Directory", { create: true });
-
-        const manifestController = new AbortController();
-        const manifestTimeout = setTimeout(() => manifestController.abort(), 35000);
         
-        const manifestResponse = await fetch(baseUrl, {
+        // 1. Obtener el manifiesto desde Power Automate
+        const response = await fetch(baseUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "READ_MANIFEST" }),
-            signal: manifestController.signal
+            body: JSON.stringify({ action: "READ_MANIFEST" })
         });
-        clearTimeout(manifestTimeout);
+
+        if (!response.ok) {
+            console.error(`❌ Error al leer manifiesto: HTTP ${response.status}`);
+            return;
+        }
+
+        const payload = await response.json();
         
-        if (!manifestResponse.ok) return;
-        
-        const payload = await manifestResponse.json();
-        const guidelinesItems = payload.guidelines || [];
-        const directoryItems = payload.directory || [];
-        const fallbackItems = (!payload.guidelines && !payload.directory) 
-            ? (payload.manifest || payload.files || payload.data || payload.items || payload) 
-            : [];
+        // Unificar las listas de archivos que vienen en el JSON
+        const allItems = [
+            ...(payload.guidelines || []),
+            ...(payload.directory || [])
+        ];
 
-        let generalArray = Array.isArray(fallbackItems) ? fallbackItems : Object.values(fallbackItems).flat();
+        console.log(`📦 Total de elementos a evaluar en OPFS: ${allItems.length}`);
 
-        async function processAndDownloadFiles(items, targetDir) {
-            if (!Array.isArray(items)) return;
+        // 2. Procesar únicamente los elementos que son archivos (ignorando carpetas puras)
+        const fileItems = allItems.filter(item => {
+            const type = (item.type || "").toLowerCase();
+            return type !== "directory" && type !== "folder" && item.name;
+        });
 
-            const fileItems = items.filter(item => {
-                const type = (item.type || "").toLowerCase();
-                const name = item.name || "";
-                return type !== "directory" && type !== "folder" && name.includes(".");
-            });
+        for (const item of fileItems) {
+            try {
+                // Construir la ruta de archivo limpia para Power Automate
+                let rawPath = item.path || "";
+                if (rawPath.endsWith("/") && item.name) {
+                    rawPath += item.name;
+                } else if (!rawPath.endsWith("/") && !rawPath.endsWith(item.name)) {
+                    rawPath = rawPath + "/" + item.name;
+                }
+                const cleanFilePath = rawPath.replace(/([^:]\/)\/+/g, "$1");
 
-            for (const item of fileItems) {
-                try {
-                    let rawPath = item.path || "";
-                    if (rawPath.endsWith("/") && item.name) rawPath += item.name;
-                    const cleanFilePath = rawPath.replace(/([^:]\/)\/+/g, "$1");
+                // Solicitar el contenido del archivo individual mediante DOWNLOAD_FILE
+                const downloadRes = await fetch(baseUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: cleanFilePath })
+                });
 
-                    const downloadController = new AbortController();
-                    const downloadTimeout = setTimeout(() => downloadController.abort(), 20000);
+                if (downloadRes.ok) {
+                    const fileContent = await downloadRes.text();
                     
-                    const downloadResponse = await fetch(baseUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: cleanFilePath }),
-                        signal: downloadController.signal
-                    });
-                    clearTimeout(downloadTimeout);
+                    // 3. Organizar y guardar físicamente en el OPFS respetando la jerarquía
+                    // Si pertenece a Guidelines_Info, ubicarlos dentro de la subcarpeta correspondiente
+                    const targetBaseDir = cleanFilePath.includes("Guidelines_Info") 
+                        ? await rootDir.getDirectoryHandle("Guidelines_Info", { create: true })
+                        : rootDir;
 
-                    if (downloadResponse.ok) {
-                        item.content = await downloadResponse.text();
-                        await writeItemToOPFS_Helper(item, targetDir);
+                    // Extraer subcarpeta si existe (ej. DOs_and_DONTs, Directory, etc.)
+                    let relativeSubFolder = "";
+                    if (cleanFilePath.includes("Guidelines_Info/")) {
+                        const parts = cleanFilePath.split("Guidelines_Info/")[1].split("/");
+                        if (parts.length > 1) {
+                            relativeSubFolder = parts[0];
+                        }
+                    } else if (cleanFilePath.includes("Directory/")) {
+                        relativeSubFolder = "Directory";
                     }
-                } catch (err) {}
+
+                    let currentDirHandle = targetBaseDir;
+                    if (relativeSubFolder) {
+                        currentDirHandle = await targetBaseDir.getDirectoryHandle(relativeSubFolder, { create: true });
+                    }
+
+                    // Escribir el archivo físico en el OPFS
+                    const fileHandle = await currentDirHandle.getFileHandle(item.name, { create: true });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(fileContent);
+                    await writable.close();
+
+                    console.log(`✅ Guardado en OPFS: [${relativeSubFolder || 'Raíz'}] / ${item.name}`);
+                } else {
+                    console.warn(`⚠️ Falló descarga de archivo: ${item.name} (HTTP ${downloadRes.status})`);
+                }
+            } catch (fileErr) {
+                console.warn(`⚠️ Error procesando el archivo ${item.name}:`, fileErr);
             }
         }
 
-        await processAndDownloadFiles(guidelinesItems.length > 0 ? guidelinesItems : generalArray, guidelinesDir);
-        await processAndDownloadFiles(directoryItems, directoryDir);
+        console.log("🎉 ¡Sincronización completa en segundo plano finalizada con éxito!");
+        
+        // Disparar evento opcional para notificar a la interfaz que ya puede renderizar
+        window.dispatchEvent(new CustomEvent("PayloadReady"));
 
-    } catch (bgErr) {
-        console.warn("⚠️ Error en la sincronización en segundo plano:", bgErr);
+    } catch (err) {
+        console.error("❌ Error crítico en syncContentInBackground:", err);
     }
 }
 

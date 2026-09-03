@@ -191,32 +191,56 @@
 
     <div class="toast" id="toast">✓ Copied to clipboard!</div>
 
+    <div class="toast" id="toast">✓ Copied to clipboard!</div>
+
+    <!-- Scripts principales y componentes de la aplicación -->
     <script src="loading-screen.js"></script>
     <script src="notes.js"></script>
     <script src="admin.js"></script>
     <script src="Guidelines_Info/Guidelines_Info.js"></script>
     <script src="Guidelines_Info/Double_Booking_1-3.js"></script>
-    
-    <!-- 1. Core Data Loader & Engine -->
     <script src="loading-screen_3.js"></script>
     <script src="data-loader.js"></script>
-
-    <!-- 2. Feature Scripts (Loaded ONCE) -->
-    <script src="notes.js"></script>
-    <script src="admin.js"></script>
-    <script src="Guidelines_Info/Guidelines_Info.js"></script>
-    <script src="Guidelines_Info/Double_Booking_1-3.js"></script>
     <script src="map.js"></script>
     <script src="provider-directory.js"></script>
+    <script src="directory.js"></script>
+    <script src="content-sync.js"></script>
 
     <script>
-        // Listen for when data-loader finishes ETL
+        // Función auxiliar para extraer y decodificar el endpoint desde el parámetro ?data=
+        function getEndpointFromDataParam() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const encodedData = urlParams.get('data');
+                if (encodedData) {
+                    return atob(encodedData);
+                }
+            } catch (e) {
+                console.warn("No se pudo decodificar el parámetro data:", e);
+            }
+            return "";
+        }
+
+        // Escuchamos cuando data-loader termina el ETL crítico
         window.addEventListener('AppDataReady', function() {
             console.log("🚀 Data ready. Hiding loading screen and unlocking dashboard.");
             
-            var loader = document.getElementById('loading-overlay');
-            if (loader) {
-                loader.style.display = 'none'; 
+            // Ocultamos la pantalla de carga principal (#sync-splash)
+            var splash = document.getElementById('sync-splash');
+            if (splash) {
+                splash.style.transition = "opacity 0.4s ease";
+                splash.style.opacity = "0";
+                setTimeout(() => splash.style.display = 'none', 400);
+            }
+
+            // Iniciamos la sincronización secundaria en segundo plano usando la URL dinámica del parámetro data
+            if (window.ContentSync && typeof window.ContentSync.init === 'function') {
+                const endpointUrl = getEndpointFromDataParam();
+                if (endpointUrl) {
+                    window.ContentSync.init(endpointUrl);
+                } else {
+                    console.warn("⚠️ No se encontró o no se pudo decodificar la URL en el parámetro 'data'.");
+                }
             }
         });
     </script>
