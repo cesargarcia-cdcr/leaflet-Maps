@@ -53,7 +53,7 @@ async function verifySharePointSession() {
     return false;
 }
 
-// --- AUTHENTICATION LOCK SCREEN & POPUP LOOP ---
+// --- AUTHENTICATION LOCK SCREEN & OFFLINE BYPASS MODE ---
 function triggerAutomaticLoginFlow() {
     const splash = document.getElementById("sync-splash");
     if (splash) splash.style.display = "none";
@@ -73,15 +73,19 @@ function triggerAutomaticLoginFlow() {
 
     lockScreen.innerHTML = `
         <div style="max-width: 440px; background: #1e293b; padding: 35px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155;">
-            <h2 style="margin-top: 0; color: #f87171; font-size: 22px;">Sign-In Required</h2>
+            <h2 style="margin-top: 0; color: #f87171; font-size: 22px;">Sign-In Required / Offline</h2>
             <p id="lock-status-text" style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
-                A popup window has been opened to authenticate your corporate session. Complete your sign-in there.
+                Your corporate session could not be verified automatically. Authenticate via popup or continue in offline mode using local OPFS backups.
             </p>
-            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; color: #38bdf8; font-size: 13px; font-weight: 500;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; color: #38bdf8; font-size: 13px; font-weight: 500; margin-bottom: 20px;">
                 <div style="width: 14px; height: 14px; border: 2px solid #38bdf8; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
                 Waiting for authentication...
             </div>
-            <button id="btn-reopen-popup" style="margin-top: 20px; background: #334155; color: #cbd5e1; border: none; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; width: 100%;">
+            
+            <button id="btn-offline-mode" style="background: #0284c7; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 10px;">
+                🔓 Continue in Offline Mode (Use OPFS Cache)
+            </button>
+            <button id="btn-reopen-popup" style="background: #334155; color: #cbd5e1; border: none; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; width: 100%;">
                 Reopen Login Window
             </button>
         </div>
@@ -99,8 +103,25 @@ function triggerAutomaticLoginFlow() {
     };
 
     openPopup();
+    
     document.getElementById("btn-reopen-popup").addEventListener("click", () => {
         if (!loginWindow || loginWindow.closed) openPopup();
+    });
+
+    // 🔓 Botón de bypass Offline
+    document.getElementById("btn-offline-mode").addEventListener("click", async () => {
+        console.log("🔓 User requested offline mode bypass...");
+        try { if (loginWindow && !loginWindow.closed) loginWindow.close(); } catch (e) {}
+        lockScreen.remove();
+        
+        const restored = await restoreCacheFromOPFSToLocalStorage();
+        if (restored || localStorage.getItem("cache_payload")) {
+            console.log("✅ Offline mode engaged successfully.");
+            window.dispatchEvent(new CustomEvent("PayloadReady"));
+        } else {
+            alert("No local OPFS backup found. Internet connection and authentication are required for the first run.");
+            triggerAutomaticLoginFlow();
+        }
     });
 
     const sessionPollInterval = setInterval(async () => {
@@ -125,39 +146,38 @@ function getPowerAutomateUrl() {
     }
 }
 
-// --- OPFS WRITER HELPER ---
-async function writeItemToOPFS(item, guidelinesDir) {
-    let rawPath = item.path || "";
-    const marker = "Guidelines_Info/";
-    const markerIndex = rawPath.indexOf(marker);
+// --- OPFS & LOCALSTORAGE BRIDGE HELPERS ---
+async function writeDatasetToOPFS(filename, contentString) {
+    const rootDir = await navigator.storage.getDirectory();
+    const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
     
-    let relativePath = rawPath;
-    if (markerIndex !== -1) {
-        relativePath = rawPath.substring(markerIndex + marker.length);
-    }
-    
-    if (!relativePath.endsWith(item.name)) {
-        relativePath = relativePath.endsWith("/") ? relativePath + item.name : relativePath + "/" + item.name;
-    }
-
-    relativePath = relativePath.replace(/([^:]\/)\/+/g, "$1");
-    
-    const parts = relativePath.split("/").filter(Boolean);
-    const fileName = parts.pop();
-    if (!fileName) return;
-
-    let targetFolder = guidelinesDir;
-    for (const folderPart of parts) {
-        targetFolder = await targetFolder.getDirectoryHandle(folderPart, { create: true });
-    }
-
-    const fileHandle = await targetFolder.getFileHandle(fileName, { create: true });
+    const fileHandle = await dataDir.getFileHandle(filename, { create: true });
     const writable = await fileHandle.createWritable();
-    await writable.write(String(item.content || ""));
+    await writable.write(contentString);
     await writable.close();
 }
 
-// --- UI SPLASH HELPERS (Fixed pointer-events for map dragging) ---
+async function restoreCacheFromOPFSToLocalStorage() {
+    try {
+        console.log("📂 Restoring local storage cache from OPFS master source...");
+        const rootDir = await navigator.storage.getDirectory();
+        const dataDir = await rootDir.getDirectoryHandle("App_Data");
+        const fileHandle = await dataDir.getFileHandle("cache_payload.json");
+        const file = await fileHandle.getFile();
+        const content = await file.text();
+
+        if (content) {
+            localStorage.setItem("cache_payload", content);
+            console.log("✅ Successfully mirrored OPFS cache to localStorage.");
+            return true;
+        }
+    } catch (err) {
+        console.warn("⚠️ No OPFS cache found to restore:", err);
+    }
+    return false;
+}
+
+// --- UI SPLASH HELPERS ---
 function showSplash(splashElement) {
     if (!splashElement) return;
     splashElement.style.pointerEvents = "auto";
@@ -168,7 +188,7 @@ function showSplash(splashElement) {
 function hideSplash(splashElement) {
     if (!splashElement) return;
     splashElement.style.opacity = "0";
-    splashElement.style.pointerEvents = "none"; // CRITICAL: Stop invisible splash from blocking mouse drag on map
+    splashElement.style.pointerEvents = "none";
     setTimeout(() => { 
         splashElement.style.display = "none"; 
         if (window.AppMap && typeof window.AppMap.invalidateSize === 'function') {
@@ -177,10 +197,9 @@ function hideSplash(splashElement) {
     }, 400);
 }
 
-// --- BACKGROUND OPFS SYNC (Guidelines & Files) ---
+// --- BACKGROUND OPFS SYNC ---
 async function syncGuidelinesInBackground(baseUrl) {
     try {
-        console.log("Background sync: Starting guidelines manifest read...");
         const rootDir = await navigator.storage.getDirectory();
         const guidelinesDir = await rootDir.getDirectoryHandle("Guidelines_Info", { create: true });
 
@@ -198,17 +217,9 @@ async function syncGuidelinesInBackground(baseUrl) {
         if (!manifestResponse.ok) return;
         
         const manifestPayload = await manifestResponse.json();
-        const manifestData = manifestPayload.manifest || 
-                             manifestPayload.files || 
-                             manifestPayload.data || 
-                             manifestPayload.items || 
-                             manifestPayload;
+        const manifestData = manifestPayload.manifest || manifestPayload.files || manifestPayload.data || manifestPayload.items || manifestPayload;
         
-        let itemsArray = manifestData;
-        if (!Array.isArray(manifestData) && typeof manifestData === 'object') {
-            itemsArray = Object.values(manifestData).flat();
-        }
-
+        let itemsArray = Array.isArray(manifestData) ? manifestData : Object.values(manifestData).flat();
         if (!Array.isArray(itemsArray)) return;
 
         const fileItems = itemsArray.filter(item => {
@@ -220,9 +231,7 @@ async function syncGuidelinesInBackground(baseUrl) {
         for (const item of fileItems) {
             try {
                 let rawPath = item.path || "";
-                if (rawPath.endsWith("/") && item.name) {
-                    rawPath = rawPath + item.name;
-                }
+                if (rawPath.endsWith("/") && item.name) rawPath += item.name;
                 const cleanFilePath = rawPath.replace(/([^:]\/)\/+/g, "$1");
 
                 const downloadController = new AbortController();
@@ -238,28 +247,46 @@ async function syncGuidelinesInBackground(baseUrl) {
 
                 if (downloadResponse.ok) {
                     item.content = await downloadResponse.text();
-                    await writeItemToOPFS(item, guidelinesDir);
+                    await writeItemToOPFS_Helper(item, guidelinesDir);
                 }
-            } catch (err) {
-                // Non-blocking background file download error catch
-            }
+            } catch (err) {}
         }
-        console.log("Background OPFS guidelines sync completed successfully.");
-    } catch (bgErr) {
-        console.warn("Background sync error (non-blocking):", bgErr);
-    }
+    } catch (bgErr) {}
 }
 
-// --- MAIN FETCH ENGINE ---
+async function writeItemToOPFS_Helper(item, guidelinesDir) {
+    let rawPath = item.path || "";
+    const marker = "Guidelines_Info/";
+    const markerIndex = rawPath.indexOf(marker);
+    let relativePath = markerIndex !== -1 ? rawPath.substring(markerIndex + marker.length) : rawPath;
+    
+    if (!relativePath.endsWith(item.name)) {
+        relativePath = relativePath.endsWith("/") ? relativePath + item.name : relativePath + "/" + item.name;
+    }
+    relativePath = relativePath.replace(/([^:]\/)\/+/g, "$1");
+    
+    const parts = relativePath.split("/").filter(Boolean);
+    const fileName = parts.pop();
+    if (!fileName) return;
+
+    let targetFolder = guidelinesDir;
+    for (const folderPart of parts) {
+        targetFolder = await targetFolder.getDirectoryHandle(folderPart, { create: true });
+    }
+
+    const fileHandle = await targetFolder.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(String(item.content || ""));
+    await writable.close();
+}
+
+// --- MAIN FETCH ENGINE (OPFS as Master Source) ---
 async function fetchAndProcessData(isManual = false) {
     const splash = document.getElementById("sync-splash");
-    
-    if (isManual) {
-        showSplash(splash);
-    }
+    if (isManual) showSplash(splash);
     
     try {
-        updateProgress(20, "Loading core application records...", "CONNECTING");
+        updateProgress(20, "Loading core application records from cloud...", "CONNECTING");
         
         let baseUrl = getPowerAutomateUrl();
         if (!baseUrl) {
@@ -279,14 +306,17 @@ async function fetchAndProcessData(isManual = false) {
         });
         clearTimeout(csvTimeout);
 
-        if (!csvResponse.ok) {
-            throw new Error(`Data fetch error (HTTP ${csvResponse.status})`);
-        }
+        if (!csvResponse.ok) throw new Error(`Data fetch error (HTTP ${csvResponse.status})`);
 
         const csvPayload = await csvResponse.json();
+        const payloadString = JSON.stringify(csvPayload);
         
-        // Clean overwrite of local cache and fresh timestamps
-        localStorage.setItem("cache_payload", JSON.stringify(csvPayload));
+        // 💾 1. GUARDAR EN OPFS COMO FUENTE DE VERDAD PRINCIPAL
+        await writeDatasetToOPFS("cache_payload.json", payloadString);
+        
+        // 🔄 2. CREAR ESPEJO EN LOCALSTORAGE DESDE EL OPFS
+        await restoreCacheFromOPFSToLocalStorage();
+        
         localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
         localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
 
@@ -297,9 +327,7 @@ async function fetchAndProcessData(isManual = false) {
             window.dispatchEvent(new CustomEvent("PayloadReady"));
         }, 300);
 
-        setTimeout(() => {
-            syncGuidelinesInBackground(baseUrl);
-        }, 1000);
+        setTimeout(() => syncGuidelinesInBackground(baseUrl), 1000);
 
         return true;
 
@@ -311,82 +339,117 @@ async function fetchAndProcessData(isManual = false) {
     }
 }
 
-// --- LIFECYCLE BOOTSTRAP (1-HOUR FRESHNESS & AUTO-SYNC) ---
-const CACHE_EXPIRATION_MS = 60 * 60 * 1000; // 1 Hour
-
+// --- LIFECYCLE BOOTSTRAP & OFFLINE FALLBACK ---
 async function checkAndSyncData() {
     const splash = document.getElementById("sync-splash");
-    const lastSyncStr = localStorage.getItem("app_last_sync_timestamp");
-    const hasPayload = localStorage.getItem("cache_payload");
-    const now = Date.now();
+    const todayStr = new Date().toISOString().split("T")[0];
+    const lastSyncDate = localStorage.getItem("app_last_sync_date");
+    const hasLocalPayload = localStorage.getItem("cache_payload");
 
-    // 1. If cache is valid (< 1 hour), load immediately without splash screen
-    if (hasPayload && lastSyncStr && (now - parseInt(lastSyncStr, 10) < CACHE_EXPIRATION_MS)) {
-        console.log("⚡ Valid local cache (< 1 hour). Loading instantly...");
+    const isFirstTimeToday = (lastSyncDate !== todayStr);
+
+    // 1. Same-day launch with existing local cache
+    if (!isFirstTimeToday && hasLocalPayload) {
+        console.log("⚡ Same-day launch. Loading instantly...");
         if (splash) splash.style.display = "none";
         window.dispatchEvent(new CustomEvent("PayloadReady"));
         
         const baseUrl = getPowerAutomateUrl();
-        if (baseUrl) {
-            setTimeout(() => syncGuidelinesInBackground(baseUrl), 1500);
-        }
+        if (baseUrl) setTimeout(() => syncGuidelinesInBackground(baseUrl), 2000);
         return;
     }
 
-    // 2. Otherwise, verify session and download fresh data
+    // 2. First launch of day -> Verify SharePoint session
+    console.log("🌅 Verifying SharePoint session for daily sync...");
     const sessionActive = await verifySharePointSession().catch(() => false);
     
     if (!sessionActive) {
-        console.warn("⚠️ SharePoint session inactive. Falling back to local cache...");
+        console.warn("⚠️ SharePoint session inactive or offline. Falling back to OPFS backup...");
         if (splash) splash.style.display = "none";
         
-        if (hasPayload) {
+        // Intentar restaurar desde OPFS en modo offline automático
+        const restored = await restoreCacheFromOPFSToLocalStorage();
+        if (restored || hasLocalPayload) {
             window.dispatchEvent(new CustomEvent("PayloadReady"));
         } else {
-            console.error("❌ No local cache available and session verification failed.");
-            updateProgress(100, "Connection Error & No Local Cache", "ERROR");
+            updateProgress(100, "Connection Error & No Local Backup", "ERROR");
         }
         return;
     }
 
+    // 3. Online & Authenticated -> Fetch fresh data to OPFS
     try {
-        console.log("🌐 Cache expired or missing. Downloading fresh data from SharePoint...");
-        const success = await fetchAndProcessData(false);
-        
-        if (!success && hasPayload) {
-            console.warn("⚠️ Download failed, falling back to previous cache...");
+        const success = await fetchAndProcessData(true);
+        if (success) {
+            localStorage.setItem("app_last_sync_date", todayStr);
+        } else {
+            await restoreCacheFromOPFSToLocalStorage();
             if (splash) splash.style.display = "none";
             window.dispatchEvent(new CustomEvent("PayloadReady"));
         }
     } catch (error) {
-        console.error("❌ Synchronization error. Maintaining previous cache...", error);
+        console.error("❌ Sync error. Restoring from OPFS...", error);
+        await restoreCacheFromOPFSToLocalStorage();
         if (splash) splash.style.display = "none";
-        if (hasPayload) {
-            window.dispatchEvent(new CustomEvent("PayloadReady"));
-        }
+        window.dispatchEvent(new CustomEvent("PayloadReady"));
     }
 }
 
-// --- AUTOMATIC 1-HOUR BACKGROUND REFRESH TIMER ---
-function initAutoSyncTimer() {
-    setInterval(async () => {
-        console.log("⏰ 1-hour automatic sync interval reached. Checking for updates...");
-        const sessionActive = await checkSharePointLogo().catch(() => false);
-        if (sessionActive) {
-            localStorage.removeItem("app_last_sync_timestamp");
-            localStorage.removeItem("cache_payload");
-            await fetchAndProcessData(false);
-            console.log("✅ Automatic hourly background data refresh completed successfully.");
+// --- 20-MINUTE AWAY SILENT BACKGROUND SYNC TRIGGER ---
+let awayTimer = null;
+const AWAY_THRESHOLD_MS = 20 * 60 * 1000; // 20 Minutes
+
+function initAwaySyncMonitor() {
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            awayTimer = setTimeout(async () => {
+                console.log("🌙 App hidden for 20+ minutes. Running silent background sync...");
+                const sessionActive = await checkSharePointLogo().catch(() => false);
+                if (sessionActive) {
+                    const baseUrl = getPowerAutomateUrl();
+                    if (baseUrl) {
+                        try {
+                            const response = await fetch(baseUrl, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({})
+                            });
+                            
+                            if (response.ok) {
+                                const csvPayload = await response.json();
+                                const payloadString = JSON.stringify(csvPayload);
+        
+                                // 💾 Guardar en OPFS como fuente de verdad y refrescar espejo local
+                                await writeDatasetToOPFS("cache_payload.json", payloadString);
+                                await restoreCacheFromOPFSToLocalStorage();
+                                
+                                localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
+                                localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
+
+                                console.log("✅ Silent background sync updated OPFS and local cache successfully.");
+                            }
+                            
+                            await syncGuidelinesInBackground(baseUrl);
+                        } catch (err) {
+                            console.warn("Silent background sync network error:", err);
+                        }
+                    }
+                }
+            }, AWAY_THRESHOLD_MS);
+            
         } else {
-            console.warn("⚠️ Session inactive during automatic hourly check. Skipping this cycle.");
+            if (awayTimer) {
+                clearTimeout(awayTimer);
+                awayTimer = null;
+                console.log("☀️ User returned within threshold. Away sync timer canceled.");
+            }
         }
-    }, CACHE_EXPIRATION_MS);
+    });
 }
 
 window.triggerManualSync = async function() {
     console.log("Manual synchronization requested by user...");
-    localStorage.removeItem("app_last_sync_timestamp");
-    localStorage.removeItem("cache_payload"); 
+    localStorage.removeItem("app_last_sync_date");
     
     if (await verifySharePointSession()) {
         await fetchAndProcessData(true);
@@ -395,5 +458,5 @@ window.triggerManualSync = async function() {
 
 window.addEventListener("DOMContentLoaded", () => {
     checkAndSyncData();
-    initAutoSyncTimer(); // Start the 1-hour recurring timer
+    initAwaySyncMonitor();
 });

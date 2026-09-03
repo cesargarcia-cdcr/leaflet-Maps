@@ -24,8 +24,8 @@
         <div class="bt-scanner-grid"></div>
         <div class="bt-content">
             <div class="bt-game-badge">DATA SYNC SYSTEM</div>
-            <h2 class="bt-title">CARGANDO RECURSOS</h2>
-            <p id="sync-status" class="bt-subtitle">Estableciendo enlace con SharePoint...</p>
+            <h2 class="bt-title">LOADING RESOURCES</h2>
+            <p id="sync-status" class="bt-subtitle">Establishing connection with SharePoint...</p>
             
             <div class="bt-progress-container">
                 <div id="bt-progress-bar" class="bt-progress-fill"></div>
@@ -33,7 +33,7 @@
             
             <div class="bt-hud-footer">
                 <span id="bt-percentage" class="bt-percent">0%</span>
-                <span class="bt-status-tag">ESTADO: <span id="bt-state-text">ESPERANDO</span></span>
+                <span class="bt-status-tag">STATUS: <span id="bt-state-text">WAITING</span></span>
             </div>
         </div>
     </div>
@@ -49,12 +49,11 @@
                 <div class="nav-item" onclick="navigateTo('directory')">Clinic Directory</div>
                 <div class="nav-item" onclick="navigateTo('provider-directory')">Provider Directory</div>
                 <div class="nav-item" onclick="navigateTo('info')">Guidelines & Info</div>
-                <!-- <div class="nav-item" onclick="navigateTo('admin')">Admin</div> -->
 
                 <div style="margin-top:auto;">
                     <hr style="opacity:0.2;">
-                    <div class="nav-item" onclick="window.triggerManualSync()" style="color:#4dabf7;" title="Forzar actualización de datos desde la nube">
-                        🔄 Sincronizar Datos
+                    <div class="nav-item" onclick="window.triggerManualSync()" style="color:#4dabf7;" title="Force data update from cloud">
+                        🔄 Sync Data
                     </div>
                 </div>
             </nav>
@@ -187,56 +186,19 @@
                     
                 </div>
             </section>
-            
-            <!-- <section class="card" id="admin-section" style="display:none; padding: 20px;"> -->
-                <!-- <h2>🛠️ Panel de Administración - OPFS Local y Sincronización</h2> -->
-                <!-- <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;"> -->
-                    <!-- Administra tus archivos locales en el navegador y publica los cambios hacia SharePoint. -->
-                <!-- </p> -->
-
-                <!-- <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 12px; max-width: 550px;"> -->
-                    <!-- <div> -->
-                        <!-- <label style="display: block; font-weight: bold; font-size: 12px; color: #334155; margin-bottom: 5px;">📁 Seleccionar Carpeta de Guías:</label> -->
-                        <!-- <input type="file" id="opfs-file-uploader" webkitdirectory directory multiple style="font-size: 12px; width: 100%;" /> -->
-                    <!-- </div> -->
-                    
-                    <!-- <div style="display: flex; gap: 8px; flex-wrap: wrap;"> -->
-                        <!-- <button onclick="subirArchivosAOPFS()" style="background: #0284c7; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;"> -->
-                            <!-- 💾 Guardar en Navegador -->
-                        <!-- </button> -->
-                        <!-- <button id="btn-actualizar-opfs" style="background: #64748b; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;"> -->
-                            <!-- 📂 Actualizar Explorador -->
-                        <!-- </button> -->
-                        <!-- <button onclick="generarYGuardarManifestLocal()" style="background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;"> -->
-                            <!-- ⚙️ Generar Manifest Local -->
-                        <!-- </button> -->
-                        <!-- <button onclick="subirManifestASharePoint()" style="background: #8b5cf6; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;"> -->
-                            <!-- ☁️ Subir a SharePoint -->
-                        <!-- </button> -->
-                    <!-- </div> -->
-                    <!-- <div style="margin-top: 10px; border-top: 1px solid #cbd5e1; padding-top: 10px;"> -->
-                        <!-- <strong style="font-size: 12px; color: #334155;">🗂️ Explorador de Almacenamiento Local:</strong> -->
-                        <!-- <div id="opfs-tree-view" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 12px; margin-top: 6px;"> -->
-                            <!-- <span style="color: #94a3b8;">Haz clic en "Actualizar Explorador" para cargar la vista...</span> -->
-                        <!-- </div> -->
-                    <!-- </div> -->
-                <!-- </div> -->
-            <!-- </section> -->
         </div>
     </div>
 
     <div class="toast" id="toast">✓ Copied to clipboard!</div>
 
-
-
-<script src="loading-screen.js"></script>
+    <script src="loading-screen.js"></script>
     <script src="notes.js"></script>
     <script src="admin.js"></script>
     <script src="Guidelines_Info.js"></script>
     <script src="Guidelines_Info/Double_Booking/Double_Booking_1-3.js"></script>
     
     <!-- 1. Core Data Loader & Engine -->
-    <script src="loading-screen_2.js"></script>
+    <script src="loading-screen_3.js"></script>
     <script src="data-loader.js"></script>
 
     <!-- 2. Feature Scripts (Loaded ONCE) -->
