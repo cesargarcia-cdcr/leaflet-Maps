@@ -226,6 +226,41 @@
     <script src="directory.js"></script>
     <script src="content-sync.js"></script>
 
+
+ <script>
+            window.APP_DATA = window.APP_DATA || {};
+            window.APP_FILES = window.APP_FILES || {};
+
+            window.registerDataFile = function(config, data) {
+                if (!window.APP_FILES[config.file]) {
+                    window.APP_FILES[config.file] = config;
+                }
+                window.APP_DATA[config.dataKey] = data;
+                console.log("📁 Registered:", config.file);
+            };
+    </script>
+    <script>
+    function openModal(id) {
+        var modal = document.getElementById(id);
+        var overlay = document.getElementById('overlay');
+        if (modal && overlay) {
+            modal.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+    }
+
+    function closeAll() {
+        var modals = document.getElementsByClassName('modal');
+        for (var i = 0; i < modals.length; i++) {
+            modals[i].style.display = 'none';
+        }
+        var overlay = document.getElementById('overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+</script>
+
     <script>
         // Función auxiliar para extraer y decodificar el endpoint desde el parámetro ?data=
         function getEndpointFromDataParam() {
