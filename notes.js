@@ -215,6 +215,15 @@ function updateProgress(percent, message) {
     if (statusText && message) statusText.innerText = message;
 }
 
+window.addEventListener('AppDataReady', () => {
+        const providerSection = document.getElementById('provider-directory-section');
+        if (providerSection && providerSection.style.display === 'block') {
+            console.log("🔄 [Provider] Datos listos detectados, actualizando vista de proveedores...");
+            if (typeof initMasterProviderDirectory === 'function') {
+                initMasterProviderDirectory();
+            }
+        }
+    });
 
 
     /* ======= Expose to window ======= */

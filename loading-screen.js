@@ -501,12 +501,24 @@ function initAwaySyncMonitor() {
 }
 
 window.triggerManualSync = async function() {
-    console.log("Manual synchronization requested by user...");
+    console.log("🔄 Manual synchronization requested by user...");
+    
+    // 1. Limpiamos sellos de tiempo y datasets locales (respetando OPFS y cookies de sesión)
     localStorage.removeItem("app_last_sync_date");
     localStorage.removeItem("app_last_sync_timestamp");
+    clearLocalDatasetsCache();
     
+    // 2. Verificamos sesión e iniciamos la descarga forzada
     if (await verifySharePointSession()) {
-        await fetchAndProcessData(true);
+        const success = await fetchAndProcessData(true);
+        
+        // 3. Forzamos la recarga dura (Ctrl + F5) inmediatamente después de procesar
+        console.log("✨ Sincronización manual completa. Ejecutando recarga dura...");
+        const freshUrl = new URL(window.location.href);
+        freshUrl.searchParams.set('reload_ts', Date.now());
+        window.location.href = freshUrl.toString();
+    } else {
+        alert("⚠️ No se pudo verificar la sesión activa con SharePoint.");
     }
 };
 
