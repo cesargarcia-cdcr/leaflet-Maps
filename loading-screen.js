@@ -509,15 +509,24 @@ window.triggerManualSync = async function() {
     localStorage.removeItem("app_last_sync_timestamp");
     clearLocalDatasetsCache();
     
-    // 2. Verificamos sesión e iniciamos la descarga forzada
+    // 2. Verificamos sesión e iniciamos la descarga
     if (await verifySharePointSession()) {
         const success = await fetchAndProcessData(true);
         
-        // 3. Forzamos la recarga dura (Ctrl + F5) inmediatamente después de procesar
-        console.log("✨ Sincronización manual completa. Ejecutando recarga dura...");
-        const freshUrl = new URL(window.location.href);
-        freshUrl.searchParams.set('reload_ts', Date.now());
-        window.location.href = freshUrl.toString();
+        if (success) {
+            console.log("💾 Datos descargados. Esperando consolidación de escritura en OPFS/LocalStorage...");
+            
+            // 🕒 Damos un respiro de 800ms a 1 segundo para asegurar que GitHub Pages y el OPFS 
+            // escriban por completo los archivos csv_* antes de matar la sesión con el hard reload.
+            await new Promise(resolve => setTimeout(resolve, 900));
+
+            console.log("✨ Escritura confirmada. Ejecutando recarga dura (Ctrl + F5)...");
+            const freshUrl = new URL(window.location.href);
+            freshUrl.searchParams.set('reload_ts', Date.now());
+            window.location.href = freshUrl.toString();
+        } else {
+            alert("⚠️ La sincronización no pudo completarse correctamente.");
+        }
     } else {
         alert("⚠️ No se pudo verificar la sesión activa con SharePoint.");
     }
