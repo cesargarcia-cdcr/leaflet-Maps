@@ -456,37 +456,29 @@ async function checkAndSyncData() {
     }
 }
 
-// --- 20-MINUTE AWAY BACKGROUND SYNC MONITOR (COMBINED WITH 1-HOUR RULE) ---
+// --- MONITOR DE INACTIVIDAD (20+ MINUTOS O 1 HORA) ---
 let awayTimer = null;
-const AWAY_THRESHOLD_MS = 20 * 60 * 1000; // 20 Minutes
-const ONE_HOUR_MS = 60 * 60 * 1000;
+const AWAY_THRESHOLD_MS = 20 * 60 * 1000; // 20 Minutos
+const ONE_HOUR_MS = 60 * 60 * 1000;       // 1 Hora
 
 function initAwaySyncMonitor() {
-    document.addEventListener('visibilitychange', () => {
+    document.addEventListener('visibilitychange', async () => {
         if (document.hidden) {
             awayTimer = setTimeout(async () => {
-                console.log("🌙 App hidden for 20+ minutes. Evaluating freshness for background sync...");
+                console.log("🌙 App oculta por 20+ minutos. Evaluando actualización automática...");
                 
                 const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
                 const elapsed = Date.now() - lastTimestamp;
                 
                 if (elapsed < ONE_HOUR_MS) {
-                    console.log("⚡ Data is still fresh (< 1 hour). Skipping background sync.");
+                    console.log("⚡ Datos aún frescos (< 1 hora). Omitiendo auto-sync.");
                     return;
                 }
 
+                // Verificamos si SharePoint sigue activo
                 const sessionActive = await checkSharePointLogo().catch(() => false);
                 if (sessionActive) {
-                    const baseUrl = getPowerAutomateUrl();
-                    if (baseUrl) {
-                        try {
-                            console.log("🔄 Background sync triggered: Data older than 1 hour.");
-                            await fetchAndProcessData(false);
-                            await syncContentInBackground(baseUrl);
-                        } catch (err) {
-                            console.warn("Silent background sync network error:", err);
-                        }
-                    }
+                    localStorage.setItem("pending_auto_sync", "true");
                 }
             }, AWAY_THRESHOLD_MS);
             
@@ -494,7 +486,16 @@ function initAwaySyncMonitor() {
             if (awayTimer) {
                 clearTimeout(awayTimer);
                 awayTimer = null;
-                console.log("☀️ User returned within threshold. Away sync timer canceled.");
+            }
+
+            // Al volver el usuario, si hay un auto-sync pendiente, "simulamos" el clic ejecutando la función oficial
+            if (localStorage.getItem("pending_auto_sync") === "true") {
+                localStorage.removeItem("pending_auto_sync");
+                console.log("☀️ Usuario regresó tras inactividad. Ejecutando Sync Data automático...");
+                
+                if (typeof window.triggerManualSync === 'function') {
+                    window.triggerManualSync();
+                }
             }
         }
     });
