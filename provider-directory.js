@@ -3,13 +3,10 @@
 
 (function () {
     let masterList = [];
-    let globalScheduleMap = {};
+    let globalScheduleMapCurr = {};
+    let globalScheduleMapNext = {};
     let npiLookupMap = {};
-    let MAIN_PROVIDERS = [];
-    let PROVIDERS_NPI = [];
-    let PROVIDERS_SCHED = [];
 
-    // Lector de CSV Profesional para manejar comas internas
     function parseStandardCSV(text) {
         if (!text) return [];
         const lines = [];
@@ -50,7 +47,7 @@
 
     async function preloadProviderData() {
         try {
-            console.log("📂 [PROVIDER_LOG] Iniciando lectura de datos de proveedores...");
+            console.log("📂 [PROVIDER_LOG] Initializing provider data reading...");
             
             let mainTxt = localStorage.getItem('csv_mainProviders');
             if (!mainTxt && typeof window.obtenerArchivo === 'function') {
@@ -58,37 +55,43 @@
             }
             masterList = mainTxt ? parseStandardCSV(mainTxt) : [];
 
-            let schedTxt = localStorage.getItem('csv_providersSched');
-            if (!schedTxt && typeof window.obtenerArchivo === 'function') {
-                schedTxt = await window.obtenerArchivo('csv_providersSched');
-            }
-            PROVIDERS_SCHED = schedTxt ? parseStandardCSV(schedTxt) : [];
+            // Load Curr and Next as structured JSON storage
+            const parseJsonStorage = (key) => {
+                const raw = localStorage.getItem(key) || localStorage.getItem(`json_${key}`);
+                if (!raw) return [];
+                try { return JSON.parse(raw); } catch (e) { return []; }
+            };
 
-            // 🎯 Crear un mapa rápido de horarios por Provider ID
-            globalScheduleMap = {};
-            PROVIDERS_SCHED.forEach(row => {
+            const schedCurrList = parseJsonStorage('providersSchedCurr');
+            const schedNextList = parseJsonStorage('providersSchedNext');
+
+            // Quick mapping by provider ID
+            globalScheduleMapCurr = {};
+            schedCurrList.forEach(row => {
                 const pId = String(row["Provider ID"] || "").trim();
-                if (pId) {
-                    globalScheduleMap[pId] = row; // Guarda la fila con todas sus fechas futuras
-                }
+                if (pId) globalScheduleMapCurr[pId] = row;
             });
 
-            console.log(`✅ [PROVIDER_LOG] Registros cargados: ${masterList.length}, Schedule registros: ${PROVIDERS_SCHED.length}`);
+            globalScheduleMapNext = {};
+            schedNextList.forEach(row => {
+                const pId = String(row["Provider ID"] || "").trim();
+                if (pId) globalScheduleMapNext[pId] = row;
+            });
+
+            console.log(`✅ [PROVIDER_LOG] Records loaded: ${masterList.length}, Curr: ${schedCurrList.length}, Next: ${schedNextList.length}`);
             
             renderDirectory();
             initAutocomplete();
 
         } catch (error) {
-            console.error("❌ [PROVIDER_LOG] Error en precarga de datos:", error);
+            console.error("❌ [PROVIDER_LOG] Error in data preloading:", error);
         }
     }
 
-    // Motor de Autocompletado Predictivo (5 Opciones más probables)
     function initAutocomplete() {
         const searchInput = document.getElementById('masterProviderSearch');
         if (!searchInput) return;
 
-        // Crear contenedor relativo flotante para alinear las sugerencias sin romper el diseño
         let wrapper = document.getElementById('pdir-search-wrapper');
         if (!wrapper) {
             wrapper = document.createElement('div');
@@ -111,7 +114,6 @@
             listContainer.innerHTML = '';
             if (!val) return;
 
-            // Filtrar candidatos en base a múltiples criterios (Nombre, ID, NPI o Especialidad)
             const matches = masterList.filter(doc => {
                 const name = String(doc['Provider'] || '').toLowerCase();
                 const id = String(doc['Provider ID'] || '');
@@ -120,7 +122,6 @@
                 return name.includes(val) || id.includes(val) || npi.includes(val) || spec.includes(val);
             });
 
-            // Tomar únicamente las 5 opciones con mayor probabilidad
             const top5 = matches.slice(0, 5);
 
             top5.forEach(doc => {
@@ -128,7 +129,6 @@
                 itemHtml.className = 'pdir-auto-item';
                 itemHtml.innerHTML = `<strong>${doc['Provider']}</strong> <span style="font-size:11px; color:#64748b;">(${doc['Specialty'] || 'Staff'})</span>`;
                 
-                // Acción al dar clic: Autocompletar entrada y renderizar tarjeta elegida
                 itemHtml.addEventListener('click', () => {
                     searchInput.value = doc['Provider'];
                     listContainer.innerHTML = '';
@@ -138,13 +138,11 @@
             });
         });
 
-        // Cerrar el panel flotante si se da un clic fuera del buscador
         document.addEventListener('click', (e) => {
             if (e.target !== searchInput) listContainer.innerHTML = '';
         });
     }
 
-    // Renderizado dinámico de tarjetas
     function renderDirectory(filterText = '') {
         const grid = document.getElementById('masterProviderGrid');
         if (!grid) return;
@@ -153,12 +151,10 @@
         let htmlArr = [];
 
         masterList.forEach(doc => {
-            // Mapeo flexible para asegurar que encuentre las columnas sin importar variaciones de espacios o símbolos
             const getVal = (keys) => {
                 for (const k of keys) {
                     if (doc[k] !== undefined && doc[k] !== '') return String(doc[k]).trim();
                 }
-                // Búsqueda por coincidencia parcial en las llaves del objeto si fallan las exactas
                 const foundKey = Object.keys(doc).find(k => keys.some(target => k.toLowerCase().includes(target.toLowerCase())));
                 return foundKey ? String(doc[foundKey]).trim() : '';
             };
@@ -176,7 +172,6 @@
             let docNpi = getVal(['NPI', 'npi']);
             if (!docNpi || docNpi === 'N/A') docNpi = npiLookupMap[docId] || 'N/A';
             
-            // Captura estricta para Do's y Don'ts con símbolos
             const docDos = getVal(["Do's ✔", "Dos", "Do's"]);
             const docDonts = getVal(["Don'ts ❌", "Donts", "Don'ts"]);
 
@@ -187,25 +182,62 @@
             }
 
             // ==========================================================
-            // 🎯 NUEVO: Extracción de días con presencia activa (solo turnos con números)
+            // 🎯 Clean merging of Curr + Next (Dates only, no shift hours)
             // ==========================================================
             let scheduleHtml = '';
-            const schedRow = globalScheduleMap[docId] || globalScheduleMap[docName.toLowerCase()];
+            const schedRowCurr = globalScheduleMapCurr[docId] || globalScheduleMapCurr[docName.toLowerCase()] || {};
+            const schedRowNext = globalScheduleMapNext[docId] || globalScheduleMapNext[docName.toLowerCase()] || {};
             
-            if (schedRow) {
+            // Merge both schedule objects smoothly
+            const combinedSchedRow = { ...schedRowCurr, ...schedRowNext };
+            
+            if (Object.keys(combinedSchedRow).length > 0) {
                 const ignoreCols = new Set([
                     "iteminternal id", "iteminternalid", "provider id", "npi", 
                     "code", "health center", "report employee name", "employee name", 
                     "job name", "column1", "specialty"
                 ]);
 
-                const dateEntries = Object.entries(schedRow).filter(([key, val]) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const currentYear = today.getFullYear();
+
+                let dateEntries = Object.entries(combinedSchedRow).filter(([key, val]) => {
                     const cleanKey = key.trim().toLowerCase();
                     const cleanVal = String(val || "").trim();
-                    return !ignoreCols.has(cleanKey) && cleanVal !== "" && /\d/.test(cleanVal);
+                    // We check that the value exists and is a valid assignment, but we won't print the value (shift)
+                    if (ignoreCols.has(cleanKey) || cleanVal === "" || !/\d/.test(cleanVal)) {
+                        return false;
+                    }
+
+                    let dateStr = key.trim();
+                    if (!/\d{4}/.test(dateStr)) {
+                        dateStr += ` ${currentYear}`;
+                    }
+
+                    let headerDate = new Date(dateStr);
+                    if (isNaN(headerDate.getTime())) {
+                        return true;
+                    }
+
+                    headerDate.setHours(0, 0, 0, 0);
+                    
+                    // Show from today onwards (remainder of current month + next month)
+                    return headerDate >= today;
+                });
+
+                dateEntries.sort(([aKey], [bKey]) => {
+                    const parseDate = (k) => {
+                        let str = k.trim();
+                        if (!/\d{4}/.test(str)) str += ` ${currentYear}`;
+                        let d = new Date(str);
+                        return isNaN(d.getTime()) ? 0 : d.getTime();
+                    };
+                    return parseDate(aKey) - parseDate(bKey);
                 });
 
                 if (dateEntries.length > 0) {
+                    // 🎯 Only print the date key, omitting the shift value (`val`)
                     let badges = dateEntries.map(([date]) => `
                         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 4px; text-align:center; font-size:0.75rem; color:#334155; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,0.02);">
                             <span style="color:#16a34a; margin-right:2px;">✔</span> ${date}
@@ -215,7 +247,7 @@
                     scheduleHtml = `
                         <div style="margin-top:14px; padding-top:10px; border-top:1px dashed #cbd5e1;">
                             <div style="font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:8px; display:flex; align-items:center; gap:4px;">
-                                📅 Días con Presencia Programada (${dateEntries.length})
+                                📅 Scheduled Presence Days (${dateEntries.length})
                             </div>
                             <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:6px; max-height:160px; overflow-y:auto; padding-right:2px;">
                                 ${badges}
@@ -224,6 +256,7 @@
                     `;
                 }
             }
+            // ==========================================================
             // ==========================================================
 
             let guidelinesHtml = '';
@@ -277,7 +310,6 @@
     preloadProviderData();
     window.initMasterProviderDirectory = initMasterProviderDirectory;
     
-    // 🌐 Exponer la función globalmente para que map.js pueda llamarla
     window.showProviderModalById = function(providerIdOrName) {
         if (!providerIdOrName) return;
         const target = String(providerIdOrName).trim().toLowerCase();
@@ -290,12 +322,12 @@
         });
 
         if (!doc) {
-            console.warn(`⚠️ No se encontró información para: ${providerIdOrName}`);
-            alert(`No se encontraron directrices registradas para: ${providerIdOrName}`);
+            console.warn(`⚠️ Information not found for: ${providerIdOrName}`);
+            alert(`No scheduling guidelines registered for: ${providerIdOrName}`);
             return;
         }
 
-        const docName = String(doc['Provider'] || 'Desconocido').trim();
+        const docName = String(doc['Provider'] || 'Unknown').trim();
         const docDegree = String(doc['Dr Degree'] || '').trim();
         const docSpec = String(doc['Specialty'] || 'General Medicine').trim();
         const docId = String(doc['Provider ID'] || '').trim();
@@ -314,7 +346,7 @@
         popover.id = 'pdir-popover-card';
         popover.style = 'width:460px; max-width:90vw; background:#ffffff; padding:20px; border-radius:10px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.25); border:1px solid #e2e8f0; font-family: system-ui, -apple-system, sans-serif;';
 
-        let guidelinesHtml = '<div style="margin-top:12px; font-size:0.8rem; color:#64748b; text-align:center; font-style:italic;">⚠️ Sin directrices de agendamiento registradas.</div>';
+        let guidelinesHtml = '<div style="margin-top:12px; font-size:0.8rem; color:#64748b; text-align:center; font-style:italic;">⚠️ No scheduling guidelines registered.</div>';
         if (docDos || docDonts || docEpic) {
             guidelinesHtml = `
                 <div style="margin-top:14px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; font-size:0.85rem; line-height:1.5;">
@@ -338,7 +370,7 @@
             </div>
             ${guidelinesHtml}
             <div style="margin-top:16px; text-align:right;">
-                <button onclick="document.getElementById('pdir-popover-backdrop')?.remove()" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#475569; padding:6px 16px; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer;">Cerrar</button>
+                <button onclick="document.getElementById('pdir-popover-backdrop')?.remove()" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#475569; padding:6px 16px; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer;">Close</button>
             </div>
         `;
 
