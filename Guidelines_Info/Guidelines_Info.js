@@ -4,18 +4,38 @@ document.addEventListener("DOMContentLoaded", async function() {
 
     infoSectionBody.innerHTML = '<span style="font-size: 0.75rem; color: #64748b; padding: 10px;">Escaneando directorios clínicos desde OPFS...</span>';
 
-    // Función auxiliar para extraer el peso numérico y limpiar el nombre visual
+    // Función auxiliar para extraer el peso numérico, evaluar la regla de Critical y limpiar el nombre visual
     function parseSortingName(rawName) {
-        const match = rawName.match(/^(\d+)_(.+)$/);
-        if (match) {
-            return {
-                order: parseInt(match[1], 10),
-                cleanName: match[2].replace(/_/g, ' ')
-            };
+        let order = Infinity;
+        let remainder = rawName;
+
+        const numMatch = rawName.match(/^(\d+)_(.+)$/);
+        if (numMatch) {
+            order = parseInt(numMatch[1], 10);
+            remainder = numMatch[2];
         }
+
+        // Regla de la palabra "Critical"
+        const criticalRegex = /^critical_(.+)$/i;
+        const critMatch = remainder.match(criticalRegex);
+
+        let isCritical = false;
+        let displayName = remainder.replace(/_/g, ' ');
+
+        // Si es solo "Critical" o empieza con "Critical_", aplicamos el flag crítico
+        if (remainder.toLowerCase() === 'critical' || remainder.toLowerCase().startsWith('critical_')) {
+            isCritical = true;
+            if (critMatch) {
+                // Si hay texto adicional (ej: 01_Critical_text), ocultamos la numeración y la palabra Critical, mostrando solo el texto restante.
+                displayName = critMatch[1].replace(/_/g, ' ');
+            }
+        }
+
         return {
-            order: Infinity,
-            cleanName: rawName.replace(/_/g, ' ')
+            order: order,
+            cleanName: remainder.replace(/_/g, ' '),
+            displayName: displayName,
+            isCritical: isCritical
         };
     }
 
@@ -50,7 +70,6 @@ document.addEventListener("DOMContentLoaded", async function() {
                         }
                     }
 
-                    // Solo incluimos la carpeta si tiene archivos HTML o si quieres mostrar carpetas vacías (aquí las filtramos si no tienen .html)
                     guidelinesData[folderName] = htmlFiles;
                 }
             }
@@ -96,7 +115,8 @@ document.addEventListener("DOMContentLoaded", async function() {
         const infoGroup = document.createElement('div');
         infoGroup.className = 'info-group';
         
-        const isCritical = folderInfo.cleanName.toLowerCase().includes('critical');
+        // DETECCIÓN CRÍTICA: Usamos el flag evaluado en parseSortingName
+        const isCritical = folderInfo.isCritical;
         
         if (isCritical) {
             infoGroup.style.cssText = 'border: 1px solid #f5c6cb; border-radius: 4px; background: #fff5f5; margin-bottom: 6px; border-left: 4px solid var(--cpe-infant);';
@@ -109,7 +129,7 @@ document.addEventListener("DOMContentLoaded", async function() {
         
         infoGroup.innerHTML = `
             <div style="padding: 4px 8px; font-size: 0.75rem; font-weight: bold; color: ${headerColor}; border-bottom: 1px solid ${borderBottomColor};">
-                📁 ${folderInfo.cleanName}
+                📁 ${folderInfo.displayName}
             </div>
             <div class="group-content" style="padding: 4px;"></div>
         `;
@@ -143,7 +163,7 @@ document.addEventListener("DOMContentLoaded", async function() {
             
             details.innerHTML = `
                 <summary style="font-size: 0.75rem; ${extraWeight} padding: 4px 6px; cursor: pointer; color: ${summaryColor}; outline: none;">
-                    ${fileIcon} ${fileInfo.cleanName}
+                    ${fileIcon} ${fileInfo.displayName}
                 </summary>
                 <div id="${targetId}" style="padding: 6px; border-top: 1px solid #f1f5f9; max-height: 55vh; overflow-y: auto;">
                     <span style="font-size: 0.7rem; color: #94a3b8;">Cargando contenido local...</span>
