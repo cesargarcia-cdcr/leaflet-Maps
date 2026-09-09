@@ -339,3 +339,29 @@
     background: #FFF5F5;
     color: #C53030;
 }
+
+/* Espaciado y padding mejorados para los elementos acordeón */
+details {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 6px; /* Mayor separación entre cada elemento */
+}
+
+details summary {
+    font-size: 0.75rem;
+    padding: 8px 10px; /* Aumenta el área de clic y el espacio vertical */
+    cursor: pointer;
+    outline: none;
+}
+
+details[open] summary {
+    border-bottom: 1px solid #f1f5f9; /* Separa visualmente el título del contenido desplegado */
+}
+
+/* Contenedor interno al abrir el acordeón */
+details > div {
+    padding: 40px !important; /* Mayor espacio interior para el contenido */
+    max-height: 60vh;
+    overflow-y: auto;
+}
