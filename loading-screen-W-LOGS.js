@@ -691,13 +691,23 @@ window.LSEngine.setProgress = function(percent, message, stateText) {
         localStorage.setItem("lite_payload_cache", "synced_via_opfs");
     }
 
-    // 🚀 Redirección automática al root al completar el 100% y estado READY
+    // 🚀 Redirección automática al completar el 100% y estado READY (Compatible con GitHub Pages)
     if (stateText === "READY" && percent === 100) {
-        console.log("🚀 [Sync]: Sincronización completada al 100%. Redirigiendo al root...");
+        console.log("🚀 [Sync]: Sincronización completada al 100%. Redirigiendo limpiamente...");
         const currentSearchParams = window.location.search;
         
+        // Obtener la ruta base actual (ej. /nombre-del-repo/) evitando ir a la raíz absoluta '/'
+        let basePath = window.location.pathname;
+        
+        // Si estamos en un archivo HTML específico (como index.html), lo removemos de la ruta base
+        if (basePath.endsWith('.html')) {
+            basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
+        } else if (!basePath.endsWith('/')) {
+            basePath += '/';
+        }
+
         setTimeout(() => {
-            window.location.replace('/' + currentSearchParams);
+            window.location.replace(basePath + currentSearchParams);
         }, 500); // Pequeña pausa para que el usuario alcance a ver el 100% en la interfaz
     }
 };
