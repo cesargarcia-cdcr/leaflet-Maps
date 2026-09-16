@@ -1,253 +1,166 @@
-/* ====================================
-DATA LOADER
-ETL datasets pipeline (Curr and Next separated into JSON)
-==================================== */
+/* ==========================================================
+   LOADING SCREEN & OPFS SYNC ENGINE - CONTROLLED FLOW
+   ========================================================== */
 
-(function () {
-    "use strict";
+/* // 1. Service Worker Registration
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw-guidelines.js')
+    .then(() => console.log("Guidelines Service Worker registered successfully."))
+    .catch(err => console.error("Error registering Service Worker:", err));
+} */
 
-    //--------------------------------------------------
-    // Storage Helpers (JSON & CSV)
-    //--------------------------------------------------
-    function saveJson(name, data) {
-        localStorage.setItem(`json_${name}`, JSON.stringify(data));
-        localStorage.setItem(name, JSON.stringify(data)); // Fallback compatibility
+// --- UI CONTROLS ---
+function setProgress(percent, message, state = "LOADING") {
+    const bar = document.getElementById("bt-progress-bar");
+    const textPercent = document.getElementById("bt-percentage");
+    const statusText = document.getElementById("sync-status");
+    const stateText = document.getElementById("bt-state-text");
+
+    if (bar) bar.style.width = `${percent}%`;
+    if (textPercent) textPercent.innerText = `${percent}%`;
+    if (statusText && message) statusText.innerText = message;
+    if (stateText) stateText.innerText = state;
+}
+
+// --- CONFIG & UTILS ---
+function getPowerAutomateUrl() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const encoded = params.get("data");
+        return encoded ? atob(encoded) : null;
+    } catch (err) {
+        console.error("Invalid Power Automate URL", err);
+        return null;
     }
+}
 
-    function arrayToCsv(rows) {
-        if (!Array.isArray(rows) || rows.length === 0) return "";
-        const headers = [...new Set(rows.flatMap(row => Object.keys(row)))];
-        const csvRows = [headers.join(",")];
-        rows.forEach(row => {
-            const line = headers.map(header => {
-                const value = row[header];
-                if (value === null || value === undefined) return "";
-                return `"${String(value).replace(/"/g, '""')}"`;
-            }).join(",");
-            csvRows.push(line);
-        });
-        return csvRows.join("\n");
-    }
+async function writeDatasetToOPFS(filename, contentString) {
+    const rootDir = await navigator.storage.getDirectory();
+    const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
+    const fileHandle = await dataDir.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(contentString);
+    await writable.close();
+}
 
-    function saveCsv(name, csvText) {
-        localStorage.setItem(`csv_${name}`, csvText);
-    }
+async function restoreCacheFromOPFSToLocalStorage(filename = "cache_payload.json") {
+    try {
+        console.log(`📂 Restoring local storage cache from OPFS source (${filename})...`);
+        const rootDir = await navigator.storage.getDirectory();
+        const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
+        const fileHandle = await dataDir.getFileHandle(filename);
+        const file = await fileHandle.getFile();
+        const content = await file.text();
 
-    function saveDataset(name, rows) {
-        saveCsv(name, arrayToCsv(rows));
-    }
-
-    function getPayload() {
-        const raw = localStorage.getItem("cache_payload");
-        if (!raw) return null;
-        return JSON.parse(raw);
-    }
-
-    //--------------------------------------------------
-    // Clinic Lookup & Clinics
-    //--------------------------------------------------
-    function generateClinicLookup(payload) {
-        saveDataset("clinicLookup", payload.clinicLookup || []);
-    }
-
-    function generateClinics(payload) {
-        const clinics = payload.clinics || [];
-        const plusCodes = payload.plusCodes || [];
-
-        const lookup = {};
-        plusCodes.forEach(row => {
-            const key = String(row.code || row.Abbreviation || "").trim().toUpperCase();
-            if (key) lookup[key] = row.plusCode || row.plus_code || "";
-        });
-
-        const rows = clinics.map(clinic => {
-            const code = String(clinic.code || clinic.Abbreviation || clinic.Code || "").trim().toUpperCase();
-            const plusCode = lookup[code] || clinic.PlusCode || clinic.plusCode || "";
-            const rawLat = clinic.lat ?? clinic.Lat ?? clinic.LAT ?? "";
-            const rawLng = clinic.lng ?? clinic.Lng ?? clinic.LNG ?? "";
+        if (content) {
+            // Parseamos de forma segura por si el archivo estuviera incompleto
+            const parsedData = JSON.parse(content);
             
-            return {
-                code: code,
-                Location: clinic.Location || "",
-                City: clinic.City || "",
-                Address: clinic.Address || "",
-                ZipCode: clinic.ZipCode || "",
-                PlusCode: plusCode,
-                lat: rawLat !== "" ? parseFloat(rawLat) : "",
-                lng: rawLng !== "" ? parseFloat(rawLng) : ""
-            };
-        });
+            // Guardamos la versión cruda en el localStorage correspondiente
+            localStorage.setItem("cache_payload", content);
 
-        saveDataset("clinics", rows);
-        console.log(`✅ clinics: ${rows.length} processed.`);
-    }
-
-    //--------------------------------------------------
-    // Schedule Normalizer Helper (JSON)
-    //--------------------------------------------------
-    function normalizeRows(rows) {
-        const merged = {};
-        const metaKeys = [
-            "ItemInternalId", "Provider ID", "NPI", "Code", 
-            "Health Center", "Health Center ", "Report Employee Name", 
-            "Employee Name", "JOB NAME", "Specialty"
-        ];
-
-        const allDateKeysSet = new Set();
-        rows.forEach(row => {
-            Object.keys(row).forEach(k => {
-                if (!metaKeys.includes(k)) allDateKeysSet.add(k);
-            });
-        });
-
-        const sortedDateKeys = Array.from(allDateKeysSet).sort((a, b) => {
-            return new Date(`${a} 2026`) - new Date(`${b} 2026`);
-        });
-
-        rows.forEach(row => {
-            const providerId = String(row["Provider ID"] || "").trim();
-            const healthCenter = String(row["Health Center"] || row["Health Center "] || "").trim().toUpperCase();
-            if (!providerId || !healthCenter) return;
-
-            const key = `${providerId}|${healthCenter}`;
-            if (!merged[key]) {
-                merged[key] = {};
-                metaKeys.forEach(k => { if (row[k] !== undefined) merged[key][k] = row[k]; });
-                sortedDateKeys.forEach(dateKey => { merged[key][dateKey] = ""; });
+            // Inicializamos el estado global de forma segura validando sección por sección
+            window.LSEngine.state = window.LSEngine.state || {};
+            
+            // Verificamos y asignamos solo lo que exista (evitando errores por secciones faltantes en lite_payload)
+            window.LSEngine.state.globalClinics = parsedData.clinics || [];
+            window.LSEngine.state.globalExtensions = parsedData.extensions || [];
+            window.LSEngine.state.globalClinicLookup = parsedData.clinicLookup || [];
+            
+            // Ejemplo de secciones adicionales que podría tener el archivo completo pero no el lite
+            /* if (parsedData.additionalSettings) {
+                window.LSEngine.state.globalSettings = parsedData.additionalSettings;
+            } else {
+                console.warn(`⚠️ La sección 'additionalSettings' no está presente en ${filename} (modo parcial/lite). Omitiendo de forma segura.`);
             }
-
-            Object.entries(row).forEach(([field, value]) => {
-                if (value !== "" && value !== null && value !== undefined) {
-                    merged[key][field] = value;
-                }
-            });
-        });
-
-        return Object.values(merged).map(provider => {
-            const orderedProvider = {};
-            metaKeys.forEach(k => {
-                if (provider[k] !== undefined) orderedProvider[k] = provider[k];
-            });
-            sortedDateKeys.forEach(dateKey => {
-                orderedProvider[dateKey] = provider[dateKey] !== undefined ? provider[dateKey] : "";
-            });
-            return orderedProvider;
-        });
-    }
-
-    //--------------------------------------------------
-    // Providers Schedule (Curr & Next Separated)
-    //--------------------------------------------------
-    function generateProvidersSchedCurr(payload) {
-        const processedRows = normalizeRows(payload.providersSchedCurr || []);
-        saveJson("providersSchedCurr", processedRows);
-        console.log(`✅ providersSchedCurr JSON: ${processedRows.length} records.`);
-    }
-
-    function generateProvidersSchedNext(payload) {
-        const processedRows = normalizeRows(payload.providersSchedNext || []);
-        saveJson("providersSchedNext", processedRows);
-        console.log(`✅ providersSchedNext JSON: ${processedRows.length} records.`);
-    }
-
-    function generateProviderScheduleDailyCurr(payload) {
-        const rows = payload.providersSchedCurr || [];
-        const dailyRecords = [];
-        const metaKeys = ["ItemInternalId", "Provider ID", "NPI", "Code", "Health Center", "Health Center ", "Report Employee Name", "Employee Name", "JOB NAME", "Specialty"];
-
-        rows.forEach(row => {
-            const providerId = String(row["Provider ID"] || "").trim();
-            const healthCenter = String(row["Health Center"] || row["Health Center "] || "").trim().toUpperCase();
-            if (!providerId || !healthCenter) return;
-
-            const baseData = {};
-            metaKeys.forEach(k => { if (row[k] !== undefined) baseData[k] = row[k]; });
-
-            Object.entries(row).forEach(([field, value]) => {
-                if (!metaKeys.includes(field) && value !== "" && value !== null && value !== undefined) {
-                    dailyRecords.push({ ...baseData, Date: field, Shift: value });
-                }
-            });
-        });
-
-        saveJson("providersSchedDailyCurr", dailyRecords);
-        console.log(`✅ providersSchedDailyCurr JSON: ${dailyRecords.length} shifts.`);
-    }
-
-    function generateProviderScheduleDailyNext(payload) {
-        const rows = payload.providersSchedNext || [];
-        const dailyRecords = [];
-        const metaKeys = ["ItemInternalId", "Provider ID", "NPI", "Code", "Health Center", "Health Center ", "Report Employee Name", "Employee Name", "JOB NAME", "Specialty"];
-
-        rows.forEach(row => {
-            const providerId = String(row["Provider ID"] || "").trim();
-            const healthCenter = String(row["Health Center"] || row["Health Center "] || "").trim().toUpperCase();
-            if (!providerId || !healthCenter) return;
-
-            const baseData = {};
-            metaKeys.forEach(k => { if (row[k] !== undefined) baseData[k] = row[k]; });
-
-            Object.entries(row).forEach(([field, value]) => {
-                if (!metaKeys.includes(field) && value !== "" && value !== null && value !== undefined) {
-                    dailyRecords.push({ ...baseData, Date: field, Shift: value });
-                }
-            });
-        });
-
-        saveJson("providersSchedDailyNext", dailyRecords);
-        console.log(`✅ providersSchedDailyNext JSON: ${dailyRecords.length} shifts.`);
-    }
-
-    //--------------------------------------------------
-    // Straight Datasets
-    //--------------------------------------------------
-    function generateExtensions(payload) { saveDataset("extensions", payload.extensions || []); }
-    function generateMainProviders(payload) { saveDataset("mainProviders", payload.mainProviders || []); }
-    function generateProvidersNpi(payload) { saveDataset("providersNpi", payload.providersNpi || []); }
-
-    function generateClinicsDirectory(payload) {
-        const dir = payload.clinicsDirectory;
-        if (!dir || !dir.$content) return;
-        const decoded = decodeURIComponent(escape(atob(dir.$content)));
-        saveCsv("clinicsDirectory", decoded);
-    }
-
-    //--------------------------------------------------
-    // Main ETL Flow
-    //--------------------------------------------------
-    function initializeData() {
-        try {
-            const payload = getPayload();
-            if (!payload) {
-                console.warn("cache_payload not found");
-                return;
-            }
-            generateClinicLookup(payload);
-            generateClinics(payload);
-            
-            // Independent processing for current and next schedule blocks
-            generateProvidersSchedCurr(payload);
-            generateProvidersSchedNext(payload);
-            generateProviderScheduleDailyCurr(payload);
-            generateProviderScheduleDailyNext(payload);
-
-            generateExtensions(payload);
-            generateMainProviders(payload);
-            generateProvidersNpi(payload);
-            generateClinicsDirectory(payload);
-            
-            console.log("✅ ETL Complete");
-            window.dispatchEvent(new CustomEvent("AppDataLoaded"));
-        } catch (err) {
-            console.error("Data Loader Error", err);
+ */
+            console.log(`✅ Successfully mirrored and sanitized OPFS (${filename}) cache.`);
+            return true;
         }
+    } catch (err) {
+        console.warn(`⚠️ No OPFS cache found for '${filename}' or error parsing it:`, err);
     }
+    return false;
+}
 
-    window.obtenerCsv = function (name) { return localStorage.getItem(`csv_${name}`); };
-    window.obtenerArchivo = window.obtenerCsv;
-    window.obtenerSeccion = window.obtenerCsv;
+// --- CORE TASKS WITH CACHE BUSTING & OPFS SYNC ---
 
-    window.addEventListener("PayloadReady", initializeData);
-    console.log("✅ Data loading complete. The force is with us.");
-    window.dispatchEvent(new Event('AppDataReady'));
-})();
+async function taskFetchMainData(overrideUrl = null) {
+    let baseUrl = overrideUrl || getPowerAutomateUrl();
+    if (!baseUrl) throw new Error("No URL provided for main fetch.");
+    
+    // Aplicación del Cache Busting Token con Date.now()
+    const cacheBusterToken = `_cb=${Date.now()}`;
+    console.log("⚡ [Cache Busting] Aplicado a principal:", cacheBusterToken);
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    const finalEndpointUrl = `${baseUrl}${separator}${cacheBusterToken}`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 35000);
+
+    const response = await fetch(finalEndpointUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ action: "load" }),
+        signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) throw new Error(`Data fetch error (HTTP ${response.status})`);
+
+    const payload = await response.json();
+    const payloadString = JSON.stringify(payload);
+    
+    await writeDatasetToOPFS("cache_payload.json", payloadString);
+    await restoreCacheFromOPFSToLocalStorage();
+    
+    localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
+    localStorage.setItem("app_last_sync_date", new Date().toISOString().split("T")[0]);
+    localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
+    return payload;
+}
+
+
+// --- MASTER FLOW CONTROL ---
+async function iniciarProcesoCargaTotal() {
+    try {
+        setProgress(20, "Descargando datos principales del sistema...", "FETCHING");
+        await taskFetchMainData();
+
+        setProgress(55, "Sincronizando archivos y directivas (OPFS)...", "SYNCING");
+        await taskSyncFiles();
+
+        setProgress(85, "Procesando estructuras locales (ETL)...", "PROCESSING");
+        // Disparamos el evento para que data-loader.js procese todo de forma limpia
+        window.dispatchEvent(new CustomEvent("PayloadReady"));
+
+        // Todo completado con éxito, revelamos el botón final y bloqueamos acceso prematuro
+        setProgress(100, "Sincronización completa", "READY");
+        mostrarBotonEntradaApp();
+
+    } catch (err) {
+        console.error("Error crítico en la sincronización:", err);
+        setProgress(100, "Error en la sincronización. Verifique conexión.", "ERROR");
+    }
+}
+
+function mostrarBotonEntradaApp() {
+    const footerPanel = document.getElementById('sync-footer-panel');
+    if (!footerPanel) return;
+    
+    footerPanel.innerHTML = `
+        <button id="enter-app-btn" style="width: 100%; padding: 10px; background: #38bdf8; color: #0f172a; border: none; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);">
+            🚀 Enter Main Application
+        </button>
+    `;
+    
+    document.getElementById('enter-app-btn').onclick = () => {
+        window.location.replace('index.html' + window.location.search);
+    };
+}
+
+/* // Inicialización automática al cargar el DOM
+window.addEventListener('DOMContentLoaded', () => {
+    iniciarProcesoCargaTotal();
+}); */

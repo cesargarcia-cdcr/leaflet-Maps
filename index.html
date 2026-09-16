@@ -1,10 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- 👁️ MONITOR DE FOCO Y VISIBILIDAD (Detecta si la app pasa 20+ min en segundo plano) -->
+    <script>
+        (function() {
+            if (!window._visibilityTrackingInitialized) {
+                window._visibilityTrackingInitialized = true;
+                let hiddenTimeStart = 0;
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'hidden') {
+                        hiddenTimeStart = Date.now();
+                    } else if (document.visibilityState === 'visible' && hiddenTimeStart > 0) {
+                        const elapsedHidden = Date.now() - hiddenTimeStart;
+                        // 20 minutos en milisegundos
+                        if (elapsedHidden >= 20 * 60 * 1000) {
+                            localStorage.setItem('app_lost_focus_long', 'true');
+                        }
+                        hiddenTimeStart = 0;
+                    }
+                });
+            }
+        })();
+    </script>
+
+    <!-- 🛡️ BLOQUEADOR CRÍTICO DE SESIÓN -->
+    <script>
+        (function() {
+            try {
+                const sessionLocked = 
+                    (window.LSEngine && window.LSEngine.isLocked) || 
+                    window.location.search.includes('login_required') ||
+                    localStorage.getItem("session_expired") === "true";
+
+                if (sessionLocked) {
+                    document.documentElement.innerHTML = `
+                        <head>
+                            <title>Authentication Required</title>
+                            <style>
+                                body { background: #0f172a; color: #94a3b8; font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+                                .box { text-align: center; padding: 2rem; background: #1e293b; border-radius: 8px; border: 1px solid #334155; }
+                                h2 { color: #38bdf8; margin-top: 0; }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="box">
+                                <h2>🔒 Sesión Requerida</h2>
+                                <p>No hay una sesión activa o la autenticación ha expirado.</p>
+                                <p style="font-size: 12px; color: #64748b;">Por favor, complete el inicio de sesión para continuar.</p>
+                            </div>
+                        </body>
+                    `;
+                    throw new Error("Acceso denegado: Se requiere sesión activa.");
+                }
+            } catch (e) {
+                if (e.message !== "Acceso denegado: Se requiere sesión activa.") {
+                    console.error("Error en bloqueo de seguridad:", e);
+                }
+            }
+        })();
+    </script>
+
+    <!-- ⚙️ VALIDACIÓN DE ACTUALIZACIÓN (4 Horas + 20 min sin foco) -->
+    <script>
+        (function() {
+            try {
+                const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
+                const hasPayload = localStorage.getItem("cache_payload");
+                const hasLitePayloadCache = localStorage.getItem("lite_payload_cache");
+                
+                // 🕒 Umbral de 4 horas
+                const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+                const isOlderThan4Hours = (Date.now() - lastTimestamp) >= FOUR_HOURS_MS;
+                const lostFocusLong = localStorage.getItem("app_lost_focus_long") === "true";
+
+                const todayStr = new Date().toISOString().split("T")[0];
+                const lastSyncDate = localStorage.getItem("app_last_sync_date");
+
+                // Condición: Falta info base O (Tiene >= 4 horas de antigüedad Y perdió foco por 20+ min)
+                const needsSync = !lastSyncDate || lastSyncDate !== todayStr || !hasPayload || !hasLitePayloadCache || (isOlderThan4Hours && lostFocusLong);
+
+                if (needsSync) {
+                    const currentPath = window.location.pathname;
+                    if (!currentPath.includes('loading-screen')) {
+                        const fastParam = hasLitePayloadCache ? '&fast=1' : '';
+                        const targetSearch = window.location.search 
+                            ? window.location.search + fastParam 
+                            : (hasLitePayloadCache ? '?fast=1' : '');
+
+                        window.location.replace('loading-screen.html' + targetSearch);
+                    }
+                } else {
+                    // Si no necesita sincronización, limpiamos la bandera de pérdida de foco temporal
+                    localStorage.removeItem("app_lost_focus_long");
+
+                    // Ocultamos el splash de carga inmediatamente
+                    const style = document.createElement('style');
+                    style.innerHTML = '#sync-splash { display: none !important; opacity: 0 !important; pointer-events: none !important; }';
+                    document.head.appendChild(style);
+                }
+            } catch (e) {
+                console.error("Error en validación de sync:", e);
+            }
+        })();
+    </script>
+
     <title>Clinic Note Builder & Locator</title>
-    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="12" font-size="12">🗂%EF%B8%8F</text></svg>' />
+    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="12" font-size="12">🗂️</text></svg>' />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <link rel="stylesheet" href="app.css">
@@ -16,48 +123,8 @@
     <link rel="stylesheet" href="provider-directory.css">
     <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
     <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
-
-    <script>
-        (function() {
-            try {
-                const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
-                const hasPayload = localStorage.getItem("cache_payload");
-                const ONE_HOUR_MS = 60 * 60 * 1000;
-                const isFresh = (Date.now() - lastTimestamp) < ONE_HOUR_MS;
-                const todayStr = new Date().toISOString().split("T")[0];
-                const lastSyncDate = localStorage.getItem("app_last_sync_date");
-
-                // Si los datos son del mismo día y frescos, inyectamos un estilo global para ocultar el splash desde el microsegundo cero
-                if (lastSyncDate === todayStr && isFresh && hasPayload) {
-                    const style = document.createElement('style');
-                    style.innerHTML = '#sync-splash { display: none !important; opacity: 0 !important; pointer-events: none !important; }';
-                    document.head.appendChild(style);
-                }
-            } catch (e) {}
-        })();
-    </script>
-
 </head>
 <body>
-    <!-- loading screen -->
-    <div id="sync-splash" class="bt-splash">
-        <div class="bt-scanner-grid"></div>
-        <div class="bt-content">
-            <div class="bt-game-badge">DATA SYNC SYSTEM</div>
-            <h2 class="bt-title">LOADING RESOURCES</h2>
-            <p id="sync-status" class="bt-subtitle">Establishing connection with SharePoint...</p>
-            
-            <div class="bt-progress-container">
-                <div id="bt-progress-bar" class="bt-progress-fill"></div>
-            </div>
-            
-            <div class="bt-hud-footer">
-                <span id="bt-percentage" class="bt-percent">0%</span>
-                <span class="bt-status-tag">STATUS: <span id="bt-state-text">WAITING</span></span>
-            </div>
-        </div>
-    </div>
-    <!-- rest of page -->
     <div class="app-container">
         <button class="burger" onclick="toggleMenu()"><span></span><span></span><span></span></button>
         <div class="sidebar-overlay" onclick="toggleMenu()"></div>
@@ -211,93 +278,66 @@
 
     <div class="toast" id="toast">✓ Copied to clipboard!</div>
 
-    <div class="toast" id="toast">✓ Copied to clipboard!</div>
-
     <!-- Scripts principales y componentes de la aplicación -->
-    <script src="loading-screen.js"></script>
     <script src="notes.js"></script>
     <script src="admin.js"></script>
     <script src="Guidelines_Info/Guidelines_Info.js"></script>
     <script src="Guidelines_Info/Double_Booking_1-3.js"></script>
-    <script src="loading-screen.js"></script>
-    <script src="data-loader.js"></script>
-    <script src="map.js"></script>
+    <script src="map.js"></script> <!-- O tu archivo de mapa adaptado -->
     <script src="provider-directory.js"></script>
     <script src="directory.js"></script>
-    <script src="content-sync.js"></script>
 
+    <script>
+        window.APP_DATA = window.APP_DATA || {};
+        window.APP_FILES = window.APP_FILES || {};
 
- <script>
-            window.APP_DATA = window.APP_DATA || {};
-            window.APP_FILES = window.APP_FILES || {};
-
-            window.registerDataFile = function(config, data) {
-                if (!window.APP_FILES[config.file]) {
-                    window.APP_FILES[config.file] = config;
-                }
-                window.APP_DATA[config.dataKey] = data;
-                console.log("📁 Registered:", config.file);
-            };
+        window.registerDataFile = function(config, data) {
+            if (!window.APP_FILES[config.file]) {
+                window.APP_FILES[config.file] = config;
+            }
+            window.APP_DATA[config.dataKey] = data;
+            console.log("📁 Registered:", config.file);
+        };
     </script>
+
+    <!-- 🚀 LLAMADA MANUAL DEL MAPA AL CARGAR LA PÁGINA (Evita pantalla en blanco si no hubo redirección) -->
     <script>
-    function openModal(id) {
-        var modal = document.getElementById(id);
-        var overlay = document.getElementById('overlay');
-        if (modal && overlay) {
-            modal.style.display = 'block';
-            overlay.style.display = 'block';
-        }
-    }
-
-    function closeAll() {
-        var modals = document.getElementsByClassName('modal');
-        for (var i = 0; i < modals.length; i++) {
-            modals[i].style.display = 'none';
-        }
-        var overlay = document.getElementById('overlay');
-        if (overlay) {
-            overlay.style.display = 'none';
-        }
-    }
-</script>
-
-    <script>
-        // Función auxiliar para extraer y decodificar el endpoint desde el parámetro ?data=
-        function getEndpointFromDataParam() {
-            try {
-                const urlParams = new URLSearchParams(window.location.search);
-                const encodedData = urlParams.get('data');
-                if (encodedData) {
-                    return atob(encodedData);
-                }
-            } catch (e) {
-                console.warn("No se pudo decodificar el parámetro data:", e);
-            }
-            return "";
-        }
-
-        // Escuchamos cuando data-loader termina el ETL crítico
-        window.addEventListener('AppDataReady', function() {
-            console.log("🚀 Data ready. Hiding loading screen and unlocking dashboard.");
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log("⚡ [Index] Verificación completada. Asegurando inicialización de componentes...");
             
-            // Ocultamos la pantalla de carga principal (#sync-splash)
-            var splash = document.getElementById('sync-splash');
-            if (splash) {
-                splash.style.transition = "opacity 0.4s ease";
-                splash.style.opacity = "0";
-                setTimeout(() => splash.style.display = 'none', 400);
-            }
-
-            // Iniciamos la sincronización secundaria en segundo plano usando la URL dinámica del parámetro data
-            if (window.ContentSync && typeof window.ContentSync.init === 'function') {
-                const endpointUrl = getEndpointFromDataParam();
-                if (endpointUrl) {
-                    window.ContentSync.init(endpointUrl);
-                } else {
-                    console.warn("⚠️ No se encontró o no se pudo decodificar la URL en el parámetro 'data'.");
-                }
+            // Si estás utilizando la función manual que definimos antes (ej. initManualMap):
+            if (typeof window.initManualMap === 'function') {
+                window.initManualMap();
+            } 
+            // O si sigues usando map.js con eventos automáticos, aseguramos un disparador de respaldo:
+            else if (typeof window.obtenerCsv === 'function' || localStorage.getItem("cache_payload")) {
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('AppDataLoaded'));
+                }, 100);
             }
         });
+    </script>
+
+    <script>
+        function openModal(id) {
+            var modal = document.getElementById(id);
+            var overlay = document.getElementById('overlay');
+            if (modal && overlay) {
+                modal.style.display = 'block';
+                overlay.style.display = 'block';
+            }
+        }
+
+        function closeAll() {
+            var modals = document.getElementsByClassName('modal');
+            for (var i = 0; i < modals.length; i++) {
+                modals[i].style.display = 'none';
+            }
+            var overlay = document.getElementById('overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
     </script>
 </body>
 </html>

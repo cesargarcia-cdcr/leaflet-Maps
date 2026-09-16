@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Clinic Map</title>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    
+    <!-- Estilos de la app -->
+    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="layout.css"> 
+    <link rel="stylesheet" href="notes.css"> 
+    <link rel="stylesheet" href="map.css">
+</head>
+<body style="margin:0; padding:0; height:100vh; overflow:hidden; display:flex; flex-direction:column;">
+
+    <!-- Controles superiores del mapa (Buscador y botón de regreso opcional) -->
+    <div class="map-controls" style="padding: 10px; background: white; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; gap: 10px; align-items: center;">
+        <a href="index.html" class="btn ghost" style="text-decoration:none; padding: 6px 12px; border: 1px solid #ccc; border-radius: 4px;">⬅️ Volver</a>
+        <div class="mc-search" style="display: flex; gap: 6px; flex: 1; max-width: 500px;">
+            <input id="searchInput" class="mc-input" list="clinicNameList" placeholder="Address, ZIP, code, nickname, or clinic name" style="flex:1; padding: 6px;" />
+            <datalist id="clinicNameList"></datalist>
+            <button class="btn primary" onclick="findNearest()">🔎 Find</button>
+            <button class="btn ghost" onclick="clearSearch()">✕ Clear</button>
+        </div>
+    </div>
+
+    <!-- Contenedor del Mapa -->
+    <div id="map" class="map-viewport" style="width:100%; flex:1;"></div>
+
+    <!-- Panel lateral deslizante de la clínica -->
+    <aside id="place-sheet" class="sheet" aria-hidden="true">
+        <div class="sheet-hd">
+            <div class="sheet-title">Selected Clinic</div>
+            <button class="sheet-close" title="Close" onclick="window.closePlaceSheet?.()">✕</button>
+        </div>
+        <div class="sheet-body" id="clinic-info-body">
+            <div class="empty-state">
+                <div>Click a clinic marker or use search.</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Script puente para obtener los CSVs desde localStorage si la app usa un cargador central -->
+    <script>
+        // Función auxiliar para recuperar los CSVs que la app guarda en localStorage
+        function obtenerCsv(nombreKey) {
+            try {
+                // Intenta buscar el payload general de caché o claves individuales
+                const payload = JSON.parse(localStorage.getItem("cache_payload") || "{}");
+                if (payload[nombreKey]) return payload[nombreKey];
+                
+                // Si se guardan de forma independiente
+                return localStorage.getItem(nombreKey) || "";
+            } catch (e) {
+                console.error("Error al leer CSV de localStorage:", e);
+                return "";
+            }
+        }
+
+        // Simula el evento de carga para que map.js dispare su lógica al arrancar
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const event = new Event('AppDataLoaded');
+                window.dispatchEvent(event);
+            }, 100);
+        });
+    </script>
+
+    <!-- Script principal del mapa -->
+    <script src="map.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-/* === Map UI/UX Optimized (v1) === */
+/* === Map UI/UX Optimized with Debug Logs (v2) - Manual Init === */
 'use strict';
 (function () {
     let CLINICS = [],
@@ -38,67 +38,169 @@
         }
     };
 
-    /* ---------- Data Load ---------- */
+    /* ---------- Data Load with Logs ---------- */
     async function loadData() {
-        const clinicsTxt = obtenerCsv("clinics");
-        if (clinicsTxt) {
-            CLINICS = mapClinicsCsvToObjects(CSV_rowsToObjects(CSV_parse(clinicsTxt)));
+    console.log("🔍 [MAP DEBUG] Iniciando loadData()...");
+    
+    let rawClinics = localStorage.getItem("csv_clinics") || (typeof obtenerCsv === 'function' ? obtenerCsv("clinics") : null);
+    
+    // 💡 NUEVO: Si está almacenado como string JSON, lo convertimos a objeto/arreglo primero
+    if (typeof rawClinics === 'string' && (rawClinics.trim().startsWith('[') || rawClinics.trim().startsWith('{'))) {
+        try {
+            rawClinics = JSON.parse(rawClinics);
+            console.log("🔄 [MAP DEBUG] 'csv_clinics' detectado como JSON y parseado correctamente.");
+        } catch (e) {
+            console.warn("⚠️ [MAP DEBUG] Error al parsear 'csv_clinics' como JSON, se tratará como texto plano.", e);
         }
-
-        const provTxt = obtenerCsv("providersSched");
-        if (provTxt) {
-            const provRows = CSV_rowsToObjects(CSV_parse(provTxt));
-            window.APP_DATA = window.APP_DATA || {};
-            window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
-                const code = String(row["Code"] || "").trim().toUpperCase();
-                if (!acc[code])
-                    acc[code] = [];
-                acc[code].push(row);
-                return acc;
-            }, {});
-        }
-
-        const extTxt = obtenerCsv("extensions");
-        if (extTxt) {
-            const extRows = CSV_rowsToObjects(CSV_parse(extTxt));
-            EXT = {};
-            extRows.forEach(row => {
-                const section = row.section || row.Section || "General";
-                if (!EXT[section]) {
-                    EXT[section] = [];
-                }
-                EXT[section].push(row);
-            });
-        }
-        buildExtensionsIndex();
     }
 
+    if (!rawClinics) {
+        console.warn("⚠️ [MAP DEBUG] No se encontró contenido para el CSV 'clinics'.");
+        CLINICS = [];
+    } else if (Array.isArray(rawClinics)) {
+        console.log("✅ [MAP DEBUG] 'clinics' ya es un arreglo de objetos.");
+        CLINICS = mapClinicsCsvToObjects(rawClinics);
+    } else if (typeof rawClinics === 'object' && rawClinics !== null) {
+        console.log("✅ [MAP DEBUG] 'clinics' es un objeto.");
+        const values = Object.values(rawClinics);
+        CLINICS = mapClinicsCsvToObjects(Array.isArray(values[0]) ? values : [rawClinics]);
+    } else {
+        console.log("✅ [MAP DEBUG] 'clinics' es texto plano CSV, parseando...");
+        const parsedRows = CSV_parse(rawClinics);
+        const objectRows = CSV_rowsToObjects(parsedRows);
+        CLINICS = mapClinicsCsvToObjects(objectRows);
+    }
+
+    console.log(`🏥 [MAP DEBUG] CLINICS procesadas (${CLINICS.length}):`, CLINICS);
+
+    // Mapeo adaptado para providersSched
+    const provTxt = localStorage.getItem("csv_providersSchedCurr") || localStorage.getItem("csv_providersSched") || (typeof obtenerCsv === 'function' ? obtenerCsv("providersSched") : null);
+    if (provTxt) {
+        let provRows = [];
+        let parsedProv = provTxt;
+        if (typeof provTxt === 'string' && (provTxt.trim().startsWith('[') || provTxt.trim().startsWith('{'))) {
+            try { parsedProv = JSON.parse(provTxt); } catch(e) {}
+        }
+        if (Array.isArray(parsedProv)) {
+            provRows = parsedProv;
+        } else {
+            provRows = CSV_rowsToObjects(CSV_parse(typeof parsedProv === 'string' ? parsedProv : JSON.stringify(parsedProv)));
+        }
+        window.APP_DATA = window.APP_DATA || {};
+        window.APP_DATA.providersByCode = provRows.reduce((acc, row) => {
+            const code = String(row["Code"] || "").trim().toUpperCase();
+            if (!acc[code]) acc[code] = [];
+            acc[code].push(row);
+            return acc;
+        }, {});
+    }
+
+    // Mapeo adaptado para extensions
+    let extTxt = localStorage.getItem("csv_extensions") || (typeof obtenerCsv === 'function' ? obtenerCsv("extensions") : null);
+    if (extTxt) {
+        let extRows = [];
+        let parsedExt = extTxt;
+        if (typeof extTxt === 'string' && (extTxt.trim().startsWith('[') || extTxt.trim().startsWith('{'))) {
+            try { parsedExt = JSON.parse(extTxt); } catch(e) {}
+        }
+        if (Array.isArray(parsedExt)) {
+            extRows = parsedExt;
+        } else {
+            extRows = CSV_rowsToObjects(CSV_parse(typeof parsedExt === 'string' ? parsedExt : JSON.stringify(parsedExt)));
+        }
+        EXT = {};
+        extRows.forEach(row => {
+            const section = row.section || row.Section || "General";
+            if (!EXT[section]) EXT[section] = [];
+            EXT[section].push(row);
+        });
+    }
+    buildExtensionsIndex();
+}
+
+    // Función universal tipo PROPER() de Excel
+    const properCase = (str) => {
+        if (!str) return '';
+        return String(str).toLowerCase().replace(/(^|\s)\S/g, (l) => l.toUpperCase());
+    };
+
     function mapClinicsCsvToObjects(items) {
+        console.log("🔍 [TS DEBUG] --------------------------------------------------");
+        console.log("🔍 [TS DEBUG] Iniciando mapClinicsCsvToObjects. Tipo de input:", typeof items, "Es Array?:", Array.isArray(items));
+        console.log("🔍 [TS DEBUG] Cantidad de elementos crudos recibidos:", items ? items.length : 0);
+        if (items && items.length > 0) {
+            console.log("🔍 [TS DEBUG] Ejemplo del primer elemento crudo:", items[0]);
+        }
+
         if (!items || !Array.isArray(items)) {
+            console.warn("⚠️ [TS DEBUG] mapClinicsCsvToObjects recibió un input inválido o vacío.");
             return [];
         }
+
+        const properCase = (str) => {
+            if (!str) return '';
+            return String(str).toLowerCase().replace(/(^|\s)\S/g, (l) => l.toUpperCase());
+        };
+
+        // Cargar lookup
+        let lookupMap = {};
+        try {
+            const rawLookup = localStorage.getItem("csv_clinicLookup") || window.LSEngine?.state?.globalClinicLookup;
+            const lookupArray = typeof rawLookup === 'string' ? JSON.parse(rawLookup) : rawLookup;
+            
+            if (Array.isArray(lookupArray)) {
+                lookupArray.forEach(item => {
+                    const codeKey = String(item.Code || "").trim().toUpperCase();
+                    if (codeKey) {
+                        lookupMap[codeKey] = {
+                            healthCenter: properCase(item["Health Center"] || ""),
+                            clinicName: properCase(item["Clinic Name"] || "")
+                        };
+                    }
+                });
+            }
+            console.log("🔍 [TS DEBUG] Lookup cargado exitosamente. Claves en lookup:", Object.keys(lookupMap));
+        } catch (e) {
+            console.warn("⚠️ [TS DEBUG] Error cargando csv_clinicLookup:", e);
+        }
+
         const out = [];
         const seen = new Set();
-        for (const it of items) {
-            // Leemos directamente las columnas exactas del CSV generado
-            const code = String(it["code"] || it["Abbreviation"] || "").trim().toUpperCase();
-            const name = String(it["Location"] || it["Clinic Name"] || "").trim();
-            const plusCode = String(it["PlusCode"] || it["plusCode"] || it["PC"] || it["Plus Code"] || "").trim();
-            const address = String(it["Address"] || "").trim();
-            const city = String(it["City"] || "").trim();
-            const zip = String(it["ZipCode"] || it["Zip"] || "").trim();
+
+        items.forEach((it, index) => {
+            // Normalizar llaves
+            const cleanObj = {};
+            for (const key in it) {
+                if (Object.prototype.hasOwnProperty.call(it, key)) {
+                    cleanObj[key.trim().toLowerCase()] = it[key];
+                }
+            }
+
+            const rawCode = String(cleanObj["code"] || cleanObj["abbreviation"] || cleanObj["cliniccode"] || "").trim().toUpperCase();
+            const lookupMatch = lookupMap[rawCode] || {};
+
+            const rawName = String(cleanObj["location"] || lookupMatch.clinicName || lookupMatch.healthCenter || cleanObj["clinic name"] || cleanObj["name"] || rawCode).trim();
+            const name = properCase(rawName);
+
+            const plusCode = String(cleanObj["pluscode"] || cleanObj["pc"] || cleanObj["plus code"] || "").trim();
+            const address = properCase(String(cleanObj["address"] || "").trim());
+            const city = properCase(String(cleanObj["city"] || "").trim());
+            const zip = String(cleanObj["zipcode"] || cleanObj["zip"] || "").trim();
             
             const fullAddress = [address, city, zip].filter(Boolean).join(", ");
             
-            // Parseamos lat y lng asegurando formato numérico
-            const rawLat = it["lat"] ?? it["Lat"] ?? "";
-            const rawLng = it["lng"] ?? it["Lng"] ?? "";
+            const rawLat = cleanObj["lat"] ?? cleanObj["latitude"] ?? "";
+            const rawLng = cleanObj["lng"] ?? cleanObj["longitude"] ?? "";
             const lat = rawLat !== "" ? parseFloat(rawLat) : null;
             const lng = rawLng !== "" ? parseFloat(rawLng) : null;
 
+            const clinicId = rawCode || name.toLowerCase().replace(/[^a-z0-9]+/gi, "-");
+
+            console.log(`🔍 [TS DEBUG] [Fila ${index}] Code detectado: '${rawCode}' | Nombre detectado: '${name}' | Lat: ${lat}, Lng: ${lng}`);
+
             const clinic = {
-                clinicId: code || name.toLowerCase().replace(/[^a-z0-9]+/gi, "-"),
-                code,
+                clinicId,
+                code: rawCode,
                 name,
                 plusCode,
                 address: fullAddress,
@@ -106,11 +208,20 @@
                 lng: !isNaN(lng) ? lng : null,
                 nicknames: ""
             };
-            if (code && !seen.has(code)) {
+
+            // Evaluar condición de aceptación
+            const isValid = (rawCode || name) && !seen.has(clinicId);
+            if (isValid) {
                 out.push(clinic);
-                seen.add(code);
+                seen.add(clinicId);
+                console.log(`✅ [TS DEBUG] [Fila ${index}] Aceptada y agregada correctamente.`);
+            } else {
+                console.warn(`❌ [TS DEBUG] [Fila ${index}] DESCARTADA. Motivo -> code/name presente?: ${Boolean(rawCode || name)}, Ya estaba en 'seen'?: ${seen.has(clinicId)}`);
             }
-        }
+        });
+
+        console.log(`🗺️ [TS DEBUG] Finalizado. Devolviendo ${out.length} clínicas válidas de ${items.length} totales.`);
+        console.log("🔍 [TS DEBUG] --------------------------------------------------");
         return out;
     }
 
@@ -167,8 +278,10 @@
 
     async function tryDecodePlusCode(input) {
         await ensureOLC().catch(() => {});
-        if (!window.OpenLocationCode)
+        if (!window.OpenLocationCode) {
+            console.warn("⚠️ [MAP DEBUG] OpenLocationCode no está cargado en el navegador.");
             return null;
+        }
         
         const raw = String(input || '').trim().toUpperCase();
         if (!raw)
@@ -187,7 +300,9 @@
                     lng: a.longitudeCenter
                 };
             }
-        } catch (_) {}
+        } catch (e) {
+            console.error("❌ [MAP DEBUG] Error decodificando Plus Code:", raw, e);
+        }
         return null;
     }
 
@@ -204,8 +319,10 @@
         return await tryDecodePlusCode(query);
     }
 
-    /* ---------- Markers ---------- */
+    /* ---------- Markers with Logs ---------- */
     async function addMarkers() {
+        console.log("📍 [MAP DEBUG] Ejecutando addMarkers(). Total clínicas en memoria:", CLINICS.length);
+        
         if (markersLayer) {
             map.removeLayer(markersLayer);
             markersLayer = null;
@@ -213,7 +330,6 @@
         markersLayer = L.layerGroup().addTo(map);
         const bounds = L.latLngBounds();
 
-        // 🎯 EL ICONO QUE FALTABA
         const clinicIcon = L.icon({
             iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
             shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -223,20 +339,23 @@
             shadowSize: [41, 41]
         });
 
+        let renderedCount = 0;
+
         for (const c of CLINICS) {
             let lat = c.lat;
             let lng = c.lng;
 
             if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat)) {
-                const g = await tryDecodePlusCode(c.plusCode);
-                if (g) {
-                    lat = g.lat;
-                    lng = g.lng;
+                if (c.plusCode) {
+                    const g = await tryDecodePlusCode(c.plusCode);
+                    if (g) {
+                        lat = g.lat;
+                        lng = g.lng;
+                    }
                 }
             }
 
             if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat)) {
-                console.warn(`⚠️ Skipping marker for ${c.name}: No valid coordinates.`);
                 continue;
             }
 
@@ -251,7 +370,10 @@
 
             m.on('click', () => selectClinic({ ...c, lat, lng })); 
             bounds.extend([lat, lng]);
+            renderedCount++;
         }
+
+        console.log(`✨ [MAP DEBUG] Total de marcadores agregados al mapa: ${renderedCount}`);
 
         if (bounds.isValid()) {
             map.fitBounds(bounds, { padding: [40, 40] });
@@ -397,12 +519,6 @@
         setTimeout(() => AppMap.invalidate(), 100);
     }
 
-    window.routeToProviderDirectory = function (providerIdOrName) {
-        if (typeof window.showProviderModalById === 'function') {
-            window.showProviderModalById(providerIdOrName);
-        }
-    };
-
     function openSheet() {
         const s = document.getElementById('place-sheet');
         if (s) {
@@ -442,30 +558,6 @@
         if (!sel && !dl)
             return;
 
-        const ordered = [...CLINICS].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-        if (sel) {
-            sel.innerHTML = '';
-            sel.insertAdjacentHTML('beforeend', '<option value="">All clinics…</option>');
-            for (const c of ordered) {
-                const main = document.createElement('option');
-                main.value = c.code;
-                main.textContent = c.code ? `${c.code} — ${c.name}` : c.name;
-                main.setAttribute('data-code', c.code);
-                sel.appendChild(main);
-            }
-            if (!sel.__wired) {
-                sel.addEventListener('change', () => {
-                    const opt = sel.selectedOptions?.[0];
-                    const code = opt?.dataset?.code;
-                    const c = code ? getClinicByCode(code) : null;
-                    if (c && c.lat && c.lng)
-                        selectClinic(c);
-                });
-                sel.__wired = true;
-            }
-        }
-
         if (dl) {
             let optionsHtml = [];
             CLINICS.forEach(c => {
@@ -478,18 +570,8 @@
     }
 
     async function findNearest() {
-        const sel = document.getElementById('clinicSelect');
-        const chosen = sel?.selectedOptions?.[0]?.dataset?.code ?? '';
-        if (chosen) {
-            const c = getClinicByCode(chosen);
-            if (c && c.lat && c.lng) {
-                selectClinic(c);
-                return;
-            }
-        }
         const q = (document.getElementById('searchInput')?.value ?? '').trim();
-        if (!q)
-            return;
+        if (!q) return;
 
         const bySearch = getClinicBySearch(q);
         if (bySearch && bySearch.lat) {
@@ -502,123 +584,11 @@
             alert('Invalid or not found Plus Code.');
             return;
         }
-
-        if (searchMarker) {
-            map.removeLayer(searchMarker);
-            searchMarker = null;
-        }
-        if (searchLine) {
-            map.removeLayer(searchLine);
-            searchLine = null;
-        }
-
-        searchMarker = L.circleMarker([g.lat, g.lng], {
-            radius: 7,
-            color: '#dc2626',
-            fillColor: '#dc2626',
-            fillOpacity: .8,
-            weight: 2
-        }).addTo(map).bindPopup('📍 Search Plus Code');
-
-        let candidates = [];
-        for (const c of CLINICS) {
-            let targetLat = c.lat;
-            let targetLng = c.lng;
-
-            if ((typeof targetLat !== 'number' || typeof targetLng !== 'number') && c.plusCode) {
-                const plusDecoded = await tryDecodePlusCode(c.plusCode);
-                if (plusDecoded) {
-                    targetLat = plusDecoded.lat;
-                    targetLng = plusDecoded.lng;
-                }
-            }
-
-            if (!targetLat || !targetLng)
-                continue;
-
-            const R = 6371, toRad = d => d * Math.PI / 180;
-            const dLat = toRad(targetLat - g.lat), dLng = toRad(targetLng - g.lng);
-            const s1 = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(g.lat)) * Math.cos(toRad(targetLat)) * Math.sin(dLng / 2) ** 2;
-            const dGeom = 2 * R * Math.asin(Math.sqrt(s1));
-
-            candidates.push({
-                clinic: c,
-                lat: targetLat,
-                lng: targetLng,
-                dGeom: dGeom
-            });
-        }
-
-        candidates.sort((a, b) => a.dGeom - b.dGeom);
-        const finalists = candidates.slice(0, 3);
-        if (!finalists.length)
-            return;
-
-        let bestMatch = null;
-        let minDrivingDistance = Infinity;
-        let bestRouteGeometry = null;
-
-        for (const f of finalists) {
-            try {
-                const url = `https://router.project-osrm.org/route/v1/driving/${g.lng},${g.lat};${f.lng},${f.lat}?overview=full&geometries=geojson`;
-                const response = await fetch(url);
-                if (!response.ok)
-                    continue;
-
-                const data = await response.json();
-                if (!data.routes || !data.routes.length)
-                    continue;
-
-                const route = data.routes[0];
-                const drivingDistKm = route.distance / 1000;
-
-                if (drivingDistKm < minDrivingDistance) {
-                    minDrivingDistance = drivingDistKm;
-                    bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
-                    bestRouteGeometry = route.geometry;
-                }
-            } catch (err) {
-                if (!bestMatch) {
-                    minDrivingDistance = f.dGeom;
-                    bestMatch = { ...f.clinic, lat: f.lat, lng: f.lng };
-                }
-            }
-        }
-
-        if (bestMatch) {
-            renderSelectedClinic(bestMatch, minDrivingDistance);
-
-            if (bestRouteGeometry) {
-                const coordinates = bestRouteGeometry.coordinates.map(coord => [coord[1], coord[0]]);
-                searchLine = L.polyline(coordinates, {
-                    color: '#2563eb',
-                    weight: 4,
-                    opacity: 0.85,
-                    lineJoin: 'round'
-                }).addTo(map);
-            } else {
-                searchLine = L.polyline([[g.lat, g.lng], [bestMatch.lat, bestMatch.lng]], {
-                    color: '#dc2626',
-                    weight: 2,
-                    opacity: .6,
-                    dashArray: '5,5'
-                }).addTo(map);
-            }
-
-            const routeBounds = searchLine.getBounds();
-            routeBounds.extend([g.lat, g.lng]);
-            map.fitBounds(routeBounds, {
-                padding: [60, 60],
-                maxZoom: 14
-            });
-        }
     }
 
     function clearSearch() {
         const box = document.getElementById('searchInput');
         if (box) box.value = '';
-        const sel = document.getElementById('clinicSelect');
-        if (sel) sel.value = '';
         const panel = document.getElementById('clinic-info-body');
         if (panel) {
             panel.innerHTML = `<div class="empty-state">Select a clinic or search by Plus Code.</div>`;
@@ -630,118 +600,64 @@
 
     function buildBaseLayers() {
         const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
-        const baseGray = L.tileLayer('https://{s}.tile.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', { maxZoom: 20, attribution: '© Stadia Maps' });
-        const baseDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' });
-        const layers = { '🗺️ Standard': baseOSM, '🌫️ Gray': baseGray, '🌙 Dark': baseDark };
-        const pref = store.get('map:base', '🗺️ Standard');
-        const chosen = layers[pref] || baseOSM;
-        chosen.addTo(map);
-        L.control.layers(layers, {}, { position: 'topright', collapsed: true }).addTo(map);
-        map.on('baselayerchange', e => {
-            const key = Object.keys(layers).find(k => layers[k] === e.layer) || '🗺️ Standard';
-            store.set('map:base', key);
-        });
+        baseOSM.addTo(map);
     }
 
-    function toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen?.();
-            document.body.classList.add('fullscreen-map');
-        } else {
-            document.exitFullscreen?.();
-            document.body.classList.remove('fullscreen-map');
-        }
-        setTimeout(() => AppMap.invalidate(), 200);
-    }
-
-    function geolocate() {
-        if (!navigator.geolocation) {
-            alert('Geolocation not supported');
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(pos => {
-            const { latitude, longitude } = pos.coords;
-            const p = [latitude, longitude];
-            const mk = L.circleMarker(p, {
-                radius: 7,
-                color: '#16a34a',
-                fillColor: '#16a34a',
-                fillOpacity: .85,
-                weight: 2
-            }).addTo(map).bindPopup('📍 You are here');
-            mk.openPopup();
-            map.setView(p, 14);
-        }, () => {
-            alert('Geolocation error');
-        });
-    }
-
-    function wireShortcuts() {
-        window.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-                e.preventDefault();
-                document.getElementById('searchInput')?.focus();
+    /* 🚀 FUNCIÓN DE INVOCACIÓN MANUAL (Reemplaza el addEventListener automático) */
+    async function initManualMap() {
+        console.log("🚀 [MAP DEBUG] initManualMap() llamado manualmente.");
+        try {
+            if (map && typeof map.remove === 'function') {
+                map.remove();
+                map = null;
             }
-            if (e.key === 'Escape') closeSheet();
-        });
-    }
 
-    window.addEventListener('AppDataLoaded', async () => {
-    try {
-        if (map && typeof map.remove === 'function') {
-            map.remove();
-            map = null;
-        }
+            const mapContainer = document.getElementById('map');
+            if (mapContainer && mapContainer._leaflet_id) {
+                mapContainer._leaflet_id = null; 
+            }
 
-        const mapContainer = document.getElementById('map');
-        if (mapContainer && mapContainer._leaflet_id) {
-            mapContainer._leaflet_id = null; 
-        }
+            const CA_BOUNDS = [[32.529523, -124.482003], [42.009518, -114.131211]];
+            
+            map = L.map('map', {
+                zoomControl: true,
+                dragging: true,
+                tap: true,
+                maxBounds: CA_BOUNDS,
+                maxBoundsViscosity: .8
+            }).setView([34.25, -119.10], 10);
+            
+            window.AppMap = map;
+            
+            buildBaseLayers();
+            await loadData();
 
-        const CA_BOUNDS = [[32.529523, -124.482003], [42.009518, -114.131211]];
-        
-        // Initialize map with explicit dragging options enabled for GitHub Pages/iframe environments
-        map = L.map('map', {
-            zoomControl: true,
-            dragging: true, // Explicitly force mouse dragging
-            tap: true,      // Support touch interaction
-            maxBounds: CA_BOUNDS,
-            maxBoundsViscosity: .8
-        }).setView([34.25, -119.10], 10);
-        
-        // Expose map globally so loading-screen.js can call invalidateSize() after splash removal
-        window.AppMap = map;
-        
-        buildBaseLayers();
-        await loadData();
-        buildExtensionsIndex();
-
-        for (const c of CLINICS) {
-            if (typeof c.lat !== 'number' || typeof c.lng !== 'number') {
-                const g = await tryDecodePlusCode(c.plusCode);
-                if (g) {
-                    c.lat = g.lat;
-                    c.lng = g.lng;
+            for (const c of CLINICS) {
+                if (typeof c.lat !== 'number' || typeof c.lng !== 'number') {
+                    const g = await tryDecodePlusCode(c.plusCode);
+                    if (g) {
+                        c.lat = g.lat;
+                        c.lng = g.lng;
+                    }
                 }
             }
+            
+            await addMarkers();
+            populateClinicPickers();
+            
+            setTimeout(() => map.invalidateSize(), 200);
+            console.log("🎉 [MAP DEBUG] Inicialización manual del mapa completada con éxito.");
+        } catch (e) {
+            console.error('❌ [MAP DEBUG] Error crítico en bootstrap manual del mapa:', e);
         }
-        
-        await addMarkers();
-        populateClinicPickers();
-        wireShortcuts();
-        
-        setTimeout(() => map.invalidateSize(), 200);
-    } catch (e) {
-        console.error('Map bootstrap error:', e);
     }
-});
 
+    // Exponemos las funciones necesarias de forma global sin listeners automáticos
+    window.initManualMap = initManualMap;
     window.findNearest = findNearest;
     window.clearSearch = clearSearch;
     window.AppMap = {
-        invalidate() { try { map?.invalidateSize() } catch (_) {} },
-        toggleFullscreen,
-        geolocate
+        invalidate() { try { map?.invalidateSize() } catch (_) {} }
     };
 
     function CSV_parse(text) {
@@ -767,6 +683,7 @@
     }
 
     function CSV_rowsToObjects(rows) {
+        if (!rows || rows.length === 0) return [];
         const headers = (rows.shift() ?? []).map(h => String(h ?? '').trim());
         const out = [];
         for (const r of rows) {
@@ -779,9 +696,4 @@
         }
         return out;
     }
-
-    async function showProviderPopover(providerId) {
-        // (Popover logic kept intact)
-    }
-    window.showProviderPopover = showProviderPopover;
 })();

@@ -1,458 +1,250 @@
-/* ====================================
-   LOADING SCREEN & OPFS SYNC ENGINE
-==================================== */
+/* ==========================================================
+   LOADING SCREEN & OPFS SYNC ENGINE (Strictly Orchestrated)
+   ========================================================== */
 
-// 1. Automatically register Service Worker to intercept and serve from OPFS
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw-guidelines.js')
-    .then(() => console.log("Guidelines Service Worker registered successfully."))
-    .catch(err => console.error("Error registering Service Worker:", err));
-}
+window.LSEngine = window.LSEngine || {};
 
-function updateProgress(percent, message, state = "LOADING") {
-    const bar = document.getElementById("bt-progress-bar");
-    const textPercent = document.getElementById("bt-percentage");
-    const statusText = document.getElementById("sync-status");
-    const stateText = document.getElementById("bt-state-text");
+window.LSEngine.state = {
+    globalClinics: [],
+    globalExtensions: [],
+    globalClinicLookup: [],
+    mapInstance: null
+};
 
-    if (bar) bar.style.width = `${percent}%`;
-    if (textPercent) textPercent.innerText = `${percent}%`;
-    if (statusText && message) statusText.innerText = message;
-    if (stateText) stateText.innerText = state;
-}
+window.LSEngine.setProgress = function(percent, text, state) {
+    const bar = document.getElementById('bt-progress-bar');
+    const percentage = document.getElementById('bt-percentage');
+    const status = document.getElementById('sync-status');
+    const stateText = document.getElementById('bt-state-text');
 
-// --- SHAREPOINT SESSION VERIFICATION ---
-function checkSharePointLogo() {
-    return new Promise((resolve) => {
-        const logoUrl = "https://clinicasdelcaminoreal.sharepoint.com/sites/CDCROperationsHub/_api/siteiconmanager/getsitelogo?type=%271%27&hash=639204304455530335";
-        const img = new Image();
-        
-        const timeout = setTimeout(() => {
-            img.src = "";
-            resolve(false);
-        }, 4000);
+    if (bar) bar.style.width = percent + '%';
+    if (percentage) percentage.textContent = percent + '%';
+    if (status) status.textContent = text;
+    if (stateText) stateText.textContent = state;
+};
 
-        img.onload = () => { clearTimeout(timeout); resolve(true); };
-        img.onerror = () => { clearTimeout(timeout); resolve(false); };
+window.LSEngine.closeSheet = function() {
+    const sheet = document.getElementById('place-sheet');
+    if (sheet) sheet.classList.remove('open');
+    setTimeout(() => {
+        if (window.LSEngine.state.mapInstance) {
+            window.LSEngine.state.mapInstance.invalidateSize();
+        }
+    }, 300);
+};
 
-        img.src = logoUrl + "&t=" + new Date().getTime();
-    });
-}
-
-async function verifySharePointSession() {
-    console.log("Checking SharePoint session...");
-    let active = await checkSharePointLogo();
-    if (active) return true;
-
-    await new Promise(r => setTimeout(r, 800));
-    active = await checkSharePointLogo();
-    if (active) return true;
-
-    console.warn("Session expired. Triggering automatic login lock screen.");
-    triggerAutomaticLoginFlow();
-    return false;
-}
-
-// --- AUTHENTICATION LOCK SCREEN & OFFLINE BYPASS MODE ---
-function triggerAutomaticLoginFlow() {
-    const splash = document.getElementById("sync-splash");
-    if (splash) splash.style.display = "none";
-
-    if (document.getElementById("sp-lock-screen")) return;
-
-    const lockScreen = document.createElement("div");
-    lockScreen.id = "sp-lock-screen";
-    lockScreen.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        background: rgba(15, 23, 42, 0.98); z-index: 999999;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        color: white; font-family: system-ui, sans-serif; text-align: center; padding: 20px;
-    `;
+window.LSEngine.renderClinicInfo = function(clinic) {
+    const sheet = document.getElementById('place-sheet');
+    if (!sheet) return;
+    sheet.classList.add('open');
     
-    const sharePointSiteUrl = "https://clinicasdelcaminoreal.sharepoint.com/sites/CDCROperationsHub";
+    setTimeout(() => {
+        if (window.LSEngine.state.mapInstance) {
+            window.LSEngine.state.mapInstance.invalidateSize();
+        }
+    }, 300);
 
-    lockScreen.innerHTML = `
-        <div style="max-width: 440px; background: #1e293b; padding: 35px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155;">
-            <h2 style="margin-top: 0; color: #f87171; font-size: 22px;">Sign-In Required / Offline</h2>
-            <p id="lock-status-text" style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
-                Your corporate session could not be verified automatically. Authenticate via popup or continue in offline mode using local OPFS backups.
-            </p>
-            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; color: #38bdf8; font-size: 13px; font-weight: 500; margin-bottom: 20px;">
-                <div style="width: 14px; height: 14px; border: 2px solid #38bdf8; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                Waiting for authentication...
-            </div>
-            
-            <button id="btn-offline-mode" style="background: #0284c7; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 10px;">
-                🔓 Continue in Offline Mode (Use OPFS Cache)
-            </button>
-            <button id="btn-reopen-popup" style="background: #334155; color: #cbd5e1; border: none; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; width: 100%;">
-                Reopen Login Window
-            </button>
-        </div>
-        <style> @keyframes spin { to { transform: rotate(360deg); } } </style>
-    `;
-    
-    document.body.appendChild(lockScreen);
+    const clinicCode = String(clinic.code || "").trim().toUpperCase();
+    const clinicName = String(clinic.Location || clinic.name || "").trim().toUpperCase();
 
-    let loginWindow = null;
-    const openPopup = () => {
-        const width = 600, height = 700;
-        const left = (window.screen.width / 2) - (width / 2);
-        const top = (window.screen.height / 2) - (height / 2);
-        loginWindow = window.open(sharePointSiteUrl, "SharePointLoginPopup", `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes`);
-    };
-
-    openPopup();
-    
-    document.getElementById("btn-reopen-popup").addEventListener("click", () => {
-        if (!loginWindow || loginWindow.closed) openPopup();
+    const matchingLookup = window.LSEngine.state.globalClinicLookup.find(item => {
+        const itemCode = String(item.Code || item.code || "").trim().toUpperCase();
+        const itemHealthCenter = String(item['Health Center'] || item['Clinic Name'] || "").trim().toUpperCase();
+        return (clinicCode && itemCode === clinicCode) || 
+               (clinicName && (itemHealthCenter === clinicName || clinicName.includes(itemHealthCenter) || itemHealthCenter.includes(clinicName)));
     });
 
-    document.getElementById("btn-offline-mode").addEventListener("click", async () => {
-        console.log("🔓 User requested offline mode bypass...");
-        try { if (loginWindow && !loginWindow.closed) loginWindow.close(); } catch (e) {}
-        lockScreen.remove();
-        
-        const restored = await restoreCacheFromOPFSToLocalStorage();
-        if (restored || localStorage.getItem("cache_payload")) {
-            console.log("✅ Offline mode engaged successfully.");
-            window.dispatchEvent(new CustomEvent("PayloadReady"));
-        } else {
-            alert("No local OPFS backup found. Internet connection and authentication are required for the first run.");
-            triggerAutomaticLoginFlow();
-        }
-    });
-
-    // Bucle (Polling Loop) que evalúa constantemente el logo; al autenticarse cierra el popup y continúa
-    const sessionPollInterval = setInterval(async () => {
-        if (await checkSharePointLogo()) {
-            console.log("Session detected. Closing popup and continuing...");
-            clearInterval(sessionPollInterval);
-            try { if (loginWindow && !loginWindow.closed) loginWindow.close(); } catch (e) {}
-            lockScreen.remove();
-            checkAndSyncData();
-        }
-    }, 2000);
-}
-
-function getPowerAutomateUrl() {
-    try {
-        const params = new URLSearchParams(window.location.search);
-        const encoded = params.get("data");
-        return encoded ? atob(encoded) : null;
-    } catch (err) {
-        console.error("Invalid Power Automate URL", err);
-        return null;
-    }
-}
-
-// --- PURGA QUIRÚRGICA DE DATASETS (SIN TOCAR SESIÓN NI CONFIGS) ---
-function clearLocalDatasetsCache() {
-    console.log("🧹 Purgando exclusivamente los datasets de caché en localStorage...");
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.startsWith("csv_") || key === "cache_payload")) {
-            keysToRemove.push(key);
-        }
-    }
-    keysToRemove.forEach(k => localStorage.removeItem(k));
-}
-
-// --- OPFS & LOCALSTORAGE BRIDGE HELPERS ---
-async function writeDatasetToOPFS(filename, contentString) {
-    const rootDir = await navigator.storage.getDirectory();
-    const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
-    
-    const fileHandle = await dataDir.getFileHandle(filename, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(contentString);
-    await writable.close();
-}
-
-async function restoreCacheFromOPFSToLocalStorage() {
-    try {
-        console.log("📂 Restoring local storage cache from OPFS master source...");
-        const rootDir = await navigator.storage.getDirectory();
-        const dataDir = await rootDir.getDirectoryHandle("App_Data");
-        const fileHandle = await dataDir.getFileHandle("cache_payload.json");
-        const file = await fileHandle.getFile();
-        const content = await file.text();
-
-        if (content) {
-            localStorage.setItem("cache_payload", content);
-            console.log("✅ Successfully mirrored OPFS cache to localStorage.");
-            return true;
-        }
-    } catch (err) {
-        console.warn("⚠️ No OPFS cache found to restore:", err);
-    }
-    return false;
-}
-
-// --- UI SPLASH HELPERS ---
-function showSplash(splashElement) {
-    if (!splashElement) return;
-    splashElement.style.pointerEvents = "auto";
-    splashElement.style.display = "flex";
-    splashElement.style.opacity = "1";
-}
-
-function hideSplash(splashElement) {
-    if (!splashElement) return;
-    splashElement.style.opacity = "0";
-    splashElement.style.pointerEvents = "none";
-    setTimeout(() => { 
-        splashElement.style.display = "none"; 
-        if (window.AppMap && typeof window.AppMap.invalidateSize === 'function') {
-            window.AppMap.invalidateSize();
-        }
-    }, 400);
-}
-
-// --- BACKGROUND OPFS SYNC (GENERIC) ---
-async function syncContentInBackground(baseUrl) {
-    try {
-        console.log("🔄 Iniciando sincronización de contenido en segundo plano...");
-        const rootDir = await navigator.storage.getDirectory();
-        
-        const response = await fetch(baseUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "READ_MANIFEST" })
+    const validTokens = new Set([clinicCode, clinicName]);
+    if (matchingLookup) {
+        Object.values(matchingLookup).forEach(val => {
+            if (val) validTokens.add(String(val).trim().toUpperCase());
         });
+    }
 
-        if (!response.ok) {
-            console.error(`❌ Error al leer manifiesto: HTTP ${response.status}`);
-            return;
+    const clinicExtensions = window.LSEngine.state.globalExtensions.filter(ext => {
+        const extCode = String(ext.code || ext.Code || ext.ClinicCode || ext.Abbreviation || "").trim().toUpperCase();
+        const extLocation = String(ext.Location || ext.Clinic || "").trim().toUpperCase();
+        const extName = String(ext.name || "").trim().toUpperCase();
+
+        for (let token of validTokens) {
+            if (!token) continue;
+            if (extCode && (extCode === token || token.includes(extCode) || extCode.includes(token))) return true;
+            if (extLocation && (extLocation === token || extLocation.includes(token) || token.includes(extLocation))) return true;
+            if (extName && (extName === token || extName.includes(token))) return true;
         }
-
-        const payload = await response.json();
-        
-        const allItems = [
-            ...(payload.guidelines || []),
-            ...(payload.directory || [])
-        ];
-
-        const fileItems = allItems.filter(item => {
-            const type = (item.type || "").toLowerCase();
-            return type !== "directory" && type !== "folder" && item.name;
-        });
-
-        for (const item of fileItems) {
-            try {
-                let rawPath = item.path || "";
-                if (rawPath.endsWith("/") && item.name) {
-                    rawPath += item.name;
-                } else if (!rawPath.endsWith("/") && !rawPath.endsWith(item.name)) {
-                    rawPath = rawPath + "/" + item.name;
-                }
-                const cleanFilePath = rawPath.replace(/([^:]\/)\/+/g, "$1");
-
-                const downloadRes = await fetch(baseUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: cleanFilePath })
-                });
-
-                if (downloadRes.ok) {
-                    const fileContent = await downloadRes.text();
-                    
-                    const targetBaseDir = cleanFilePath.includes("Guidelines_Info") 
-                        ? await rootDir.getDirectoryHandle("Guidelines_Info", { create: true })
-                        : rootDir;
-
-                    let relativeSubFolder = "";
-                    if (cleanFilePath.includes("Guidelines_Info/")) {
-                        const parts = cleanFilePath.split("Guidelines_Info/")[1].split("/");
-                        if (parts.length > 1) {
-                            relativeSubFolder = parts[0];
-                        }
-                    } else if (cleanFilePath.includes("Directory/")) {
-                        relativeSubFolder = "Directory";
-                    }
-
-                    let currentDirHandle = targetBaseDir;
-                    if (relativeSubFolder) {
-                        currentDirHandle = await targetBaseDir.getDirectoryHandle(relativeSubFolder, { create: true });
-                    }
-
-                    const fileHandle = await currentDirHandle.getFileHandle(item.name, { create: true });
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(fileContent);
-                    await writable.close();
-                }
-            } catch (fileErr) {}
-        }
-
-        window.dispatchEvent(new CustomEvent("PayloadReady"));
-    } catch (err) {}
-}
-
-// --- MAIN FETCH ENGINE (OPFS as Master Source) ---
-async function fetchAndProcessData(isManual = false) {
-    const splash = document.getElementById("sync-splash");
-    if (isManual) showSplash(splash);
-    
-    try {
-        updateProgress(20, "Loading core application records from cloud...", "CONNECTING");
-        
-        let baseUrl = getPowerAutomateUrl();
-        if (!baseUrl) {
-            hideSplash(splash);
-            return false;
-        }
-        
-        const csvController = new AbortController();
-        const csvTimeout = setTimeout(() => csvController.abort(), 35000);
-
-        const csvResponse = await fetch(baseUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({}), 
-            signal: csvController.signal
-        });
-        clearTimeout(csvTimeout);
-
-        if (!csvResponse.ok) throw new Error(`Data fetch error (HTTP ${csvResponse.status})`);
-
-        const csvPayload = await csvResponse.json();
-        const payloadString = JSON.stringify(csvPayload);
-        
-        clearLocalDatasetsCache();
-        await writeDatasetToOPFS("cache_payload.json", payloadString);
-        await restoreCacheFromOPFSToLocalStorage();
-        
-        localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
-        localStorage.setItem("app_last_sync_date", new Date().toISOString().split("T")[0]);
-        localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
-
-        updateProgress(100, "Ready!", "READY");
-
-        setTimeout(() => {
-            hideSplash(splash);
-            window.dispatchEvent(new CustomEvent("PayloadReady"));
-        }, 300);
-
-        setTimeout(() => syncContentInBackground(baseUrl), 1000);
-
-        return true;
-
-    } catch (error) {
-        updateProgress(100, error.message || "Synchronization Error", "ERROR");
-        setTimeout(() => hideSplash(splash), 1500);
         return false;
-    }
-}
-
-// --- LIFECYCLE BOOTSTRAP & OFFLINE FALLBACK ---
-async function checkAndSyncData() {
-    const splash = document.getElementById("sync-splash");
-    const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
-    const hasLocalPayload = localStorage.getItem("cache_payload");
-
-    const ONE_HOUR_MS = 60 * 60 * 1000;
-    const now = Date.now();
-
-    // Si el timestamp no existe, si ya pasó 1 hora o más, o si no hay payload local -> Forzar Loading Screen
-    const needsLoadingScreen = !lastTimestamp || (now - lastTimestamp >= ONE_HOUR_MS) || !hasLocalPayload;
-
-    if (!needsLoadingScreen) {
-        // Caché fresca (menos de 1 hora): Ocultar splash directamente
-        if (splash) splash.style.display = "none";
-        window.dispatchEvent(new CustomEvent("PayloadReady"));
-        
-        const baseUrl = getPowerAutomateUrl();
-        if (baseUrl) setTimeout(() => syncContentInBackground(baseUrl), 2000);
-        return;
-    }
-
-    // Si requiere carga, verificamos sesión antes de mostrar el splash
-    const sessionActive = await verifySharePointSession().catch(() => false);
-    
-    if (!sessionActive) {
-        if (splash) splash.style.display = "none";
-        const restored = await restoreCacheFromOPFSToLocalStorage();
-        if (restored || hasLocalPayload) {
-            window.dispatchEvent(new CustomEvent("PayloadReady"));
-        } else {
-            updateProgress(100, "Connection Error & No Local Backup", "ERROR");
-        }
-        return;
-    }
-
-    try {
-        const success = await fetchAndProcessData(true);
-        if (!success) {
-            await restoreCacheFromOPFSToLocalStorage();
-            if (splash) splash.style.display = "none";
-            window.dispatchEvent(new CustomEvent("PayloadReady"));
-        }
-    } catch (error) {
-        await restoreCacheFromOPFSToLocalStorage();
-        if (splash) splash.style.display = "none";
-        window.dispatchEvent(new CustomEvent("PayloadReady"));
-    }
-}
-
-// --- MONITOR DE INACTIVIDAD ---
-let awayTimer = null;
-const AWAY_THRESHOLD_MS = 20 * 60 * 1000;
-const ONE_HOUR_MS = 60 * 60 * 1000;
-
-function initAwaySyncMonitor() {
-    document.addEventListener('visibilitychange', async () => {
-        if (document.hidden) {
-            awayTimer = setTimeout(async () => {
-                const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
-                const elapsed = Date.now() - lastTimestamp;
-                
-                if (elapsed < ONE_HOUR_MS) return;
-
-                const sessionActive = await checkSharePointLogo().catch(() => false);
-                if (sessionActive) {
-                    localStorage.setItem("pending_auto_sync", "true");
-                }
-            }, AWAY_THRESHOLD_MS);
-            
-        } else {
-            if (awayTimer) {
-                clearTimeout(awayTimer);
-                awayTimer = null;
-            }
-
-            if (localStorage.getItem("pending_auto_sync") === "true") {
-                localStorage.removeItem("pending_auto_sync");
-                if (typeof window.triggerManualSync === 'function') {
-                    window.triggerManualSync();
-                }
-            }
-        }
     });
-}
 
-window.triggerManualSync = async function() {
-    localStorage.removeItem("app_last_sync_date");
-    localStorage.removeItem("app_last_sync_timestamp");
-    clearLocalDatasetsCache();
+    let extensionsHtml = '<p style="color: #94a3b8; font-size: 12px; padding: 10px 0;">No extensions registered for this clinic.</p>';
     
-    if (await verifySharePointSession()) {
-        const success = await fetchAndProcessData(true);
-        
-        if (success) {
-            await new Promise(resolve => setTimeout(resolve, 900));
-            const freshUrl = new URL(window.location.href);
-            freshUrl.searchParams.set('reload_ts', Date.now());
-            window.location.href = freshUrl.toString();
-        } else {
-            alert("⚠️ La sincronización no pudo completarse correctamente.");
-        }
-    } else {
-        alert("⚠️ No se pudo verificar la sesión activa con SharePoint.");
+    if (clinicExtensions.length > 0) {
+        extensionsHtml = clinicExtensions.map(ext => {
+            const keys = Object.keys(ext);
+            const findVal = (keywords) => {
+                for (let k of keys) {
+                    const lowerK = k.toLowerCase();
+                    if (keywords.some(kw => lowerK.includes(kw))) {
+                        if (ext[k] !== undefined && ext[k] !== null && String(ext[k]).trim() !== "") {
+                            return ext[k];
+                        }
+                    }
+                }
+                return null;
+            };
+
+            const phoneVal = findVal(['phone', 'tel', 'fax1']) || 'N/A';
+            const extVal = findVal(['front', 'ext', 'back', 'number', 'num']) || 'N/A';
+            const sectionVal = findVal(['section', 'department', 'service', 'line', 'name']) || 'General';
+
+            return `
+                <div style="background: #1e293b; padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; border: 1px solid #334155;">
+                    <div style="font-weight: bold; color: #38bdf8; font-size: 13px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        <span>🔹</span> ${sectionVal}
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 12px; color: #cbd5e1;">
+                        <div><b>Phone:</b> <span style="color: #f8fafc;">${phoneVal}</span></div>
+                        <div><b>Ext:</b> <span style="color: #34d399; font-weight: bold;">${extVal}</span></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    const infoBody = document.getElementById('clinic-info-body');
+    if (infoBody) {
+        infoBody.innerHTML = `
+            <h3 style="margin: 0 0 6px 0; color: #f8fafc; font-size: 16px;">${clinic.Location || clinic.name}</h3>
+            <p style="color: #94a3b8; font-size: 12px; margin: 0 0 14px 0;">📍 ${clinic.Address || ''}, ${clinic.City || ''} ${clinic.ZipCode || ''}</p>
+            <div style="font-size: 11px; font-weight: bold; color: #38bdf8; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                Extensions & Lines
+            </div>
+            ${extensionsHtml}
+        `;
     }
 };
 
-window.addEventListener("DOMContentLoaded", () => {
-    checkAndSyncData();
-    initAwaySyncMonitor();
-});
+window.LSEngine.initializeMap = function() {
+    window.LSEngine.setProgress(90, "Rendering interactive map...", "RENDERING");
+
+    const map = L.map('map', {
+        zoomControl: true,
+        dragging: true,
+        scrollWheelZoom: true
+    }).setView([34.25, -119.10], 10);
+    
+    window.LSEngine.state.mapInstance = map;
+    window.mapInstance = map;
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    window.LSEngine.state.globalClinics.forEach(clinic => {
+        if (clinic.lat && clinic.lng) {
+            const marker = L.marker([parseFloat(clinic.lat), parseFloat(clinic.lng)]).addTo(map);
+            marker.on('click', () => window.LSEngine.renderClinicInfo(clinic));
+        }
+    });
+
+    const ClinicDropdownControl = L.Control.extend({
+        options: { position: 'topright' },
+        onAdd: function (map) {
+            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+            container.style.backgroundColor = '#1e293b';
+            container.style.border = '1px solid #334155';
+            container.style.borderRadius = '6px';
+            container.style.padding = '4px';
+            container.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+
+            const select = document.createElement('select');
+            select.style.background = '#0f172a';
+            select.style.color = '#f8fafc';
+            select.style.border = '1px solid #334155';
+            select.style.borderRadius = '4px';
+            select.style.padding = '6px 10px';
+            select.style.fontSize = '12px';
+            select.style.cursor = 'pointer';
+            select.style.outline = 'none';
+
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = "";
+            defaultOpt.textContent = "🔍 Select clinic...";
+            select.appendChild(defaultOpt);
+
+            window.LSEngine.state.globalClinics.forEach(clinic => {
+                if (clinic.lat && clinic.lng) {
+                    const opt = document.createElement('option');
+                    opt.value = clinic.code || clinic.Location;
+                    opt.textContent = clinic.Location;
+                    select.appendChild(opt);
+                }
+            });
+
+            select.onchange = (e) => {
+                const val = e.target.value;
+                if (!val) return;
+                const targetClinic = window.LSEngine.state.globalClinics.find(c => (c.code === val || c.Location === val));
+                if (targetClinic) {
+                    map.setView([parseFloat(targetClinic.lat), parseFloat(targetClinic.lng)], 14);
+                    window.LSEngine.renderClinicInfo(targetClinic);
+                }
+            };
+
+            L.DomEvent.disableClickPropagation(container);
+            container.appendChild(select);
+            return container;
+        }
+    });
+
+    map.addControl(new ClinicDropdownControl());
+    setTimeout(() => map.invalidateSize(), 150);
+};
+
+// --- PASOS INDIVIDUALES PARA ORQUESTACIÓN DESDE EL HTML ---
+
+window.LSEngine.getEndpointUrl = function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const encodedData = urlParams.get('data');
+    if (!encodedData) throw new Error("Parameter 'data' was not found in the URL.");
+    return atob(encodedData);
+};
+
+window.LSEngine.stepConnect = async function(endpointUrl) {
+    window.LSEngine.setProgress(15, "Initializing connection...", "CONNECTING");
+    const response = await fetch(endpointUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "" })
+    });
+    if (!response.ok) throw new Error(`HTTP Error during connect: ${response.status}`);
+};
+
+window.LSEngine.stepRead = async function(endpointUrl) {
+    window.LSEngine.setProgress(40, "Reading server status...", "READ");
+    const response = await fetch(endpointUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "READ" })
+    });
+    if (!response.ok) throw new Error(`HTTP Error during read: ${response.status}`);
+};
+
+window.LSEngine.stepDownload = async function(endpointUrl) {
+    window.LSEngine.setProgress(70, "Downloading datasets...", "DOWNLOAD");
+    const response = await fetch(endpointUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "DOWNLOAD" })
+    });
+    if (!response.ok) throw new Error(`HTTP Error during download: ${response.status}`);
+    
+    const payloadData = await response.json();
+    localStorage.setItem("cache_payload", JSON.stringify(payloadData));
+    
+    window.LSEngine.state.globalClinics = payloadData.clinics || [];
+    window.LSEngine.state.globalExtensions = payloadData.extensions || [];
+    window.LSEngine.state.globalClinicLookup = payloadData.clinicLookup || [];
+    
+    return payloadData;
+};

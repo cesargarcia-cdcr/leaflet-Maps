@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <head>
+    <meta charset="UTF-8" />
+    
+    <!-- 🛡️ BLOQUEADOR CRÍTICO DE SESIÓN (Debe ir al inicio absoluto del <head>) -->
+    <script>
+        (function() {
+            try {
+                // Evalúa tus condiciones de bloqueo (bandera global, parámetros de URL o estado de sesión)
+                const sessionLocked = 
+                    (window.LSEngine && window.LSEngine.isLocked) || 
+                    window.location.search.includes('login_required') ||
+                    localStorage.getItem("session_expired") === "true";
+
+                if (sessionLocked) {
+                    // Opción A: Vaciar el HTML y mostrar una pantalla limpia de bloqueo
+                    document.documentElement.innerHTML = `
+                        <head>
+                            <title>Authentication Required</title>
+                            <style>
+                                body { background: #0f172a; color: #94a3b8; font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+                                .box { text-align: center; padding: 2rem; background: #1e293b; border-radius: 8px; border: 1px solid #334155; }
+                                h2 { color: #38bdf8; margin-top: 0; }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="box">
+                                <h2>🔒 Sesión Requerida</h2>
+                                <p>No hay una sesión activa o la autenticación ha expirado.</p>
+                                <p style="font-size: 12px; color: #64748b;">Por favor, complete el inicio de sesión para continuar.</p>
+                            </div>
+                        </body>
+                    `;
+                    
+                    // Detiene por completo la ejecución del resto del script de la página
+                    throw new Error("Acceso denegado: Se requiere sesión activa.");
+                }
+            } catch (e) {
+                // Silencia el error intencional de interrupción para que no ensucie la consola de forma crítica
+                if (e.message !== "Acceso denegado: Se requiere sesión activa.") {
+                    console.error("Error en bloqueo de seguridad:", e);
+                }
+            }
+        })();
+    </script>
+
+    <!-- El resto de tus meta tags, hojas de estilo (leaflet, app.css, etc.) van aquí abajo... -->
+    <script>
+        // Forzar recarga completa desde el servidor (equivalente a recarga dura)
+    function hardReloadApp() {
+        // Si agregas un parámetro aleatorio, forzarás al navegador a buscar el HTML fresco
+        const currentUrl = window.location.href.split('?')[0];
+        const searchParams = window.location.search;
+        
+        // Añade o actualiza un timestamp de versión para romper la caché del navegador
+        const cacheBuster = `_cb=${Date.now()}`;
+        
+        let newUrl = currentUrl;
+        if (searchParams) {
+            // Reemplaza o añade el parámetro de control
+            if (searchParams.includes('_cb=')) {
+                newUrl += searchParams.replace(/_cb=\d+/, cacheBuster);
+            } else {
+                newUrl += `${searchParams}&${cacheBuster}`;
+            }
+        } else {
+            newUrl += `?${cacheBuster}`;
+        }
+        
+        window.location.replace(newUrl);
+    }
+    </script>
+    <title>System Loading - Interactive Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="notes.css"> 
+    <link rel="stylesheet" href="map.css"> 
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        
+        #app-frame-wrapper { 
+            display: flex; 
+            flex-direction: column; 
+            width: 100%; 
+            max-width: 950px; 
+            height: 650px; 
+            background: #1e293b; 
+            border-radius: 12px; 
+            border: 1px solid #334155; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+            overflow: hidden; 
+            position: relative; 
+        }
+        
+        #map-area, #map, #map-iframe {
+            width: 100%;
+            height: 100%;
+            min-height: 400px; /* Evita colapsos si el flexbox aún no mide */
+            display: block;
+        }
+
+        .sheet {
+            width: 0; 
+            height: 100%;
+            background: #1e293b;
+            z-index: 3000;
+            overflow: hidden;
+            transition: width 0.3s ease; 
+            display: flex;
+            flex-direction: column;
+            border-left: 0px solid #334155;
+            flex-shrink: 0;
+        }
+
+        .sheet.open {
+            width: 340px;
+            border-left: 1px solid #334155;
+        }
+
+        .sheet-hd {
+            padding: 15px;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            white-space: nowrap;
+        }
+        .sheet-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #94a3b8; text-transform: uppercase; }
+        .sheet-close { background: none; border: none; font-size: 16px; cursor: pointer; color: #94a3b8; }
+        .sheet-body { padding: 15px; overflow-y: auto; flex: 1; color: #cbd5e1; width: 340px; box-sizing: border-box; }
+
+        #sync-footer-panel { 
+            background: #1e293b; 
+            padding: 14px 20px; 
+            border-top: 1px solid #334155; 
+            zIndex: 2000; 
+        }
+
+        .bt-progress-container { 
+            width: 100%; 
+            height: 8px; /* Un poco más alta para que luzca mejor */
+            background: #0f172a; 
+            border-radius: 4px; 
+            overflow: hidden; 
+            margin-bottom: 6px; 
+            border: 1px solid #334155; 
+        }
+
+        .bt-progress-fill { 
+            width: 0%; 
+            height: 100%; 
+            background: #38bdf8; 
+            border-radius: 3px;
+            display: block; /* Asegura que tome el bloque */
+            transition: width 0.3s ease; 
+        }
+        
+        #place-sheet {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            bottom: 70px;
+            width: 340px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.5);
+            z-index: 1000;
+            transform: translateX(110%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #place-sheet.open {
+            transform: translateX(0);
+        }
+
+        #clinic-info-body {
+            padding: 14px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        #clinic-info-body::-webkit-scrollbar { width: 6px; }
+        #clinic-info-body::-webkit-scrollbar-track { background: #0f172a; }
+        #clinic-info-body::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div id="app-frame-wrapper">
+        <div id="map-area">
+            <div id="map"></div>
+
+            <aside id="place-sheet" class="sheet" aria-hidden="true">
+                <div class="sheet-hd">
+                    <div class="sheet-title">Selected Clinic</div>
+                    <button class="sheet-close" title="Close" onclick="closeSheet()">✕</button>
+                </div>
+                <div class="sheet-body" id="clinic-info-body">
+                    <div style="text-align: center; color: #64748b; margin-top: 40px;">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom: 8px; opacity: 0.5;">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <div>Click on a map marker or select a clinic from the map dropdown menu.</div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <div id="sync-footer-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <p id="sync-status" style="font-size: 12px; color: #94a3b8; margin: 0;">Waiting to orchestrate sync...</p>
+                <span style="font-size: 11px; color: #64748b;">STATUS: <span id="bt-state-text" style="color: #38bdf8;">IDLE</span></span>
+            </div>
+            <div class="bt-progress-container">
+                <div id="bt-progress-bar" class="bt-progress-fill"></div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; font-size: 10px; color: #38bdf8;">
+                <span id="bt-percentage">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Carga de la librería del mapa -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Scripts independientes listos para ser controlados -->
+    <script src="loading-screen-W-LOGS.js"></script>
+    <script src="map-lite.js"></script>
+    <!-- <script src="data-loader.js"></script> -->
+
+    <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        console.log("🚀 [LSEngine] Iniciando secuencia de carga...");
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const isFastMode = urlParams.get('fast') === '1' || localStorage.getItem("lite_payload_cache");
+
+        // 1. Ejecutamos verificación de sesión (Paso 0 o 1 según tu red_leader)
+        if (typeof red_leader === 'function') {
+            await red_leader([0]); // O [1] según prefieras el flujo de seguridad
+        }
+
+        // 2. Condicional limpio según el modo rápido
+        if (isFastMode) {
+            console.log("⚡ [LSEngine] Modo rápido (?fast=1) activado: Saltando fetch lite y cargando desde OPFS...");
+            if (typeof red_leader === 'function') {
+                await restoreCacheFromOPFSToLocalStorage('lite_payload.json'); 
+            }
+        } else {
+            console.log("🌐 [LSEngine] Ejecutando petición de datos principales (Lite Payload)...");
+            await window.LSEngine.taskFetchMainDataLite();
+            await restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+        }
+
+        // 3. Pintar el mapa de inmediato
+        const mapLoaded = window.LSEngine.initializeMap();
+
+        if (mapLoaded) {
+            console.log("📍 Mapa operativo. Procediendo con la sincronización y descarga en segundo plano...");
+            
+            // 4. Ejecutamos el resto de los procesos pesados usando red_leader (Pasos 2 y 4)
+            if (typeof red_leader === 'function') {
+                await red_leader([2, 4]);
+                await restoreCacheFromOPFSToLocalStorage(); // 👈 Asegura el mapeo a localStorage y estado global al terminar
+            }
+        }
+    } catch (err) {
+        console.error("❌ Error en el flujo principal de LSEngine:", err);
+        window.LSEngine.setProgress(100, "Error crítico en el sistema", "ERROR");
+    }
+});
+</script>
+
+</body>
+</html>
