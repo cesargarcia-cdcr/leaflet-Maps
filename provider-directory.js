@@ -49,14 +49,43 @@
         try {
             console.log("📂 [PROVIDER_LOG] Initializing provider data reading...");
             
-            let mainTxt = localStorage.getItem('csv_mainProviders');
-            if (!mainTxt && typeof window.obtenerArchivo === 'function') {
-                mainTxt = await window.obtenerArchivo('csv_mainProviders');
+            // Búsqueda flexible de la fuente de proveedores (igual que en map.js)
+            let rawProviders = localStorage.getItem('csv_mainProviders') || 
+                               localStorage.getItem('masterProviders') || 
+                               (typeof obtenerCsv === 'function' ? obtenerCsv("mainProviders") : null);
+            
+            // Si no está en storage, intentamos rescatarlo del objeto global de la app
+            if (!rawProviders && window.APP_DATA && window.APP_DATA.mainProviders) {
+                rawProviders = window.APP_DATA.mainProviders;
             }
-            masterList = mainTxt ? parseStandardCSV(mainTxt) : [];
 
-            // Load Curr and Next as structured JSON storage
+            // Normalización inteligente si viene como string JSON o arreglo
+            if (typeof rawProviders === 'string' && (rawProviders.trim().startsWith('[') || rawProviders.trim().startsWith('{'))) {
+                try {
+                    rawProviders = JSON.parse(rawProviders);
+                    console.log("🔄 [PROVIDER_LOG] 'csv_mainProviders' detectado como JSON y parseado correctamente.");
+                } catch (e) {
+                    console.warn("⚠️ [PROVIDER_LOG] Error al parsear 'csv_mainProviders' como JSON, se intentará como CSV plano.", e);
+                }
+            }
+
+            if (!rawProviders) {
+                console.warn("⚠️ [PROVIDER_LOG] No se encontró contenido para proveedores principales.");
+                masterList = [];
+            } else if (Array.isArray(rawProviders)) {
+                masterList = rawProviders;
+            } else if (typeof rawProviders === 'object' && rawProviders !== null) {
+                const values = Object.values(rawProviders);
+                masterList = Array.isArray(values[0]) ? values[0] : values;
+            } else {
+                masterList = parseStandardCSV(rawProviders);
+            }
+
+            // Carga segura de los cronogramas actuales y siguientes
             const parseJsonStorage = (key) => {
+                if (window.APP_DATA && window.APP_DATA[key]) {
+                    return window.APP_DATA[key];
+                }
                 const raw = localStorage.getItem(key) || localStorage.getItem(`json_${key}`);
                 if (!raw) return [];
                 try { return JSON.parse(raw); } catch (e) { return []; }
@@ -65,7 +94,6 @@
             const schedCurrList = parseJsonStorage('providersSchedCurr');
             const schedNextList = parseJsonStorage('providersSchedNext');
 
-            // Quick mapping by provider ID
             globalScheduleMapCurr = {};
             schedCurrList.forEach(row => {
                 const pId = String(row["Provider ID"] || "").trim();
@@ -381,5 +409,10 @@
             if (e.target === backdrop) backdrop.remove();
         });
     };
+    
+    window.addEventListener('PayloadReady', () => {
+    console.log("⚡ [Provider Directory] PayloadReady detectado, recargando registros...");
+    preloadProviderData();
+});
     
 })();
