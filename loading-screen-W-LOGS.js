@@ -2,6 +2,15 @@
    LOADING SCREEN & OPFS SYNC ENGINE (SQUADRON EDITION)
    ========================================================== */
 
+// --- 🌌 SQUADRON ROLL-CALL & BRIEFING ---
+console.log("🌌 [Squadron Briefing]: All wings report in. Initializing operational flight deck...");
+console.log("📢 [Command]: Leader roll-call initiated. Status report requested across all channels.");
+console.log("🔴 [Red Leader Bio]: 'Red Leader, standing by. Managing command routing, service worker deployment, and primary trench run sequence navigation.'");
+console.log("🟡 [Gold Leader Bio]: 'Gold Leader, standing by. Operating security sweeps, SharePoint token verification, and emergency authentication lock-screen protocols.'");
+console.log("🟢 [Green Leader Bio]: 'Green Leader, standing by. Engineering OPFS data synchronization, local cache persistence, lite payload fetching, and background asset cargo bays.'");
+console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD telemetry, progress bar updates, splash screen deflector shields, and URL payload decoding.'");
+
+
 // --- 🔴 RED LEADER: COMMAND & ROUTER ---
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw-guidelines.js')
@@ -142,8 +151,6 @@ async function verifySharePointSession() {
     return false;
 }
 
-
-
 function triggerAutomaticLoginFlow() {
     console.log("🟡 [Gold Leader]: Deploying authentication lock screen...");
     const splash = document.getElementById("sync-splash");
@@ -258,7 +265,6 @@ async function restoreCacheFromOPFSToLocalStorage(filename = "cache_payload.json
         const rootDir = await navigator.storage.getDirectory();
         const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
         
-        // Busca y abre el archivo dinámico que se le pasó por parámetro (o cache_payload.json por defecto)
         const fileHandle = await dataDir.getFileHandle(filename);
         const file = await fileHandle.getFile();
         const content = await file.text();
@@ -269,27 +275,20 @@ async function restoreCacheFromOPFSToLocalStorage(filename = "cache_payload.json
         }
 
         const parsedData = JSON.parse(content);
-        
-        // Aislamos la llave en el localStorage según el archivo procesado para no sobrescribir el maestro por error
         const storageKey = filename.includes("lite") ? "lite_payload_cache" : "cache_payload";
         
-        // Sobrescritura forzada en localStorage
         localStorage.setItem(storageKey, content);
         if (filename === "cache_payload.json") {
             localStorage.setItem("cache_payload", content);
         }
 
-        // Inicializamos el estado global de forma segura
         window.LSEngine = window.LSEngine || {};
         window.LSEngine.state = window.LSEngine.state || {};
         
-        // 🔄 MAPEO 100% DINÁMICO: Lee las secciones que *realmente* tenga el JSON (sin hardcodear nombres)
         for (const [sectionKey, sectionData] of Object.entries(parsedData)) {
-            // Asigna dinámicamente al estado global (ej. globalClinics, globalExtensions, etc.)
             const globalPropName = `global${sectionKey.charAt(0).toUpperCase() + sectionKey.slice(1)}`;
             window.LSEngine.state[globalPropName] = sectionData;
             
-            // Si la sección es un arreglo, crea/actualiza su caché de tipo CSV automáticamente con su nombre real
             if (Array.isArray(sectionData)) {
                 localStorage.setItem(`csv_${sectionKey}`, JSON.stringify(sectionData));
                 console.log(`📊 [Green Leader Dinámico]: Sección detectada en '${filename}' -> Generado caché 'csv_${sectionKey}' (${sectionData.length} registros).`);
@@ -307,15 +306,13 @@ async function restoreCacheFromOPFSToLocalStorage(filename = "cache_payload.json
     return false;
 }
 
-// Aseguramos que LSEngine tenga el objeto global listo
 window.LSEngine = window.LSEngine || {};
 window.LSEngine.state = window.LSEngine.state || {};
 
-// --- CORE LITE REQUEST (Strictly action: "load" with forced fetch and dynamic filename support) ---
+// --- CORE LITE REQUEST ---
 window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targetFilename = "lite_payload.json") {
     let baseUrl = overrideUrl || getPowerAutomateUrl();
     
-    // Si no hay URL remota, intentamos recuperar directamente desde OPFS usando el archivo solicitado o el default
     if (!baseUrl) {
         console.log(`📂 [LSEngine] No URL provided. Attempting offline fallback from OPFS using '${targetFilename}'...`);
         const restored = await restoreCacheFromOPFSToLocalStorage(targetFilename);
@@ -335,7 +332,6 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
         updateProgress(30, "Downloading system data...", "FETCHING");
     }
 
-    // Descarga obligatoria sin omitir peticiones
     const response = await fetch(finalEndpointUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -348,11 +344,8 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
     const payload = await response.json();
     const payloadString = JSON.stringify(payload);
     
-    // Guardado estricto en el archivo objetivo especificado (ej. lite_payload.json) en OPFS
     await writeDatasetToOPFS(targetFilename, payloadString);
-    // await restoreCacheFromOPFSToLocalStorage(targetFilename);
     
-    // Población segura de los catálogos en el estado global
     window.LSEngine.state.globalClinics = payload.clinics || [];
     window.LSEngine.state.globalExtensions = payload.extensions || [];
     window.LSEngine.state.globalClinicLookup = payload.clinicLookup || [];
@@ -361,7 +354,7 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
 };
 
 
-// --- MAIN FETCH ENGINE (OPFS as Master Source) ---
+// --- MAIN FETCH ENGINE ---
 async function fetchAndProcessData(isManual = false) {
     const splash = document.getElementById("sync-splash");
     if (isManual) showSplash(splash);
@@ -391,14 +384,9 @@ async function fetchAndProcessData(isManual = false) {
         const csvPayload = await csvResponse.json();
         const payloadString = JSON.stringify(csvPayload);
 
-        // clearLocalDatasetsCache();
         await writeDatasetToOPFS("cache_payload.json", payloadString);
-
-        // 🔄 Duplicación automática a lite_payload para mantener paridad total
         await writeDatasetToOPFS("lite_payload.json", payloadString);
 
-        // await restoreCacheFromOPFSToLocalStorage();
-        
         localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
         localStorage.setItem("app_last_sync_date", new Date().toISOString().split("T")[0]);
         localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
@@ -410,8 +398,6 @@ async function fetchAndProcessData(isManual = false) {
             window.dispatchEvent(new CustomEvent("PayloadReady"));
         }, 300);
 
-        // (Background sync call removed as requested)
-
         return true;
 
     } catch (error) {
@@ -421,7 +407,7 @@ async function fetchAndProcessData(isManual = false) {
     }
 }
 
-// --- SECONDARY SYNC TASK (OPFS Manifest & Files Download) ---
+// --- SECONDARY SYNC TASK ---
 window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
     let baseUrl = overrideUrl || window.LSEngine.getPowerAutomateUrl();
     if (!baseUrl) return;
@@ -433,7 +419,6 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
         const separator = baseUrl.includes('?') ? '&' : '?';
         const manifestUrl = `${baseUrl}${separator}${cacheBusterToken}`;
 
-        // 🔄 Reportamos inicio de sincronización secundaria
         if (typeof window.LSEngine.setProgress === 'function') {
             window.LSEngine.setProgress(50, "Fetching manifest for background assets...", "SYNCING");
         }
@@ -493,21 +478,16 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
 
                 const fileHandle = await currentDirHandle.getFileHandle(item.name, { create: true });
 
-                // Smart validation: Check if file exists and matches size to avoid redundant downloads
                 try {
                     const existingFile = await fileHandle.getFile();
                     if (existingFile.size > 0 && item.size && existingFile.size === item.size) {
                         console.log(`[OPFS] Skipping download (unchanged): ${item.name}`);
-                        
-                        // Actualizamos progreso sutilmente aunque se descarte por caché
                         if (typeof window.LSEngine.setProgress === 'function') {
                             window.LSEngine.setProgress(progressPercent, `Verifying asset (${processedCount}/${totalFiles}): ${item.name}`, "SYNCING");
                         }
                         continue; 
                     }
-                } catch (e) {
-                    // If it doesn't exist locally, proceed with download
-                }
+                } catch (e) {}
 
                 if (typeof window.LSEngine.setProgress === 'function') {
                     window.LSEngine.setProgress(progressPercent, `Downloading asset (${processedCount}/${totalFiles}): ${item.name}`, "DOWNLOADING");
@@ -532,7 +512,6 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
             }
         }
 
-        // 🟢 Al terminar todo con éxito, marcamos el 100% real
         if (typeof window.LSEngine.setProgress === 'function') {
             window.LSEngine.setProgress(100, "Background synchronization complete!", "READY");
         }
@@ -559,7 +538,7 @@ async function checkAndSyncData() {
     if (!needsLoadingScreen) {
         if (splash) splash.style.display = "none";
         window.dispatchEvent(new CustomEvent("PayloadReady"));
-        return; // 🛑 Cero descargas en segundo plano aquí
+        return;
     }
 
     const sessionActive = await verifySharePointSession().catch(() => false);
@@ -630,7 +609,6 @@ window.triggerManualSync = async function() {
     console.log("🚨 [Red Leader]: Manual sync override initiated!");
     localStorage.removeItem("app_last_sync_date");
     localStorage.removeItem("app_last_sync_timestamp");
-    // clearLocalDatasetsCache();
     
     if (await verifySharePointSession()) {
         const success = await fetchAndProcessData(true);
@@ -650,9 +628,6 @@ window.triggerManualSync = async function() {
 
 window.LSEngine = window.LSEngine || {};
 
-window.LSEngine = window.LSEngine || {};
-
-// Definición oficial de la función que faltaba
 window.LSEngine.setProgress = function(percent, message, stateText) {
     const progressBar = document.getElementById('bt-progress-bar');
     const percentageText = document.getElementById('bt-percentage');
@@ -671,35 +646,29 @@ window.LSEngine.setProgress = function(percent, message, stateText) {
     if (stateBadge && stateText) {
         stateBadge.textContent = stateText;
         
-        // Cambiar el color del badge según el estado para mejor feedback visual
         if (stateText === 'ERROR' || stateText === 'WARNING') {
-            stateBadge.style.color = '#ef4444'; // Rojo
+            stateBadge.style.color = '#ef4444';
         } else if (stateText === 'READY') {
-            stateBadge.style.color = '#22c55e'; // Verde
+            stateBadge.style.color = '#22c55e';
         } else {
-            stateBadge.style.color = '#38bdf8'; // Azul por defecto (Syncing/Downloading)
+            stateBadge.style.color = '#38bdf8';
         }
     }
 
-    // 🔑 IMPORTANTE: Guardar los flags de sincronización exitosa para que index.html no vuelva a redirigir
     const todayStr = new Date().toISOString().split("T")[0];
     localStorage.setItem("app_last_sync_date", todayStr);
     localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
 
-    // Asegúrate de que el payload lite o principal también tenga un respaldo básico si hace falta
     if (!localStorage.getItem("lite_payload_cache")) {
         localStorage.setItem("lite_payload_cache", "synced_via_opfs");
     }
 
-    // 🚀 Redirección automática al completar el 100% y estado READY (Compatible con GitHub Pages)
     if (stateText === "READY" && percent === 100) {
         console.log("🚀 [Sync]: Sincronización completada al 100%. Redirigiendo limpiamente...");
         const currentSearchParams = window.location.search;
         
-        // Obtener la ruta base actual (ej. /nombre-del-repo/) evitando ir a la raíz absoluta '/'
         let basePath = window.location.pathname;
         
-        // Si estamos en un archivo HTML específico (como index.html), lo removemos de la ruta base
         if (basePath.endsWith('.html')) {
             basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
         } else if (!basePath.endsWith('/')) {
@@ -708,11 +677,6 @@ window.LSEngine.setProgress = function(percent, message, stateText) {
 
         setTimeout(() => {
             window.location.replace(basePath + currentSearchParams);
-        }, 500); // Pequeña pausa para que el usuario alcance a ver el 100% en la interfaz
+        }, 500);
     }
 };
-
-/* window.addEventListener("DOMContentLoaded", () => {
-    checkAndSyncData();
-    initAwaySyncMonitor();
-}); */
