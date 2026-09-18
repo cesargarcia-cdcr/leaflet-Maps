@@ -354,33 +354,60 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
 };
 
 
-// --- MAIN FETCH ENGINE ---
+// --- MAIN FETCH ENGINE (ACTUALIZADO CON LOGS Y CONTROL DE ABORT / TIMEOUT) ---
 async function fetchAndProcessData(isManual = false) {
     const splash = document.getElementById("sync-splash");
     if (isManual) showSplash(splash);
+    
+    console.log("🔴 [Red Leader]: Preparing telemetry payload request to command base...");
     
     try {
         updateProgress(20, "Loading core application records from cloud...", "CONNECTING");
         
         let baseUrl = getPowerAutomateUrl();
         if (!baseUrl) {
+            console.warn("💥 [Red Leader Down]: Power Automate URL telemetry link not found in query parameters.");
             hideSplash(splash);
             return false;
         }
         
         const csvController = new AbortController();
-        const csvTimeout = setTimeout(() => csvController.abort(), 35000);
+        // Aumentamos el tiempo de espera a 60 segundos por la cantidad masiva de datos (ej. 256 NPIs, etc.)
+        const TIMEOUT_LIMIT_MS = 60000; 
+        const csvTimeout = setTimeout(() => {
+            console.warn(`⏱️ [Red Leader]: Transmission timeout reached (${TIMEOUT_LIMIT_MS / 1000}s). Aborting trench run connection...`);
+            csvController.abort();
+        }, TIMEOUT_LIMIT_MS);
 
-        const csvResponse = await fetch(baseUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({}), 
-            signal: csvController.signal
-        });
+        console.log("⚡ [Red Leader]: Transmitting HTTP POST request for core dataset payload...");
+        
+        let csvResponse;
+        try {
+            csvResponse = await fetch(baseUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({}), 
+                signal: csvController.signal
+            });
+        } catch (fetchErr) {
+            clearTimeout(csvTimeout);
+            if (fetchErr.name === 'AbortError') {
+                console.error("💥 [Red Leader Abort]: Trench run aborted. The server took too long to respond or the signal was cancelled.");
+                throw new Error("Synchronization timeout: Server response took too long.");
+            } else {
+                console.error("💥 [Red Leader Network Error]: Connection dropped during data retrieval:", fetchErr);
+                throw fetchErr;
+            }
+        }
+        
         clearTimeout(csvTimeout);
 
-        if (!csvResponse.ok) throw new Error(`Data fetch error (HTTP ${csvResponse.status})`);
+        if (!csvResponse.ok) {
+            console.error(`💥 [Red Leader Error]: Server rejected payload transmission. HTTP Status: ${csvResponse.status} ${csvResponse.statusText}`);
+            throw new Error(`Data fetch error (HTTP ${csvResponse.status})`);
+        }
 
+        console.log("🟢 [Green Leader]: Payload transmission received successfully. Processing and writing to OPFS cargo bays...");
         const csvPayload = await csvResponse.json();
         const payloadString = JSON.stringify(csvPayload);
 
@@ -391,6 +418,7 @@ async function fetchAndProcessData(isManual = false) {
         localStorage.setItem("app_last_sync_date", new Date().toISOString().split("T")[0]);
         localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
 
+        console.log("✅ [Red Leader]: Trench run successful! Core datasets safely stored locally.");
         updateProgress(100, "Ready!", "READY");
 
         setTimeout(() => {
@@ -401,13 +429,14 @@ async function fetchAndProcessData(isManual = false) {
         return true;
 
     } catch (error) {
+        console.error("💥 [Red Leader Mission Failure]: Critical error in fetchAndProcessData:", error.message || error);
         updateProgress(100, error.message || "Synchronization Error", "ERROR");
         setTimeout(() => hideSplash(splash), 1500);
         return false;
     }
 }
 
-// --- SECONDARY SYNC TASK ---
+// --- SECONDARY SYNC TASK (VALIDACIÓN PURA POR FECHA DE SHAREPOINT) ---
 window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
     let baseUrl = overrideUrl || window.LSEngine.getPowerAutomateUrl();
     if (!baseUrl) return;
@@ -480,14 +509,34 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
 
                 try {
                     const existingFile = await fileHandle.getFile();
-                    if (existingFile.size > 0 && item.size && existingFile.size === item.size) {
-                        console.log(`[OPFS] Skipping download (unchanged): ${item.name}`);
+                    
+                    const serverLastModified = item.lastModified ? new Date(item.lastModified).getTime() : 0;
+                    const localLastModified = existingFile.lastModified || 0;
+
+                    console.log(`🔎 [OPFS Eval] Evaluando: "${item.name}"`, {
+                        serverDate: new Date(serverLastModified).toISOString(),
+                        localDate: new Date(localLastModified).toISOString(),
+                        isServerOlderOrEqual: serverLastModified <= localLastModified
+                    });
+
+                    // VALIDACIÓN PURA POR FECHA: 
+                    // Si el archivo existe localmente y la fecha de SharePoint NO es más nueva que la local, nos lo saltamos.
+                    // Si en SharePoint modificaron el archivo (fecha mayor), serverLastModified <= localLastModified dará false y procederá a descargar.
+                    if (
+                        existingFile.size > 0 && 
+                        serverLastModified <= localLastModified
+                    ) {
+                        console.log(`[OPFS] ⏭️ Skipping download (unchanged & up-to-date): ${item.name}`);
                         if (typeof window.LSEngine.setProgress === 'function') {
                             window.LSEngine.setProgress(progressPercent, `Verifying asset (${processedCount}/${totalFiles}): ${item.name}`, "SYNCING");
                         }
                         continue; 
+                    } else {
+                        console.log(`[OPFS] 📥 Downloading required for: ${item.name} (Newer version detected on SharePoint).`);
                     }
-                } catch (e) {}
+                } catch (e) {
+                    console.log(`[OPFS] ⚠️ File does not exist locally yet for: ${item.name}`);
+                }
 
                 if (typeof window.LSEngine.setProgress === 'function') {
                     window.LSEngine.setProgress(progressPercent, `Downloading asset (${processedCount}/${totalFiles}): ${item.name}`, "DOWNLOADING");
@@ -505,7 +554,7 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     const writable = await fileHandle.createWritable();
                     await writable.write(fileContent);
                     await writable.close();
-                    console.log(`[OPFS] Updated/Downloaded new: ${item.name}`);
+                    console.log(`[OPFS] ✅ Updated/Downloaded new: ${item.name}`);
                 }
             } catch (fileErr) {
                 console.warn(`Error processing individual file:`, fileErr);
