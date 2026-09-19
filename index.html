@@ -202,11 +202,22 @@
                 <div class="map-controls">
                     <div class="mc-row">
                         <div class="mc-card">
-                            <div class="mc-line mc-search">
-                                <input id="searchInput" class="mc-input" list="clinicNameList" placeholder="Address, ZIP, code, nickname, or clinic name" />
-                                <datalist id="clinicNameList"></datalist>
-                                <button class="btn primary" onclick="findNearest()">🔎 Find</button>
-                                <button class="btn ghost" onclick="clearSearch()">✕ Clear</button>
+                            <div class="mc-line mc-search" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                
+                                <!-- 1. Textbox exclusivo para dirección, ZIP o códigos (sin datalist) -->
+                                <input id="searchInput" class="mc-input" placeholder="Ingresar dirección, ZIP o código..." style="flex: 2; min-width: 220px;" />
+
+                                <!-- 2. Dropdown de clínicas con soporte multilínea para nicknames -->
+                                <select id="clinicSelect" class="mc-select" style="flex: 2; min-width: 240px; padding: 7px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #fff;">
+                                    <option value="">-- Seleccionar clínica (Opcional) --</option>
+                                </select>
+
+                                <!-- 3. Botones de acción -->
+                                <div style="display: flex; gap: 6px;">
+                                    <button class="btn primary" onclick="findNearest()">🔎 Buscar</button>
+                                    <button class="btn ghost" onclick="clearSearch()">✕ Limpiar</button>
+                                </div>
+
                             </div>
                         </div>
                         <div class="mc-fab-col">
