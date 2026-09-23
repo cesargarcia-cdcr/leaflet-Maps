@@ -150,6 +150,8 @@ document.addEventListener("DOMContentLoaded", async function() {
             const fileInfo = parseSortingName(nameWithoutExt);
             
             const details = document.createElement('details');
+            // Agregado de forma segura: Acordeón exclusivo nativo por carpeta
+            details.setAttribute('name', `accordion-${folderName}`);
             details.style.cssText = 'background: #ffffff; border: 1px solid #e2e8f0; border-radius: 3px; margin-bottom: 4px;';
             
             const lowerName = fileInfo.cleanName.toLowerCase();
@@ -165,7 +167,7 @@ document.addEventListener("DOMContentLoaded", async function() {
                 <summary style="font-size: 0.75rem; ${extraWeight} padding: 4px 6px; cursor: pointer; color: ${summaryColor}; outline: none;">
                     ${fileIcon} ${fileInfo.displayName}
                 </summary>
-                <div id="${targetId}" style="padding: 6px; border-top: 1px solid #f1f5f9; max-height: 55vh; overflow-y: auto;">
+                <div id="${targetId}" style="padding: 6px; border-top: 1px solid #f1f5f9; max-height: 75vh; overflow-y: auto;">
                     <span style="font-size: 0.7rem; color: #94a3b8;">Cargando contenido local...</span>
                 </div>
             `;
@@ -173,10 +175,10 @@ document.addEventListener("DOMContentLoaded", async function() {
             groupContent.appendChild(details);
 
             // 6. Leer el contenido del archivo HTML directamente desde el OPFS de forma asíncrona
-            // En lugar de usar únicamente .innerHTML, asegurémonos de evaluar los scripts:
             fetchHtmlFromOPFS(folderName, fileName)
                 .then(htmlContent => {
                     const container = document.getElementById(targetId);
+                    if (!container) return;
                     container.innerHTML = htmlContent;
 
                     // Extraer y re-ejecutar manualmente las etiquetas <script> que vengan dentro del HTML inyectado
@@ -189,9 +191,12 @@ document.addEventListener("DOMContentLoaded", async function() {
                     });
                 })
                 .catch(err => {
-                    document.getElementById(targetId).innerHTML = `<span style="color:#ef4444; font-size:0.7rem;">⚠️ Error al cargar desde OPFS: ${err.message}</span>`;
+                    const container = document.getElementById(targetId);
+                    if (container) {
+                        container.innerHTML = `<span style="color:#ef4444; font-size:0.7rem;">⚠️ Error al cargar desde OPFS: ${err.message}</span>`;
+                    }
                 });
-});
+        });
         
         infoSectionBody.appendChild(infoGroup);
     });
