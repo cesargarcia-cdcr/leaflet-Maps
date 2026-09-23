@@ -11,14 +11,84 @@ console.log("🟢 [Green Leader Bio]: 'Green Leader, standing by. Engineering OP
 console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD telemetry, progress bar updates, splash screen deflector shields, and URL payload decoding.'");
 
 
-// --- 🔴 RED LEADER: COMMAND & ROUTER ---
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw-guidelines.js')
-    .then(() => console.log("🔴 [Red Leader]: Guidelines Service Worker registered successfully, standing by."))
-    .catch(err => console.error("💥 [Red Leader Down]: Error registering Service Worker:", err));
-}
 
-// Menú / Enrutador maestro estilo Escuadrón Rojo
+(function() {
+    async function writeLogToOPFS(logFilename, logContentString) {
+        try {
+            const rootDir = await navigator.storage.getDirectory();
+            const logsDir = await rootDir.getDirectoryHandle("Logs", { create: true });
+            const fileHandle = await logsDir.getFileHandle(logFilename, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(logContentString);
+            await writable.close();
+            return true;
+        } catch (err) {
+            console.error("💥 [Green Leader]: Error writing auto-log to OPFS:", err);
+            return false;
+        }
+    }
+
+    // Exponer la función de forma segura en el espacio global
+    window.GreenLeaderStorage = window.GreenLeaderStorage || {};
+    window.GreenLeaderStorage.writeLogToOPFS = writeLogToOPFS;
+
+    // Buffer de sesión y nombre de archivo único por instancia de carga
+    const sessionTimestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const sessionLogFilename = `flight_deck_log_${sessionTimestamp}.txt`;
+    const logBuffer = [];
+
+    // Interceptor inteligente de la consola para respaldar la actividad en tiempo real
+    const originalConsoleLog = console.log;
+    const originalConsoleWarn = console.warn;
+    const originalConsoleError = console.error;
+
+    console.log = function(...args) {
+        logBuffer.push(`[LOG] ${new Date().toISOString()}: ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')}`);
+        originalConsoleLog.apply(console, args);
+    };
+
+    console.warn = function(...args) {
+        logBuffer.push(`[WARN] ${new Date().toISOString()}: ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')}`);
+        originalConsoleWarn.apply(console, args);
+    };
+
+    console.error = function(...args) {
+        logBuffer.push(`[ERROR] ${new Date().toISOString()}: ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')}`);
+        originalConsoleError.apply(console, args);
+    };
+
+    // Volcar y guardar los registros automáticamente al cerrar o cambiar de página
+    window.addEventListener('beforeunload', () => {
+        if (logBuffer.length > 0) {
+            try {
+                // Escritura sincrónica/asincrónica de respaldo al salir
+                navigator.storage.getDirectory().then(async root => {
+                    const logsDir = await root.getDirectoryHandle("Logs", { create: true });
+                    const fileHandle = await logsDir.getFileHandle(sessionLogFilename, { create: true });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(logBuffer.join('\n'));
+                    await writable.close();
+                }).catch(() => {});
+            } catch (e) {
+                // Fallback silencioso si el contexto de la ventana ya se está destruyendo
+            }
+        }
+    });
+
+    console.log("🟢 [Green Leader]: OPFS Auto-Logging subsystem successfully engaged and monitoring flight channels.");
+})();
+
+// --- 🔴 RED LEADER: COMMAND, ROUTER & LIFECYCLE MANAGEMENT ---
+
+function registerGuidelinesServiceWorker() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw-guidelines.js')
+        .then(() => console.log("🔴 [Red Leader]: Guidelines Service Worker registered successfully, standing by."))
+        .catch(err => console.error("💥 [Red Leader Down]: Error registering Service Worker:", err));
+    }
+}
+window.registerGuidelinesServiceWorker = registerGuidelinesServiceWorker;
+
 async function red_leader(steps = [0, 1, 2, 3, 4]) {
     console.log("🔴 [Red Leader]: Red Leader, standing by. Flight path requested:", steps);
     try {
@@ -30,8 +100,8 @@ async function red_leader(steps = [0, 1, 2, 3, 4]) {
 
         if (steps.includes(1)) {
             console.log("🟡 [Gold Leader]: Executing step 2 (Lite payload)...");
-            if (typeof taskFetchLitePayload === 'function') {
-                await taskFetchLitePayload();
+            if (window.LSEngine && typeof window.LSEngine.taskFetchMainDataLite === 'function') {
+                await window.LSEngine.taskFetchMainDataLite();
             }
         }
 
@@ -43,11 +113,8 @@ async function red_leader(steps = [0, 1, 2, 3, 4]) {
             console.log("🔴 [Red Leader]: Executing secondary file sync (Manifest & OPFS files)...");
             if (typeof window.LSEngine.taskSyncFiles === 'function') {
                 await window.LSEngine.taskSyncFiles();
-            } else if (typeof taskSyncFiles === 'function') {
-                await taskSyncFiles();
             }
         }
-
 
         if (steps.includes(3)) {
             console.log("🔵 [Blue Leader]: Lock S-foils in attack position (executing step 3)...");
@@ -68,8 +135,69 @@ async function red_leader(steps = [0, 1, 2, 3, 4]) {
 }
 window.red_leader = red_leader;
 
+async function checkAndSyncData() {
+    const splash = document.getElementById("sync-splash");
+    const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
+    const hasLocalPayload = localStorage.getItem("cache_payload");
 
-// --- 🔵 BLUE LEADER: UI & HUD TELEMETRY ---
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    const now = Date.now();
+
+    const needsLoadingScreen = !lastTimestamp || (now - lastTimestamp >= ONE_HOUR_MS) || !hasLocalPayload;
+
+    if (!needsLoadingScreen) {
+        if (splash) splash.style.display = "none";
+        window.dispatchEvent(new CustomEvent("PayloadReady"));
+        return;
+    }
+
+    const sessionActive = await verifySharePointSession().catch(() => false);
+    
+    if (!sessionActive) {
+        if (splash) splash.style.display = "none";
+        const restored = await restoreCacheFromOPFSToLocalStorage();
+        if (restored || hasLocalPayload) {
+            window.dispatchEvent(new CustomEvent("PayloadReady"));
+        } else {
+            updateProgress(100, "Connection Error & No Local Backup", "ERROR");
+        }
+        return;
+    }
+
+    try {
+        const success = await fetchAndProcessData(true);
+        if (!success) {
+            await restoreCacheFromOPFSToLocalStorage();
+            if (splash) splash.style.display = "none";
+            window.dispatchEvent(new CustomEvent("PayloadReady"));
+        }
+    } catch (error) {
+        await restoreCacheFromOPFSToLocalStorage();
+        if (splash) splash.style.display = "none";
+        window.dispatchEvent(new CustomEvent("PayloadReady"));
+    }
+}
+window.red_leader.checkAndSyncData = checkAndSyncData;
+
+// --- 🚨 TRIGGER MANUAL SYNC ---
+window.triggerManualSync = async function() {
+    console.log("🚨 [Red Leader]: Manual sync override initiated!");
+    
+    // 1. Back up ?data=... to OPFS before clearing everything
+    await backupParamDataToOPFS();
+    
+    // 2. Clear all local cache using the adjusted function
+    clearLocalDatasetsCache();
+
+    // 3. Clean redirect with reload timestamp
+    await new Promise(resolve => setTimeout(resolve, 900));
+    const freshUrl = new URL(window.location.href);
+    freshUrl.searchParams.set('reload_ts', Date.now());
+    window.location.href = freshUrl.toString();
+};
+
+
+// --- 🔵 BLUE LEADER: UI, HUD TELEMETRY & MONITORING ---
 function updateProgress(percent, message, state = "LOADING") {
     const bar = document.getElementById("bt-progress-bar");
     const textPercent = document.getElementById("bt-percentage");
@@ -116,6 +244,43 @@ function getPowerAutomateUrl() {
 
 window.LSEngine = window.LSEngine || {};
 window.LSEngine.getPowerAutomateUrl = getPowerAutomateUrl;
+
+function initAwaySyncMonitor() {
+    let awayTimer = null;
+    const AWAY_THRESHOLD_MS = 20 * 60 * 1000;
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+
+    document.addEventListener('visibilitychange', async () => {
+        if (document.hidden) {
+            awayTimer = setTimeout(async () => {
+                const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
+                const elapsed = Date.now() - lastTimestamp;
+                
+                if (elapsed < ONE_HOUR_MS) return;
+
+                const sessionActive = await checkSharePointLogo().catch(() => false);
+                if (sessionActive) {
+                    localStorage.setItem("pending_auto_sync", "true");
+                }
+            }, AWAY_THRESHOLD_MS);
+            
+        } else {
+            if (awayTimer) {
+                clearTimeout(awayTimer);
+                awayTimer = null;
+            }
+
+            if (localStorage.getItem("pending_auto_sync") === "true") {
+                localStorage.removeItem("pending_auto_sync");
+                if (typeof window.triggerManualSync === 'function') {
+                    window.triggerManualSync();
+                }
+            }
+        }
+    });
+}
+window.BlueLeaderMonitor = { initAwaySyncMonitor };
+
 
 // --- 🟡 GOLD LEADER: SECURITY & AUTHENTICATION ---
 function checkSharePointLogo() {
@@ -236,16 +401,53 @@ function triggerAutomaticLoginFlow() {
 
 // --- 🟢 GREEN LEADER: OPFS & STORAGE ENGINEERING ---
 function clearLocalDatasetsCache() {
-    console.log("🟢 [Green Leader]: Purgando exclusivamente los datasets de caché en localStorage...");
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.startsWith("csv_") || key === "cache_payload")) {
-            keysToRemove.push(key);
-        }
-    }
-    keysToRemove.forEach(k => localStorage.removeItem(k));
+    console.log("🟢 [Green Leader]: Purging all localStorage cache via clear()...");
+    localStorage.clear();
 }
+window.GreenLeaderStorage = window.GreenLeaderStorage || {};
+window.GreenLeaderStorage.clearLocalDatasetsCache = clearLocalDatasetsCache;
+window.clearLocalDatasetsCache = clearLocalDatasetsCache;
+
+async function backupParamDataToOPFS() {
+    const rawDataParam = new URLSearchParams(window.location.search).get("data");
+    if (rawDataParam) {
+        const rootDir = await navigator.storage.getDirectory();
+        const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
+        const fileHandle = await dataDir.getFileHandle("param_data.txt", { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(rawDataParam);
+        await writable.close();
+        console.log("🟢 [Green Leader]: Parameter ?data=... successfully backed up to OPFS.");
+    }
+}
+
+// --- 🟢 GREEN LEADER: OPFS LOGS DIRECTORY ENGINEERING ---
+async function writeLogToOPFS(logFilename, logContentString) {
+    try {
+        console.log("🟢 [Green Leader]: Stowing log file into OPFS logs bay:", logFilename);
+        const rootDir = await navigator.storage.getDirectory();
+        
+        // Crear o acceder al subdirectorio dedicado para logs
+        const logsDir = await rootDir.getDirectoryHandle("Logs", { create: true });
+        
+        // Crear o sobrescribir el archivo de log dentro del directorio
+        const fileHandle = await logsDir.getFileHandle(logFilename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(logContentString);
+        await writable.close();
+        
+        console.log(`✅ [Green Leader]: Log successfully saved to OPFS -> Logs/${logFilename}`);
+        return true;
+    } catch (err) {
+        console.error("💥 [Green Leader]: Error writing log to OPFS:", err);
+        return false;
+    }
+}
+
+// Registrar en el espacio global del Green Leader
+window.GreenLeaderStorage = window.GreenLeaderStorage || {};
+window.GreenLeaderStorage.writeLogToOPFS = writeLogToOPFS;
+window.writeLogToOPFS = writeLogToOPFS; // Alias global opcional
 
 async function writeDatasetToOPFS(filename, contentString) {
     console.log("🟢 [Green Leader]: Stowing cargo safely into OPFS bay:", filename);
@@ -260,7 +462,7 @@ async function writeDatasetToOPFS(filename, contentString) {
 
 async function restoreCacheFromOPFSToLocalStorage(filename = "cache_payload.json") {
     try {
-        console.log(`🟢 [Green Leader]: 📂 Leyendo y mapeando dinámicamente desde OPFS usando el archivo: (${filename})...`);
+        console.log(`🟢 [Green Leader]: 📂 Reading and mapping dynamically from OPFS using file: (${filename})...`);
         
         const rootDir = await navigator.storage.getDirectory();
         const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
@@ -270,7 +472,7 @@ async function restoreCacheFromOPFSToLocalStorage(filename = "cache_payload.json
         const content = await file.text();
 
         if (!content) {
-            console.warn(`⚠️ [Green Leader]: El archivo en OPFS '${filename}' está vacío.`);
+            console.warn(`⚠️ [Green Leader]: OPFS file '${filename}' is empty.`);
             return false;
         }
 
@@ -291,17 +493,17 @@ async function restoreCacheFromOPFSToLocalStorage(filename = "cache_payload.json
             
             if (Array.isArray(sectionData)) {
                 localStorage.setItem(`csv_${sectionKey}`, JSON.stringify(sectionData));
-                console.log(`📊 [Green Leader Dinámico]: Sección detectada en '${filename}' -> Generado caché 'csv_${sectionKey}' (${sectionData.length} registros).`);
+                console.log(`📊 [Green Leader Dynamic]: Section detected in '${filename}' -> Generated cache 'csv_${sectionKey}' (${sectionData.length} records).`);
             } else {
-                console.log(`⚙️ [Green Leader Dinámico]: Propiedad de objeto/configuración '${sectionKey}' mapeada desde '${filename}'.`);
+                console.log(`⚙️ [Green Leader Dynamic]: Object/config property '${sectionKey}' mapped from '${filename}'.`);
             }
         }
 
-        console.log(`✅ [Green Leader]: Sincronización y mapeo dinámico completado con éxito para '${filename}'.`);
+        console.log(`✅ [Green Leader]: Dynamic synchronization and mapping completed successfully for '${filename}'.`);
         return true;
 
     } catch (err) {
-        console.warn(`⚠️ [Green Leader]: No se pudo encontrar o procesar el archivo '${filename}' en OPFS:`, err);
+        console.warn(`⚠️ [Green Leader]: Could not find or process file '${filename}' in OPFS:`, err);
     }
     return false;
 }
@@ -317,14 +519,14 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
         console.log(`📂 [LSEngine] No URL provided. Attempting offline fallback from OPFS using '${targetFilename}'...`);
         const restored = await restoreCacheFromOPFSToLocalStorage(targetFilename);
         if (!restored && targetFilename !== "cache_payload.json") {
-            console.log("🔄 Intentando respaldo de emergencia con 'cache_payload.json'...");
+            console.log("🔄 Attempting emergency fallback with 'cache_payload.json'...");
             await restoreCacheFromOPFSToLocalStorage("cache_payload.json");
         }
         return;
     }
     
     const cacheBusterToken = `_cb=${Date.now()}`;
-    console.log("⚡ [Cache Busting] Aplicado a Lite Payload:", cacheBusterToken);
+    console.log("⚡ [Cache Busting] Applied to Lite Payload:", cacheBusterToken);
     const separator = baseUrl.includes('?') ? '&' : '?';
     const finalEndpointUrl = `${baseUrl}${separator}${cacheBusterToken}`;
 
@@ -354,7 +556,7 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
 };
 
 
-// --- MAIN FETCH ENGINE (ACTUALIZADO CON LOGS Y CONTROL DE ABORT / TIMEOUT) ---
+// --- MAIN FETCH ENGINE ---
 async function fetchAndProcessData(isManual = false) {
     const splash = document.getElementById("sync-splash");
     if (isManual) showSplash(splash);
@@ -372,7 +574,6 @@ async function fetchAndProcessData(isManual = false) {
         }
         
         const csvController = new AbortController();
-        // Aumentamos el tiempo de espera a 60 segundos por la cantidad masiva de datos (ej. 256 NPIs, etc.)
         const TIMEOUT_LIMIT_MS = 60000; 
         const csvTimeout = setTimeout(() => {
             console.warn(`⏱️ [Red Leader]: Transmission timeout reached (${TIMEOUT_LIMIT_MS / 1000}s). Aborting trench run connection...`);
@@ -436,7 +637,8 @@ async function fetchAndProcessData(isManual = false) {
     }
 }
 
-// --- SECONDARY SYNC TASK (VALIDACIÓN PURA POR FECHA DE SHAREPOINT) ---
+
+// --- SECONDARY SYNC TASK ---
 window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
     let baseUrl = overrideUrl || window.LSEngine.getPowerAutomateUrl();
     if (!baseUrl) return;
@@ -513,15 +715,12 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     const serverLastModified = item.lastModified ? new Date(item.lastModified).getTime() : 0;
                     const localLastModified = existingFile.lastModified || 0;
 
-                    console.log(`🔎 [OPFS Eval] Evaluando: "${item.name}"`, {
+                    console.log(`🔎 [OPFS Eval] Evaluating: "${item.name}"`, {
                         serverDate: new Date(serverLastModified).toISOString(),
                         localDate: new Date(localLastModified).toISOString(),
                         isServerOlderOrEqual: serverLastModified <= localLastModified
                     });
 
-                    // VALIDACIÓN PURA POR FECHA: 
-                    // Si el archivo existe localmente y la fecha de SharePoint NO es más nueva que la local, nos lo saltamos.
-                    // Si en SharePoint modificaron el archivo (fecha mayor), serverLastModified <= localLastModified dará false y procederá a descargar.
                     if (
                         existingFile.size > 0 && 
                         serverLastModified <= localLastModified
@@ -573,108 +772,8 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
     }
 };
 
-// --- LIFECYCLE BOOTSTRAP & OFFLINE FALLBACK ---
-async function checkAndSyncData() {
-    const splash = document.getElementById("sync-splash");
-    const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
-    const hasLocalPayload = localStorage.getItem("cache_payload");
 
-    const ONE_HOUR_MS = 60 * 60 * 1000;
-    const now = Date.now();
-
-    const needsLoadingScreen = !lastTimestamp || (now - lastTimestamp >= ONE_HOUR_MS) || !hasLocalPayload;
-
-    if (!needsLoadingScreen) {
-        if (splash) splash.style.display = "none";
-        window.dispatchEvent(new CustomEvent("PayloadReady"));
-        return;
-    }
-
-    const sessionActive = await verifySharePointSession().catch(() => false);
-    
-    if (!sessionActive) {
-        if (splash) splash.style.display = "none";
-        const restored = await restoreCacheFromOPFSToLocalStorage();
-        if (restored || hasLocalPayload) {
-            window.dispatchEvent(new CustomEvent("PayloadReady"));
-        } else {
-            updateProgress(100, "Connection Error & No Local Backup", "ERROR");
-        }
-        return;
-    }
-
-    try {
-        const success = await fetchAndProcessData(true);
-        if (!success) {
-            await restoreCacheFromOPFSToLocalStorage();
-            if (splash) splash.style.display = "none";
-            window.dispatchEvent(new CustomEvent("PayloadReady"));
-        }
-    } catch (error) {
-        await restoreCacheFromOPFSToLocalStorage();
-        if (splash) splash.style.display = "none";
-        window.dispatchEvent(new CustomEvent("PayloadReady"));
-    }
-}
-
-
-// --- MONITOR DE INACTIVIDAD ---
-let awayTimer = null;
-const AWAY_THRESHOLD_MS = 20 * 60 * 1000;
-const ONE_HOUR_MS = 60 * 60 * 1000;
-
-function initAwaySyncMonitor() {
-    document.addEventListener('visibilitychange', async () => {
-        if (document.hidden) {
-            awayTimer = setTimeout(async () => {
-                const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
-                const elapsed = Date.now() - lastTimestamp;
-                
-                if (elapsed < ONE_HOUR_MS) return;
-
-                const sessionActive = await checkSharePointLogo().catch(() => false);
-                if (sessionActive) {
-                    localStorage.setItem("pending_auto_sync", "true");
-                }
-            }, AWAY_THRESHOLD_MS);
-            
-        } else {
-            if (awayTimer) {
-                clearTimeout(awayTimer);
-                awayTimer = null;
-            }
-
-            if (localStorage.getItem("pending_auto_sync") === "true") {
-                localStorage.removeItem("pending_auto_sync");
-                if (typeof window.triggerManualSync === 'function') {
-                    window.triggerManualSync();
-                }
-            }
-        }
-    });
-}
-
-window.triggerManualSync = async function() {
-    console.log("🚨 [Red Leader]: Manual sync override initiated!");
-    localStorage.removeItem("app_last_sync_date");
-    localStorage.removeItem("app_last_sync_timestamp");
-    
-    if (await verifySharePointSession()) {
-        const success = await fetchAndProcessData(true);
-        
-        if (success) {
-            await new Promise(resolve => setTimeout(resolve, 900));
-            const freshUrl = new URL(window.location.href);
-            freshUrl.searchParams.set('reload_ts', Date.now());
-            window.location.href = freshUrl.toString();
-        } else {
-            alert("⚠️ La sincronización no pudo completarse correctamente.");
-        }
-    } else {
-        alert("⚠️ No se pudo verificar la sesión activa con SharePoint.");
-    }
-};
-
+// --- LSENGINE SET PROGRESS & REDIRECT CONTROLLER ---
 window.LSEngine = window.LSEngine || {};
 
 window.LSEngine.setProgress = function(percent, message, stateText) {
@@ -713,7 +812,7 @@ window.LSEngine.setProgress = function(percent, message, stateText) {
     }
 
     if (stateText === "READY" && percent === 100) {
-        console.log("🚀 [Sync]: Sincronización completada al 100%. Redirigiendo limpiamente...");
+        console.log("🚀 [Sync]: Synchronization completed 100%. Redirecting cleanly...");
         const currentSearchParams = window.location.search;
         
         let basePath = window.location.pathname;

@@ -1,4 +1,4 @@
-/* notes.js — UI base, navegación, Note Builder */
+/* notes.js — UI base, navegación, Note Builder (Cleaned) */
 'use strict';
 
 (function () {
@@ -64,7 +64,7 @@
             sections.note.style.display = 'block';
         }
 
-// MAP
+        // MAP
         if (s === 'map' && sections.map) {
             sections.map.style.display = 'block';
             if (window.AppMap && typeof window.AppMap.invalidateSize === 'function') {
@@ -109,7 +109,7 @@
             }, 100);
         }
 
-        // ✅ Match sidebar tab item indexes perfectly with the current DOM order
+        // Match sidebar tab item indexes perfectly with the current DOM order
         const items = document.querySelectorAll('.nav-item');
         items.forEach((el, i) => el.classList.toggle('active',
             (s === 'note' && i === 0) ||
@@ -188,34 +188,20 @@
     });
 
     /* insurances we take js code */
-    
     function toggleInsuranceDetail(id) {
-    const container = document.getElementById('insurance-detail-container');
-    const contents = document.querySelectorAll('.ins-content');
-    
-    // Si ya está visible y damos clic al mismo, lo cerramos
-    if (container.style.display === 'block' && document.getElementById(id).style.display === 'block') {
-        container.style.display = 'none';
-    } else {
-        container.style.display = 'block';
-        contents.forEach(c => c.style.display = 'none');
-        document.getElementById(id).style.display = 'block';
+        const container = document.getElementById('insurance-detail-container');
+        const contents = document.querySelectorAll('.ins-content');
+        
+        if (container.style.display === 'block' && document.getElementById(id).style.display === 'block') {
+            container.style.display = 'none';
+        } else {
+            container.style.display = 'block';
+            contents.forEach(c => c.style.display = 'none');
+            document.getElementById(id).style.display = 'block';
+        }
     }
-}
 
-// Loading screen 
-
-function updateProgress(percent, message) {
-    const bar = document.getElementById('bt-progress-bar');
-    const textPercent = document.getElementById('bt-percentage');
-    const statusText = document.getElementById('sync-status');
-    
-    if (bar) bar.style.width = `${percent}%`;
-    if (textPercent) textPercent.innerText = `${percent}%`;
-    if (statusText && message) statusText.innerText = message;
-}
-
-window.addEventListener('AppDataReady', () => {
+    window.addEventListener('AppDataReady', () => {
         const providerSection = document.getElementById('provider-directory-section');
         if (providerSection && providerSection.style.display === 'block') {
             console.log("🔄 [Provider] Datos listos detectados, actualizando vista de proveedores...");
@@ -225,56 +211,6 @@ window.addEventListener('AppDataReady', () => {
         }
     });
 
-
-window.triggerManualSync = async function() {
-    console.log("🔄 [Sync Data] Forzando reseteo y limpieza de caché...");
-
-    try {
-        // 1. Borrar elementos clave de localStorage relacionados con caché y sincronización
-        localStorage.removeItem("cache_payload");
-        localStorage.removeItem("lite_payload_cache");
-        localStorage.removeItem("app_last_sync_timestamp");
-        localStorage.removeItem("app_last_sync_date");
-
-        // 2. Intentar limpiar el archivo en OPFS si tu entorno lo soporta
-        if (navigator.storage && navigator.storage.getDirectory) {
-            const rootDir = await navigator.storage.getDirectory();
-            try {
-                await rootDir.removeEntry('lite_payload.json');
-                console.log("🗑️ [OPFS] lite_payload.json eliminado exitosamente.");
-            } catch (err) {
-                console.log("ℹ️ [OPFS] lite_payload.json no encontrado o ya estaba limpio.");
-            }
-        }
-    } catch (e) {
-        console.error("⚠️ Error limpiando almacenamiento local/OPFS:", e);
-    }
-
-    // 3. Aplicar tu lógica de Cache Buster para redirigir al root de forma limpia
-    const currentSearchParams = window.location.search;
-    
-    let basePath = window.location.pathname;
-    
-    if (basePath.endsWith('.html')) {
-        basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
-    } else if (!basePath.endsWith('/')) {
-        basePath += '/';
-    }
-
-    // Opcional: Agregar un parámetro de control de tiempo único para evitar que el navegador guarde el HTML en caché
-    const cacheBusterParam = `_cb=${Date.now()}`;
-    let finalSearch = currentSearchParams;
-    if (finalSearch) {
-        finalSearch += `&${cacheBusterParam}`;
-    } else {
-        finalSearch = `?${cacheBusterParam}`;
-    }
-
-    setTimeout(() => {
-        window.location.replace(basePath + finalSearch);
-    }, 500);
-};
-
     /* ======= Expose to window ======= */
     window.navigateTo = navigateTo;
     window.resetForm = resetForm;
@@ -282,4 +218,5 @@ window.triggerManualSync = async function() {
     window.toggleMenu = toggleMenu;
     window.enforceCollapsedSidebar = enforceCollapsedSidebar;
     window.updateNote = updateNote;
+    window.toggleInsuranceDetail = toggleInsuranceDetail;
 })();

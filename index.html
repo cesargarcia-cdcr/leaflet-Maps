@@ -30,85 +30,80 @@
     </script>
 
     <!-- 🛡️ BLOQUEADOR CRÍTICO DE SESIÓN -->
+<!-- 🛡️ VERIFICACIÓN DE SESIÓN VÍA RED_LEADER -->
     <script>
         (function() {
             try {
-                const sessionLocked = 
-                    (window.LSEngine && window.LSEngine.isLocked) || 
-                    window.location.search.includes('login_required') ||
-                    localStorage.getItem("session_expired") === "true";
-
-                if (sessionLocked) {
-                    document.documentElement.innerHTML = `
-                        <head>
-                            <title>Authentication Required</title>
-                            <style>
-                                body { background: #0f172a; color: #94a3b8; font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-                                .box { text-align: center; padding: 2rem; background: #1e293b; border-radius: 8px; border: 1px solid #334155; }
-                                h2 { color: #38bdf8; margin-top: 0; }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="box">
-                                <h2>🔒 Sesión Requerida</h2>
-                                <p>No hay una sesión activa o la autenticación ha expirado.</p>
-                                <p style="font-size: 12px; color: #64748b;">Por favor, complete el inicio de sesión para continuar.</p>
-                            </div>
-                        </body>
-                    `;
-                    throw new Error("Acceso denegado: Se requiere sesión activa.");
+                // Si el script o el entorno requiere validar al cargar, delegamos exclusivamente en red_leader([0])
+                if (typeof window.red_leader === 'function') {
+                    window.red_leader([0]);
+                } else {
+                    // O un listener por si el script principal carga un poco después en el DOM
+                    window.addEventListener('DOMContentLoaded', () => {
+                        if (typeof window.red_leader === 'function') {
+                            window.red_leader([0]);
+                        }
+                    });
                 }
             } catch (e) {
-                if (e.message !== "Acceso denegado: Se requiere sesión activa.") {
-                    console.error("Error en bloqueo de seguridad:", e);
-                }
+                console.error("Error al invocar red_leader desde el script de guardia:", e);
             }
         })();
     </script>
 
     <!-- ⚙️ VALIDACIÓN DE ACTUALIZACIÓN (4 Horas + 20 min sin foco) -->
     <script>
-        (function() {
-            try {
-                const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
-                const hasPayload = localStorage.getItem("cache_payload");
-                const hasLitePayloadCache = localStorage.getItem("lite_payload_cache");
-                
-                // 🕒 Umbral de 4 horas
-                const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
-                const isOlderThan4Hours = (Date.now() - lastTimestamp) >= FOUR_HOURS_MS;
-                const lostFocusLong = localStorage.getItem("app_lost_focus_long") === "true";
+    window.checkAndRedirectSync = function(force = false) {
+        try {
+            const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
+            const hasPayload = localStorage.getItem("cache_payload");
+            const hasLitePayloadCache = localStorage.getItem("lite_payload_cache");
+            
+            // 🕒 Umbral de 4 horas
+            const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+            const isOlderThan4Hours = (Date.now() - lastTimestamp) >= FOUR_HOURS_MS;
+            const lostFocusLong = localStorage.getItem("app_lost_focus_long") === "true";
 
-                const todayStr = new Date().toISOString().split("T")[0];
-                const lastSyncDate = localStorage.getItem("app_last_sync_date");
+            const todayStr = new Date().toISOString().split("T")[0];
+            const lastSyncDate = localStorage.getItem("app_last_sync_date");
 
-                // Condición: Falta info base O (Tiene >= 4 horas de antigüedad Y perdió foco por 20+ min)
-                const needsSync = !lastSyncDate || lastSyncDate !== todayStr || !hasPayload || !hasLitePayloadCache || (isOlderThan4Hours && lostFocusLong);
+            // Condición: Forzado O Falta info base O (Tiene >= 4 horas de antigüedad Y perdió foco por 20+ min)
+            const needsSync = force || !lastSyncDate || lastSyncDate !== todayStr || !hasPayload || !hasLitePayloadCache || (isOlderThan4Hours && lostFocusLong);
 
-                if (needsSync) {
-                    const currentPath = window.location.pathname;
-                    if (!currentPath.includes('loading-screen')) {
-                        const fastParam = hasLitePayloadCache ? '&fast=1' : '';
-                        const targetSearch = window.location.search 
-                            ? window.location.search + fastParam 
-                            : (hasLitePayloadCache ? '?fast=1' : '');
+            if (needsSync) {
+                const currentPath = window.location.pathname;
+                if (!currentPath.includes('loading-screen')) {
+                    const fastParam = hasLitePayloadCache ? '&fast=1' : '';
+                    const targetSearch = window.location.search 
+                        ? window.location.search + fastParam 
+                        : (hasLitePayloadCache ? '?fast=1' : '');
 
-                        window.location.replace('loading-screen.html' + targetSearch);
-                    }
-                } else {
-                    // Si no necesita sincronización, limpiamos la bandera de pérdida de foco temporal
-                    localStorage.removeItem("app_lost_focus_long");
+                    window.location.replace('loading-screen.html' + targetSearch);
+                    return true; // Indica que redirigió
+                }
+            } else {
+                // Si no necesita sincronización, limpiamos la bandera de pérdida de foco temporal
+                localStorage.removeItem("app_lost_focus_long");
 
-                    // Ocultamos el splash de carga inmediatamente
+                // Ocultamos el splash de carga inmediatamente
+                if (!document.getElementById('dynamic-hide-splash')) {
                     const style = document.createElement('style');
+                    style.id = 'dynamic-hide-splash';
                     style.innerHTML = '#sync-splash { display: none !important; opacity: 0 !important; pointer-events: none !important; }';
                     document.head.appendChild(style);
                 }
-            } catch (e) {
-                console.error("Error en validación de sync:", e);
             }
-        })();
-    </script>
+        } catch (e) {
+            console.error("Error en validación de sync:", e);
+        }
+        return false;
+    };
+
+    // Ejecución automática al cargar la página (mantiene tu comportamiento original)
+    (function() {
+        window.checkAndRedirectSync(false);
+    })();
+</script>
 
     <title>Clinic Note Builder & Locator</title>
     <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="12" font-size="12">🗂️</text></svg>' />
@@ -125,6 +120,21 @@
     <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
 </head>
 <body>
+    <!-- 🌌 HUD SPLASH SCREEN (Requerido por loading-screen-W-LOGS.js para estados de sesión y progreso) -->
+    <div id="sync-splash" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0f172a; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-family: system-ui, sans-serif; transition: opacity 0.4s ease;">
+        <div style="max-width: 400px; width: 90%; text-align: center;">
+            <h2 style="color: #38bdf8; margin-bottom: 8px;">Clinicas del Camino Real</h2>
+            <p id="sync-status" style="color: #94a3b8; font-size: 13px; margin-bottom: 20px;">Verificando sesión corporativa...</p>
+            <div style="background: #1e293b; border-radius: 999px; height: 8px; overflow: hidden; border: 1px solid #334155; margin-bottom: 12px;">
+                <div id="bt-progress-bar" style="background: #38bdf8; width: 0%; height: 100%; transition: width 0.3s ease;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
+                <span id="bt-state-text">CONNECTING</span>
+                <span id="bt-percentage">0%</span>
+            </div>
+        </div>
+    </div>
+
     <div class="app-container">
         <button class="burger" onclick="toggleMenu()"><span></span><span></span><span></span></button>
         <div class="sidebar-overlay" onclick="toggleMenu()"></div>
@@ -280,7 +290,7 @@
                 <div class="card-hd" style="padding: 6px 10px;">
                     <h3 style="font-size: 0.85rem; margin: 0;">📋 Guidelines & Info </h3>
                 </div>
-                <div class="card-body" style="padding: 4px; display: flex; flex-direction: column; gap: 6px;">
+                <div class="card-body" style="padding: 4px; flex-direction: column; gap: 6px;">
                     
                 </div>
             </section>
@@ -291,11 +301,12 @@
 
     <!-- Scripts principales y componentes de la aplicación -->
     <script src="notes.js"></script>
-    <script src="admin.js"></script>
+    <!-- <script src="admin.js"></script> -->
     <script src="Guidelines_Info.js"></script>
     <script src="map.js"></script>
     <script src="provider-directory.js"></script>
     <script src="directory.js"></script>
+    <script src="loading-screen-W-LOGS.js"></script>
 
     <script>
         window.APP_DATA = window.APP_DATA || {};
