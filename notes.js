@@ -226,6 +226,55 @@ window.addEventListener('AppDataReady', () => {
     });
 
 
+window.triggerManualSync = async function() {
+    console.log("🔄 [Sync Data] Forzando reseteo y limpieza de caché...");
+
+    try {
+        // 1. Borrar elementos clave de localStorage relacionados con caché y sincronización
+        localStorage.removeItem("cache_payload");
+        localStorage.removeItem("lite_payload_cache");
+        localStorage.removeItem("app_last_sync_timestamp");
+        localStorage.removeItem("app_last_sync_date");
+
+        // 2. Intentar limpiar el archivo en OPFS si tu entorno lo soporta
+        if (navigator.storage && navigator.storage.getDirectory) {
+            const rootDir = await navigator.storage.getDirectory();
+            try {
+                await rootDir.removeEntry('lite_payload.json');
+                console.log("🗑️ [OPFS] lite_payload.json eliminado exitosamente.");
+            } catch (err) {
+                console.log("ℹ️ [OPFS] lite_payload.json no encontrado o ya estaba limpio.");
+            }
+        }
+    } catch (e) {
+        console.error("⚠️ Error limpiando almacenamiento local/OPFS:", e);
+    }
+
+    // 3. Aplicar tu lógica de Cache Buster para redirigir al root de forma limpia
+    const currentSearchParams = window.location.search;
+    
+    let basePath = window.location.pathname;
+    
+    if (basePath.endsWith('.html')) {
+        basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
+    } else if (!basePath.endsWith('/')) {
+        basePath += '/';
+    }
+
+    // Opcional: Agregar un parámetro de control de tiempo único para evitar que el navegador guarde el HTML en caché
+    const cacheBusterParam = `_cb=${Date.now()}`;
+    let finalSearch = currentSearchParams;
+    if (finalSearch) {
+        finalSearch += `&${cacheBusterParam}`;
+    } else {
+        finalSearch = `?${cacheBusterParam}`;
+    }
+
+    setTimeout(() => {
+        window.location.replace(basePath + finalSearch);
+    }, 500);
+};
+
     /* ======= Expose to window ======= */
     window.navigateTo = navigateTo;
     window.resetForm = resetForm;
