@@ -359,11 +359,16 @@ function triggerAutomaticLoginFlow() {
 
     let loginWindow = null;
     const openPopup = () => {
-        console.log("🟡 [Gold Leader]: Opening authentication popup window...");
-        const width = 600, height = 700;
-        const left = (window.screen.width / 2) - (width / 2);
-        const top = (window.screen.height / 2) - (height / 2);
-        loginWindow = window.open(sharePointSiteUrl, "SharePointLoginPopup", `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes`);
+        console.log("🟡 [Gold Leader]: Opening authentication window in a normal browser session...");
+        
+        // Al NO pasar dimensiones (width, height, etc.), Chrome en modo --app 
+        // abre el enlace en una ventana normal del navegador, usando el perfil 
+        // principal y evitando el aislamiento de cookies.
+        loginWindow = window.open(sharePointSiteUrl, "_blank");
+
+        if (!loginWindow || loginWindow.closed || typeof loginWindow.closed == 'undefined') {
+            console.warn("🟡 [Gold Leader]: Popup blocked or restricted by browser settings.");
+        }
     };
 
     openPopup();
