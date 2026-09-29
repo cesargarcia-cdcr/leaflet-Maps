@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Medical Event Abbreviations - Clinicas del Camino Real</title>
+    <style>
+        /* Fondo general que simula el entorno/interfaz de Word Online */
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            background-color: #0f172a; 
+            color: #1e293b;
+        }
+
+        /* Contenedor principal que simula la "página" de papel flotante */
+        .word-page {
+            max-width: 950px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 45px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        h1.main-title {
+            background-color: #1e293b;
+            color: #ffffff;
+            padding: 14px 20px;
+            margin: 0 0 24px 0;
+            font-size: 1.4em;
+            text-align: center;
+            border-radius: 4px;
+            border-left: 6px solid #3b82f6;
+            letter-spacing: 0.5px;
+        }
+
+        .section-container {
+            margin-bottom: 28px;
+            background: #ffffff;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .section-header {
+            background-color: #2563eb;
+            color: white;
+            padding: 12px 18px;
+            font-weight: bold;
+            font-style: italic;
+            font-size: 1.1em;
+            text-align: center;
+            letter-spacing: 0.3px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.9em;
+            vertical-align: top;
+            color: #1e293b;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            font-weight: bold;
+            font-style: italic;
+            border-bottom: 2px solid #cbd5e1;
+            text-align: center;
+            font-size: 0.85em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .msg-box {
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 4px;
+            font-size: 0.95em;
+            border: 1px solid #cbd5e1;
+        }
+
+        .error-msg {
+            color: #dc2626;
+            border-left: 5px solid #dc2626;
+        }
+
+        .info-msg {
+            color: #2563eb;
+            border-left: 5px solid #2563eb;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hoja de documento simulada -->
+    <div class="word-page">
+        <h1 class="main-title">Medical Event Abbreviations</h1>
+        <div id="content-area" class="msg-box info-msg">Cargando y sincronizando datos dinámicamente...</div>
+    </div>
+
+    <script>
+        function parseCSV(text) {
+            let rows = [];
+            let row = [];
+            let inQuotes = false;
+            let field = '';
+            
+            for (let i = 0; i < text.length; i++) {
+                let c = text[i];
+                let nextC = text[i + 1];
+                
+                if (c === '"') {
+                    if (inQuotes && nextC === '"') {
+                        field += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (c === ',' && !inQuotes) {
+                    row.push(field);
+                    field = '';
+                } else if ((c === '\r' || c === '\n') && !inQuotes) {
+                    if (c === '\r' && nextC === '\n') { i++; }
+                    row.push(field);
+                    rows.push(row);
+                    row = [];
+                    field = '';
+                } else {
+                    field += c;
+                }
+            }
+            if (field !== '' || row.length > 0) {
+                row.push(field);
+                rows.push(row);
+            }
+            return rows.filter(r => r.length > 1 || (r.length === 1 && r[0].trim() !== ''));
+        }
+
+        function getDataRowsFromStorage(key) {
+            let rawData = localStorage.getItem(key);
+            if (!rawData || rawData.trim() === '') return [];
+
+            try {
+                let jsonParsed = JSON.parse(rawData);
+                if (Array.isArray(jsonParsed) && jsonParsed.length > 0) {
+                    return jsonParsed;
+                }
+            } catch (e) {
+                let parsedRows = parseCSV(rawData);
+                if (parsedRows.length < 2) return [];
+                let headers = parsedRows[0].map(h => h.trim());
+                let rows = parsedRows.slice(1);
+                
+                return rows.map(r => {
+                    let obj = {};
+                    headers.forEach((h, idx) => {
+                        obj[h] = r[idx] !== undefined ? r[idx] : '';
+                    });
+                    return obj;
+                });
+            }
+            return [];
+        }
+
+        function loadAndRenderData() {
+            const container = document.getElementById('content-area');
+            
+            const mainKeys = ['csv_Epic_Visit_type_equivilant', 'csvData', 'csv_data'];
+            let mainRows = [];
+
+            for (let key of mainKeys) {
+                let data = getDataRowsFromStorage(key);
+                if (data.length > 0) {
+                    mainRows = data;
+                    break;
+                }
+            }
+
+            if (mainRows.length === 0) {
+                container.className = "msg-box error-msg";
+                container.innerHTML = '<strong>Aviso:</strong> No se encontraron datos principales en <code>localStorage</code>.';
+                return;
+            }
+
+            const checkinKeys = ['csv_Check_In', 'csv_Check-In', 'csv_check_in'];
+            let checkinRows = [];
+
+            for (let key of checkinKeys) {
+                let data = getDataRowsFromStorage(key);
+                if (data.length > 0) {
+                    checkinRows = data;
+                    break;
+                }
+            }
+
+            let checkinMap = new Map();
+            checkinRows.forEach(item => {
+                let recId = String(item.Record_ID || item.record_id || '').trim();
+                let section = String(item.Section || item.section || '').trim().toLowerCase();
+                let epicType = String(item.Epic_Visit_Type || item.epic_visit_type || '').trim().toLowerCase();
+
+                if (recId) checkinMap.set(`id:${recId}`, item);
+                if (section && epicType) checkinMap.set(`sec:${section}|epic:${epicType}`, item);
+            });
+
+            let mergedRows = mainRows.map(mainItem => {
+                let recId = String(mainItem.Record_ID || mainItem.record_id || '').trim();
+                let section = String(mainItem.Section || mainItem.section || '').trim().toLowerCase();
+                let epicType = String(mainItem.Epic_Visit_Type || mainItem.epic_visit_type || '').trim().toLowerCase();
+
+                let match = null;
+                if (recId && checkinMap.has(`id:${recId}`)) {
+                    match = checkinMap.get(`id:${recId}`);
+                } else if (section && epicType && checkinMap.has(`sec:${section}|epic:${epicType}`)) {
+                    match = checkinMap.get(`sec:${section}|epic:${epicType}`);
+                }
+
+                if (match) {
+                    return {
+                        ...mainItem,
+                        Registration_Time: (match.Registration_Time !== undefined && match.Registration_Time !== '') ? match.Registration_Time : mainItem.Registration_Time,
+                        META_Registration_Time: (match.META_Registration_Time !== undefined && match.META_Registration_Time !== '') ? match.META_Registration_Time : mainItem.META_Registration_Time
+                    };
+                }
+                return mainItem;
+            });
+
+            let sectionsMap = {};
+            mergedRows.forEach(r => {
+                let sectionName = String(r.Section || r.section || 'General').trim();
+                if (!sectionName) sectionName = 'General';
+
+                if (!sectionsMap[sectionName]) {
+                    sectionsMap[sectionName] = [];
+                }
+
+                sectionsMap[sectionName].push({
+                    visitCode: r.Visit_Code || r['Visit Code'] || r.VisitCode || '',
+                    epicType: r.Epic_Visit_Type || r['Epic Visit Type'] || r.EpicType || '',
+                    nextGen: r.NextGen_Visit_Type || r['NextGen Visit Type'] || r.NextGenType || '',
+                    guidance: r.Guidance || r.Guidelines || r.Descripcion || '',
+                    regTime: r.Registration_Time || r['Registration Time'] || r.RegTime || '',
+                    metaRegTime: r.META_Registration_Time || r['META Registration Time'] || r.MetaRegTime || ''
+                });
+            });
+
+            const sectionNames = Object.keys(sectionsMap);
+            if (sectionNames.length === 0) {
+                container.className = "msg-box error-msg";
+                container.innerHTML = 'No se pudieron extraer secciones válidas tras procesar los datos.';
+                return;
+            }
+
+            container.className = "";
+            container.innerHTML = '';
+
+            sectionNames.forEach(sectionName => {
+                let sectionDiv = document.createElement('div');
+                sectionDiv.className = 'section-container';
+
+                let headerDiv = document.createElement('div');
+                headerDiv.className = 'section-header';
+                headerDiv.textContent = sectionName;
+                sectionDiv.appendChild(headerDiv);
+
+                let table = document.createElement('table');
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th style="width: 8%;" class="text-center">Visit Code</th>
+                            <th style="width: 22%;">Epic Visit Types</th>
+                            <th style="width: 22%;">NextGen Visit Types</th>
+                            <th style="width: 30%;">Scheduling Guidelines</th>
+                            <th style="width: 9%;" class="text-center">Reg. Time</th>
+                            <th style="width: 9%;" class="text-center">Meta Reg. Time</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                `;
+
+                let tbody = table.querySelector('tbody');
+                sectionsMap[sectionName].forEach(item => {
+                    let tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="text-center"><strong>${escapeHtml(item.visitCode)}</strong></td>
+                        <td>${escapeHtml(item.epicType)}</td>
+                        <td>${escapeHtml(item.nextGen)}</td>
+                        <td>${escapeHtml(item.guidance)}</td>
+                        <td class="text-center">${escapeHtml(item.regTime)}</td>
+                        <td class="text-center">${escapeHtml(item.metaRegTime)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                sectionDiv.appendChild(table);
+                container.appendChild(sectionDiv);
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                  .replace(/&/g, "&amp;")
+                  .replace(/</g, "&lt;")
+                  .replace(/>/g, "&gt;")
+                  .replace(/"/g, "&quot;")
+                  .replace(/'/g, "&#039;")
+                  .replace(/\n/g, "<br>");
+        }
+
+        window.onload = loadAndRenderData;
+    </script>
+</body>
+</html>

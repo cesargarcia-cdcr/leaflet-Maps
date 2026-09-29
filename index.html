@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <!-- 👁️ MONITOR DE FOCO Y VISIBILIDAD (Detecta si la app pasa 20+ min en segundo plano) -->
+    <!-- 👁️ Focus & Visibility Monitor (Detects if app spends 20+ min in background) -->
     <script>
         (function() {
             if (!window._visibilityTrackingInitialized) {
@@ -18,7 +18,6 @@
                         hiddenTimeStart = Date.now();
                     } else if (document.visibilityState === 'visible' && hiddenTimeStart > 0) {
                         const elapsedHidden = Date.now() - hiddenTimeStart;
-                        // 20 minutos en milisegundos
                         if (elapsedHidden >= 20 * 60 * 1000) {
                             localStorage.setItem('app_lost_focus_long', 'true');
                         }
@@ -29,16 +28,13 @@
         })();
     </script>
 
-    <!-- 🛡️ BLOQUEADOR CRÍTICO DE SESIÓN -->
-<!-- 🛡️ VERIFICACIÓN DE SESIÓN VÍA RED_LEADER -->
+    <!-- 🛡️ Session Verification via red_leader -->
     <script>
         (function() {
             try {
-                // Si el script o el entorno requiere validar al cargar, delegamos exclusivamente en red_leader([0])
                 if (typeof window.red_leader === 'function') {
                     window.red_leader([0]);
                 } else {
-                    // O un listener por si el script principal carga un poco después en el DOM
                     window.addEventListener('DOMContentLoaded', () => {
                         if (typeof window.red_leader === 'function') {
                             window.red_leader([0]);
@@ -46,12 +42,12 @@
                     });
                 }
             } catch (e) {
-                console.error("Error al invocar red_leader desde el script de guardia:", e);
+                console.error("Error invoking red_leader from guard script:", e);
             }
         })();
     </script>
 
-    <!-- ⚙️ VALIDACIÓN DE ACTUALIZACIÓN (4 Horas + 20 min sin foco) -->
+    <!-- ⚙️ Sync Validation (4 Hours + 20 min background) -->
     <script>
     window.checkAndRedirectSync = function(force = false) {
         try {
@@ -59,7 +55,6 @@
             const hasPayload = localStorage.getItem("cache_payload");
             const hasLitePayloadCache = localStorage.getItem("lite_payload_cache");
             
-            // 🕒 Umbral de 4 horas
             const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
             const isOlderThan4Hours = (Date.now() - lastTimestamp) >= FOUR_HOURS_MS;
             const lostFocusLong = localStorage.getItem("app_lost_focus_long") === "true";
@@ -67,7 +62,6 @@
             const todayStr = new Date().toISOString().split("T")[0];
             const lastSyncDate = localStorage.getItem("app_last_sync_date");
 
-            // Condición: Forzado O Falta info base O (Tiene >= 4 horas de antigüedad Y perdió foco por 20+ min)
             const needsSync = force || !lastSyncDate || lastSyncDate !== todayStr || !hasPayload || !hasLitePayloadCache || (isOlderThan4Hours && lostFocusLong);
 
             if (needsSync) {
@@ -79,13 +73,11 @@
                         : (hasLitePayloadCache ? '?fast=1' : '');
 
                     window.location.replace('loading-screen.html' + targetSearch);
-                    return true; // Indica que redirigió
+                    return true;
                 }
             } else {
-                // Si no necesita sincronización, limpiamos la bandera de pérdida de foco temporal
                 localStorage.removeItem("app_lost_focus_long");
 
-                // Ocultamos el splash de carga inmediatamente
                 if (!document.getElementById('dynamic-hide-splash')) {
                     const style = document.createElement('style');
                     style.id = 'dynamic-hide-splash';
@@ -94,12 +86,11 @@
                 }
             }
         } catch (e) {
-            console.error("Error en validación de sync:", e);
+            console.error("Error in sync validation:", e);
         }
         return false;
     };
 
-    // Ejecución automática al cargar la página (mantiene tu comportamiento original)
     (function() {
         window.checkAndRedirectSync(false);
     })();
@@ -116,15 +107,16 @@
     <link rel="stylesheet" href="directory.css">
     <link rel="stylesheet" href="Guidelines_Info.css">
     <link rel="stylesheet" href="provider-directory.css">
+    <link rel="stylesheet" href="epicEquivalent.css">
     <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
     <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
 </head>
 <body>
-    <!-- 🌌 HUD SPLASH SCREEN (Requerido por loading-screen-W-LOGS.js para estados de sesión y progreso) -->
+    <!-- 🌌 HUD SPLASH SCREEN -->
     <div id="sync-splash" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0f172a; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-family: system-ui, sans-serif; transition: opacity 0.4s ease;">
         <div style="max-width: 400px; width: 90%; text-align: center;">
             <h2 style="color: #38bdf8; margin-bottom: 8px;">Clinicas del Camino Real</h2>
-            <p id="sync-status" style="color: #94a3b8; font-size: 13px; margin-bottom: 20px;">Verificando sesión corporativa...</p>
+            <p id="sync-status" style="color: #94a3b8; font-size: 13px; margin-bottom: 20px;">Verifying corporate session...</p>
             <div style="background: #1e293b; border-radius: 999px; height: 8px; overflow: hidden; border: 1px solid #334155; margin-bottom: 12px;">
                 <div id="bt-progress-bar" style="background: #38bdf8; width: 0%; height: 100%; transition: width 0.3s ease;"></div>
             </div>
@@ -149,7 +141,7 @@
 
                 <div style="margin-top:auto;">
                     <hr style="opacity:0.2;">
-                    <div class="nav-item" onclick="window.triggerManualSync()" style="color:#4dabf7;" title="Force data update from cloud">
+                    <div class="nav-sync-action" onclick="window.triggerManualSync()" style="color:#4dabf7; padding: 10px 14px; cursor: pointer; border-radius: 6px; font-weight: 500;" title="Force data update from cloud">
                         🔄 Sync Data
                     </div>
                 </div>
@@ -160,49 +152,81 @@
             <header class="brand">
             </header>
 
-            <section class="card" id="note-section">
-                <div class="card-hd">
-                    <h3>📝 Appointment Note Builder</h3>
-                    <div class="actions">
+            <section class="card" id="note-section" style="background: transparent; border: none; box-shadow: none; padding: 0;">
+                <div class="word-page">
+                    <h1 class="main-title">📝 Appointment Note Builder & Visit Guide</h1>
+                    
+                    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 20px;">
                         <button class="btn ghost" onclick="resetForm()">↺ Reset</button>
                         <button class="btn primary" onclick="copyResult()">📋 Copy Note</button>
                     </div>
-                </div>
-                <div class="card-body">
-                    <div class="two-col">
-                        <div class="form-group">
-                            <label>Symptoms / Chief Complaint</label>
-                            <input id="n1" placeholder="e.g., cough, sore throat, fever" oninput="updateNote()" />
+
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        
+                        <!-- Row 1: Visit Type Directory, Search & Accordions -->
+                        <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 16px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <label style="font-weight: 600; color: #1e293b; margin-bottom: 8px; display: block;">🔍 Visit Type Directory & Filter</label>
+                            
+                            <!-- Main Search Bar -->
+                            <input id="visit-search-input" class="mc-input" placeholder="Type to filter sections (e.g., Physical, Diabetic, TB)..." style="margin-bottom: 12px; width: 100%;" />
+
+                            <!-- Scrollable Wrapper for Accordions -->
+                            <div style="max-height: 420px; overflow-y: auto; padding-right: 4px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc;">
+                                <!-- Container where notes.js dynamically renders the PDF-style sections -->
+                                <div id="visit-sections-container" style="padding: 8px;"></div>
+                            </div>
+
+                            <!-- Hidden fallback select if required by internal logic -->
+                            <select id="visit-type-select" style="display: none;"></select>
+
+                            <!-- Automatic Visit Details Panel -->
+                            <div id="visit-details-panel" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 6px; font-size: 13px; color: #166534; margin-top: 10px;">
+                                <div><strong>⏱️ Standard Check-in Time:</strong> <span id="result-checkin">--</span></div>
+                                <div style="margin-top: 4px;"><strong>📌 Guidance / Instructions:</strong> <span id="result-guidance">--</span></div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Visit Type</label>
-                            <input id="n2" placeholder="Emergent/Routine (defaults to 'no E/R')" oninput="updateNote()" />
+
+                        <!-- Row 2: Symptoms & E/R -->
+                        <div class="two-col">
+                            <div class="form-group">
+                                <label style="font-weight: 600; color: #1e293b;">Symptoms / Chief Complaint</label>
+                                <input id="n1" placeholder="e.g., cough, sore throat, fever" oninput="updateNote()" />
+                            </div>
+                            <div class="form-group">
+                                <label style="font-weight: 600; color: #1e293b;">Visit Type Category</label>
+                                <input id="n2" placeholder="Emergent/Routine (defaults to 'no E/R')" oninput="updateNote()" />
+                            </div>
                         </div>
-                    </div>
-                    <div class="two-col">
-                        <div class="form-group">
-                            <label>Insurance Type</label>
-                            <select id="n3" onchange="updateNote()">
-                                <option value="">-- Select Insurance --</option>
-                                <option>Gold Coast</option>
-                                <option>Medi-Cal</option>
-                                <option>Medicare</option>
-                                <option>PPO</option>
-                                <option>Self-Pay</option>
-                            </select>
+
+                        <!-- Row 3: Insurance with Special Rules -->
+                        <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 16px; border-radius: 6px;">
+                            <div class="two-col">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-weight: 600; color: #1e293b;">Insurance / Program Type</label>
+                                    <select id="insurance-status-select" onchange="updateNote()" style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #fff;">
+                                        <option value="">-- Select Insurance or Program --</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-weight: 600; color: #1e293b;">Member ID</label>
+                                    <input id="n4" placeholder="Insurance member ID" oninput="updateNote()" />
+                                </div>
+                            </div>
+                            <div id="insurance-conditions" style="font-size: 12px; margin-top: 8px; font-weight: 500;"></div>
                         </div>
+
+                        <!-- Row 4: Additional Notes -->
                         <div class="form-group">
-                            <label>Member ID</label>
-                            <input id="n4" placeholder="Insurance member ID" oninput="updateNote()" />
+                            <label style="font-weight: 600; color: #1e293b;">Additional Notes</label>
+                            <textarea id="n5" rows="2" placeholder="Allergies, transportation needs, preferred callback times..." oninput="updateNote()"></textarea>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Additional Notes</label>
-                        <textarea id="n5" rows="2" placeholder="Allergies, transportation needs, preferred callback times..." oninput="updateNote()"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Generated Note (Copy-Ready Format)</label>
-                        <div id="result" class="note-result"></div>
+
+                        <!-- Row 5: Generated Note Final Output -->
+                        <div class="form-group">
+                            <label style="font-weight: 600; color: #1e293b;">Generated Note (Copy-Ready Format)</label>
+                            <div id="result" class="note-result"></div>
+                        </div>
+
                     </div>
                 </div>
             </section>
@@ -214,18 +238,15 @@
                         <div class="mc-card">
                             <div class="mc-line mc-search" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                                 
-                                <!-- 1. Textbox exclusivo para dirección, ZIP o códigos (sin datalist) -->
-                                <input id="searchInput" class="mc-input" placeholder="Ingresar dirección, ZIP o código..." style="flex: 2; min-width: 220px;" />
+                                <input id="searchInput" class="mc-input" placeholder="Enter address, ZIP, or code..." style="flex: 2; min-width: 220px;" />
 
-                                <!-- 2. Dropdown de clínicas con soporte multilínea para nicknames -->
                                 <select id="clinicSelect" class="mc-select" style="flex: 2; min-width: 240px; padding: 7px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #fff;">
-                                    <option value="">-- Seleccionar clínica (Opcional) --</option>
+                                    <option value="">-- Select Clinic (Optional) --</option>
                                 </select>
 
-                                <!-- 3. Botones de acción -->
                                 <div style="display: flex; gap: 6px;">
-                                    <button class="btn primary" onclick="findNearest()">🔎 Buscar</button>
-                                    <button class="btn ghost" onclick="clearSearch()">✕ Limpiar</button>
+                                    <button class="btn primary" onclick="findNearest()">🔎 Search</button>
+                                    <button class="btn ghost" onclick="clearSearch()">✕ Clear</button>
                                 </div>
 
                             </div>
@@ -299,9 +320,8 @@
 
     <div class="toast" id="toast">✓ Copied to clipboard!</div>
 
-    <!-- Scripts principales y componentes de la aplicación -->
+    <!-- Core Scripts & Components -->
     <script src="notes.js"></script>
-    <!-- <script src="admin.js"></script> -->
     <script src="Guidelines_Info.js"></script>
     <script src="map.js"></script>
     <script src="provider-directory.js"></script>
@@ -321,17 +341,13 @@
         };
     </script>
 
-    <!-- 🚀 LLAMADA MANUAL DEL MAPA AL CARGAR LA PÁGINA (Evita pantalla en blanco si no hubo redirección) -->
     <script>
         window.addEventListener('DOMContentLoaded', () => {
-            console.log("⚡ [Index] Verificación completada. Asegurando inicialización de componentes...");
+            console.log("⚡ [Index] Verification completed. Ensuring component initialization...");
             
-            // Si estás utilizando la función manual que definimos antes (ej. initManualMap):
             if (typeof window.initManualMap === 'function') {
                 window.initManualMap();
-            } 
-            // O si sigues usando map.js con eventos automáticos, aseguramos un disparador de respaldo:
-            else if (typeof window.obtenerCsv === 'function' || localStorage.getItem("cache_payload")) {
+            } else if (typeof window.obtenerCsv === 'function' || localStorage.getItem("cache_payload")) {
                 setTimeout(() => {
                     window.dispatchEvent(new Event('AppDataLoaded'));
                 }, 100);
@@ -360,5 +376,122 @@
             }
         }
     </script>
+
+    <script>
+'use strict';
+
+/* ======= Sidebar / Burger ======= */
+function enforceCollapsedSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    const burger = document.querySelector('.burger');
+    if (sidebar) {
+        sidebar.classList.remove('open');
+        sidebar.style.transform = 'translateX(-100%)';
+    }
+    if (overlay) overlay.classList.remove('show');
+    if (burger) {
+        burger.style.display = 'block';
+        burger.classList.remove('active');
+    }
+}
+
+function toggleMenu(force) {
+    const burger = document.querySelector('.burger');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (!sidebar || !burger || !overlay) return;
+
+    const isOpen = sidebar.classList.contains('open');
+    const willOpen = (force === true) ? true : (force === false) ? false : !isOpen;
+
+    if (willOpen) {
+        burger.classList.add('active');
+        sidebar.classList.add('open');
+        overlay.classList.add('show');
+        sidebar.style.transform = 'translateX(0)';
+    } else {
+        burger.classList.remove('active');
+        sidebar.classList.remove('open');
+        overlay.classList.remove('show');
+        sidebar.style.transform = 'translateX(-100%)';
+    }
+}
+
+/* ======= Section Navigation (1 to 5) ======= */
+function navigateTo(s) {
+    const sections = {
+        note: document.getElementById('note-section'),
+        map: document.getElementById('map-section'),
+        directory: document.getElementById('directory-section'),
+        'provider-directory': document.getElementById('provider-directory-section'),
+        info: document.getElementById('info-section')
+    };
+
+    Object.values(sections).forEach(el => {
+        if (el) el.style.display = 'none';
+    });
+
+    if (s === 'note' && sections.note) sections.note.style.display = 'block';
+    if (s === 'map' && sections.map) {
+        sections.map.style.display = 'block';
+        if (window.AppMap && typeof window.AppMap.invalidateSize === 'function') {
+            setTimeout(() => {
+                try { window.AppMap.invalidateSize(); } catch (e) {}
+            }, 150);
+        }
+    }
+    if (s === 'directory' && sections.directory) {
+        sections.directory.style.display = 'block';
+        if (typeof window.CSVDir_syncStickyTop === 'function') window.CSVDir_syncStickyTop();
+        if (typeof window.CSVDir_defaultCollapse === 'function') window.CSVDir_defaultCollapse();
+        if (typeof window.CSVDir_filter === 'function') window.CSVDir_filter();
+    }
+    if (s === 'provider-directory' && sections['provider-directory']) {
+        sections['provider-directory'].style.display = 'block';
+        if (typeof initMasterProviderDirectory === 'function') initMasterProviderDirectory();
+    }
+    if (s === 'info' && sections.info) sections.info.style.display = 'block';
+
+    const items = document.querySelectorAll('.sidebar .nav-item');
+    items.forEach((el, i) => el.classList.toggle('active',
+        (s === 'note' && i === 0) ||
+        (s === 'map' && i === 1) ||
+        (s === 'directory' && i === 2) ||
+        (s === 'provider-directory' && i === 3) || 
+        (s === 'info' && i === 4)
+    ));
+
+    if (typeof toggleMenu === 'function') toggleMenu(false);
+}
+
+/* ======= Shortcuts Alt+Shift+1/2/3/4/5 ======= */
+document.addEventListener('keydown', e => {
+    if (e.altKey && e.shiftKey) {
+        if (e.key === '1' || e.code === 'Digit1') { e.preventDefault(); navigateTo('note'); }
+        if (e.key === '2' || e.code === 'Digit2') { e.preventDefault(); navigateTo('map'); }
+        if (e.key === '3' || e.code === 'Digit3') { e.preventDefault(); navigateTo('directory'); }
+        if (e.key === '4' || e.code === 'Digit4') { e.preventDefault(); navigateTo('provider-directory'); }
+        if (e.key === '5' || e.code === 'Digit5') { e.preventDefault(); navigateTo('info'); }
+    }
+});
+
+/* ======= Bootstrap UI Core ======= */
+window.addEventListener('DOMContentLoaded', () => {
+    try {
+        enforceCollapsedSidebar();
+        const overlay = document.querySelector('.sidebar-overlay');
+        overlay?.addEventListener('click', () => toggleMenu(false));
+        navigateTo('map');
+    } catch (e) {
+        console.error('Error in UI initialization:', e);
+    }
+});
+
+/* ======= Expose Global UI Functions ======= */
+window.navigateTo = navigateTo;
+window.toggleMenu = toggleMenu;
+window.enforceCollapsedSidebar = enforceCollapsedSidebar;
+</script>
 </body>
 </html>

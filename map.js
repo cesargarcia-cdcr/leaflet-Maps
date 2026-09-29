@@ -765,7 +765,7 @@
             }
             await addMarkers();
             populateClinicPickers();
-            wireShortcuts();
+            // wireShortcuts();
             setTimeout(() => map.invalidateSize(), 200);
         } catch (e) {
             console.error('bootstrap', e);
