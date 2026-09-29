@@ -725,7 +725,7 @@
         });
     }
 
-    function wireShortcuts() {
+    /* function wireShortcuts() {
         window.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
                 e.preventDefault();
@@ -735,7 +735,7 @@
             if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'f') { toggleFullscreen(); }
             if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'g') { geolocate(); }
         });
-    }
+    } */
 
     /* ---------- Bootstrap ---------- */
     window.addEventListener('AppDataLoaded', async() => {
