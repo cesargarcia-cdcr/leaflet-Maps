@@ -107,7 +107,7 @@
     <link rel="stylesheet" href="directory.css">
     <link rel="stylesheet" href="Guidelines_Info.css">
     <link rel="stylesheet" href="provider-directory.css">
-    <link rel="stylesheet" href="epicEquivalent.css">
+    <link rel="stylesheet" href="epic_guide.css">
     <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
     <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
 </head>
@@ -153,83 +153,82 @@
             </header>
 
             <section class="card" id="note-section" style="background: transparent; border: none; box-shadow: none; padding: 0;">
-                <div class="word-page">
-                    <h1 class="main-title">📝 Appointment Note Builder & Visit Guide</h1>
-                    
-                    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 20px;">
-                        <button class="btn ghost" onclick="resetForm()">↺ Reset</button>
-                        <button class="btn primary" onclick="copyResult()">📋 Copy Note</button>
+    <div class="word-page">
+        <h1 class="main-title">📝 Appointment Note Builder & Visit Guide</h1>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 20px;">
+            <button class="btn ghost" onclick="resetForm()">↺ Reset</button>
+            <button class="btn primary" onclick="copyResult()">📋 Copy Note</button>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            
+            <!-- Row 2: Symptoms & E/R -->
+            <div class="two-col">
+                <div class="form-group">
+                    <label style="font-weight: 600; color: #1e293b;">Symptoms / Chief Complaint</label>
+                    <input id="n1" placeholder="e.g., cough, sore throat, fever" oninput="updateNote()" />
+                </div>
+                <div class="form-group">
+                    <label style="font-weight: 600; color: #1e293b;">Visit Type Category</label>
+                    <input id="n2" placeholder="Emergent/Routine (defaults to 'no E/R')" oninput="updateNote()" />
+                </div>
+            </div>
+
+            <!-- Row 3: Insurance with Special Rules -->
+            <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 16px; border-radius: 6px;">
+                <div class="two-col">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-weight: 600; color: #1e293b;">Insurance / Program Type</label>
+                        <select id="insurance-status-select" onchange="updateNote()" style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #fff;">
+                            <option value="">-- Select Insurance or Program --</option>
+                        </select>
                     </div>
-
-                    <div style="display: flex; flex-direction: column; gap: 20px;">
-                        
-                        <!-- Row 1: Visit Type Directory, Search & Accordions -->
-                        <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 16px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            <label style="font-weight: 600; color: #1e293b; margin-bottom: 8px; display: block;">🔍 Visit Type Directory & Filter</label>
-                            
-                            <!-- Main Search Bar -->
-                            <input id="visit-search-input" class="mc-input" placeholder="Type to filter sections (e.g., Physical, Diabetic, TB)..." style="margin-bottom: 12px; width: 100%;" />
-
-                            <!-- Scrollable Wrapper for Accordions -->
-                            <div style="max-height: 420px; overflow-y: auto; padding-right: 4px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc;">
-                                <!-- Container where notes.js dynamically renders the PDF-style sections -->
-                                <div id="visit-sections-container" style="padding: 8px;"></div>
-                            </div>
-
-                            <!-- Hidden fallback select if required by internal logic -->
-                            <select id="visit-type-select" style="display: none;"></select>
-
-                            <!-- Automatic Visit Details Panel -->
-                            <div id="visit-details-panel" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 6px; font-size: 13px; color: #166534; margin-top: 10px;">
-                                <div><strong>⏱️ Standard Check-in Time:</strong> <span id="result-checkin">--</span></div>
-                                <div style="margin-top: 4px;"><strong>📌 Guidance / Instructions:</strong> <span id="result-guidance">--</span></div>
-                            </div>
-                        </div>
-
-                        <!-- Row 2: Symptoms & E/R -->
-                        <div class="two-col">
-                            <div class="form-group">
-                                <label style="font-weight: 600; color: #1e293b;">Symptoms / Chief Complaint</label>
-                                <input id="n1" placeholder="e.g., cough, sore throat, fever" oninput="updateNote()" />
-                            </div>
-                            <div class="form-group">
-                                <label style="font-weight: 600; color: #1e293b;">Visit Type Category</label>
-                                <input id="n2" placeholder="Emergent/Routine (defaults to 'no E/R')" oninput="updateNote()" />
-                            </div>
-                        </div>
-
-                        <!-- Row 3: Insurance with Special Rules -->
-                        <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 16px; border-radius: 6px;">
-                            <div class="two-col">
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-weight: 600; color: #1e293b;">Insurance / Program Type</label>
-                                    <select id="insurance-status-select" onchange="updateNote()" style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #fff;">
-                                        <option value="">-- Select Insurance or Program --</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label style="font-weight: 600; color: #1e293b;">Member ID</label>
-                                    <input id="n4" placeholder="Insurance member ID" oninput="updateNote()" />
-                                </div>
-                            </div>
-                            <div id="insurance-conditions" style="font-size: 12px; margin-top: 8px; font-weight: 500;"></div>
-                        </div>
-
-                        <!-- Row 4: Additional Notes -->
-                        <div class="form-group">
-                            <label style="font-weight: 600; color: #1e293b;">Additional Notes</label>
-                            <textarea id="n5" rows="2" placeholder="Allergies, transportation needs, preferred callback times..." oninput="updateNote()"></textarea>
-                        </div>
-
-                        <!-- Row 5: Generated Note Final Output -->
-                        <div class="form-group">
-                            <label style="font-weight: 600; color: #1e293b;">Generated Note (Copy-Ready Format)</label>
-                            <div id="result" class="note-result"></div>
-                        </div>
-
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-weight: 600; color: #1e293b;">Member ID</label>
+                        <input id="n4" placeholder="Insurance member ID" oninput="updateNote()" />
                     </div>
                 </div>
-            </section>
+                <div id="insurance-conditions" style="font-size: 12px; margin-top: 8px; font-weight: 500;"></div>
+            </div>
+
+            <!-- Row 4: Additional Notes -->
+            <div class="form-group">
+                <label style="font-weight: 600; color: #1e293b;">Additional Notes</label>
+                <textarea id="n5" rows="2" placeholder="Allergies, transportation needs, preferred callback times..." oninput="updateNote()"></textarea>
+            </div>
+
+            <!-- Row 5: Generated Note Final Output -->
+            <div class="form-group">
+                <label style="font-weight: 600; color: #1e293b;">Generated Note (Copy-Ready Format)</label>
+                <div id="result" class="note-result"></div>
+            </div>
+            
+            <!-- Row 1: Visit Type Directory, Search & Dynamic Content Area -->
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 16px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <label style="font-weight: 600; color: #1e293b; margin-bottom: 8px; display: block;">🔍 Visit Type Directory & Filter</label>
+                
+                <!-- Buscador Dinámico en Vivo -->
+                <input type="text" id="live-search-input" placeholder="🔍 Filtrar tipos de visita, códigos o guías..." style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95em; box-sizing: border-box; outline: none; margin-bottom: 12px;" oninput="filterEpicGuide(this.value)" />
+
+                <!-- Contenedor scrollable donde se cargará dinámicamente la tabla -->
+                <div style="max-height: 420px; overflow-y: auto; padding-right: 4px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc;">
+                    <div id="content-area" class="msg-box info-msg" style="padding: 20px;">Cargando y sincronizando datos dinámicamente...</div>
+                </div>
+
+                <!-- Hidden fallback select if required by internal logic -->
+                <select id="visit-type-select" style="display: none;"></select>
+
+                <!-- Automatic Visit Details Panel -->
+                <div id="visit-details-panel" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 6px; font-size: 13px; color: #166534; margin-top: 10px;">
+                    <div><strong>⏱️ Standard Check-in Time:</strong> <span id="result-checkin">--</span></div>
+                    <div style="margin-top: 4px;"><strong>📌 Guidance / Instructions:</strong> <span id="result-guidance">--</span></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
 
             <section id="map-section" class="map-full" style="display:none">
                 <div id="map" class="map-viewport"></div>
@@ -327,6 +326,7 @@
     <script src="provider-directory.js"></script>
     <script src="directory.js"></script>
     <script src="loading-screen-W-LOGS.js"></script>
+    <script src="epic_guide.js"></script>
 
     <script>
         window.APP_DATA = window.APP_DATA || {};
