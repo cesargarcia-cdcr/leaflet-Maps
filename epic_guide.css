@@ -98,3 +98,28 @@ div[style*="max-height: 420px"]::-webkit-scrollbar-thumb {
 div[style*="max-height: 420px"]::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+
+/* Estilo para que la cabecera parezca un botón interactivo */
+.section-header {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Indicador de flecha en la cabecera */
+.section-header::after {
+    content: "▼";
+    font-size: 0.75em;
+    transition: transform 0.2s ease;
+}
+
+/* Cuando la sección está colapsada, rotamos la flecha y ocultamos la tabla */
+.section-container.collapsed .section-header::after {
+    transform: rotate(-90deg);
+}
+
+.section-container.collapsed table {
+    display: none;
+}

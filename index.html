@@ -167,11 +167,11 @@
             <div class="two-col">
                 <div class="form-group">
                     <label style="font-weight: 600; color: #1e293b;">Symptoms / Chief Complaint</label>
-                    <input id="n1" placeholder="e.g., cough, sore throat, fever" oninput="updateNote()" />
+                    <input id="Symptoms" placeholder="e.g., cough, sore throat, fever" oninput="updateNote()" />
                 </div>
                 <div class="form-group">
                     <label style="font-weight: 600; color: #1e293b;">Visit Type Category</label>
-                    <input id="n2" placeholder="Emergent/Routine (defaults to 'no E/R')" oninput="updateNote()" />
+                    <input id="ER" placeholder="Emergent/Routine (defaults to 'no E/R')" oninput="updateNote()" />
                 </div>
             </div>
 
@@ -186,7 +186,7 @@
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label style="font-weight: 600; color: #1e293b;">Member ID</label>
-                        <input id="n4" placeholder="Insurance member ID" oninput="updateNote()" />
+                        <input id="InsuranceID" placeholder="Insurance member ID" oninput="updateNote();autoSelectInsuranceByMemberId(this.value)"/>
                     </div>
                 </div>
                 <div id="insurance-conditions" style="font-size: 12px; margin-top: 8px; font-weight: 500;"></div>
