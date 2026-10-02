@@ -100,7 +100,7 @@
     <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="12" font-size="12">🗂️</text></svg>' />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="app.css">
+    <!-- <link rel="stylesheet" href="app.css"> -->
     <link rel="stylesheet" href="layout.css"> 
     <link rel="stylesheet" href="notes.css"> 
     <link rel="stylesheet" href="map.css"> 
@@ -113,14 +113,14 @@
 </head>
 <body>
     <!-- 🌌 HUD SPLASH SCREEN -->
-    <div id="sync-splash" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0f172a; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-family: system-ui, sans-serif; transition: opacity 0.4s ease;">
-        <div style="max-width: 400px; width: 90%; text-align: center;">
-            <h2 style="color: #38bdf8; margin-bottom: 8px;">Clinicas del Camino Real</h2>
-            <p id="sync-status" style="color: #94a3b8; font-size: 13px; margin-bottom: 20px;">Verifying corporate session...</p>
-            <div style="background: #1e293b; border-radius: 999px; height: 8px; overflow: hidden; border: 1px solid #334155; margin-bottom: 12px;">
-                <div id="bt-progress-bar" style="background: #38bdf8; width: 0%; height: 100%; transition: width 0.3s ease;"></div>
+    <div id="sync-splash" class="sync-splash-container">
+        <div class="sync-splash-content">
+            <h2 class="sync-title">Clinicas del Camino Real</h2>
+            <p id="sync-status" class="sync-status-text">Verifying corporate session...</p>
+            <div class="sync-progress-track">
+                <div id="bt-progress-bar" class="sync-progress-bar"></div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
+            <div class="sync-footer-info">
                 <span id="bt-state-text">CONNECTING</span>
                 <span id="bt-percentage">0%</span>
             </div>
@@ -132,16 +132,16 @@
         <div class="sidebar-overlay" onclick="toggleMenu()"></div>
         
         <aside class="sidebar">
-            <nav style="display:flex; flex-direction:column; height:100%;">
+            <nav class="sidebar-nav">
                 <div class="nav-item active" onclick="navigateTo('note')">Note-builder</div>
                 <div class="nav-item" onclick="navigateTo('map')">Map</div>
                 <div class="nav-item" onclick="navigateTo('directory')">Clinic Directory</div>
                 <div class="nav-item" onclick="navigateTo('provider-directory')">Provider Directory</div>
                 <div class="nav-item" onclick="navigateTo('info')">Guidelines & Info</div>
 
-                <div style="margin-top:auto;">
-                    <hr style="opacity:0.2;">
-                    <div class="nav-sync-action" onclick="window.triggerManualSync()" style="color:#4dabf7; padding: 10px 14px; cursor: pointer; border-radius: 6px; font-weight: 500;" title="Force data update from cloud">
+                <div class="sidebar-footer">
+                    <hr class="sidebar-divider">
+                    <div class="nav-sync-action" onclick="window.triggerManualSync()" title="Force data update from cloud">
                         🔄 Sync Data
                     </div>
                 </div>
@@ -149,86 +149,97 @@
         </aside>
 
         <div class="page">
-            <header class="brand">
-            </header>
+            <header class="brand"></header>
 
-            <section class="card" id="note-section" style="background: transparent; border: none; box-shadow: none; padding: 0;">
-    <div class="word-page">
-        <h1 class="main-title">📝 Appointment Note Builder & Visit Guide</h1>
-        
-        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 20px;">
-            <button class="btn ghost" onclick="resetForm()">↺ Reset</button>
-            <button class="btn primary" onclick="copyResult()">📋 Copy Note</button>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 20px;">
-            
-            <!-- Row 2: Symptoms & E/R -->
-            <div class="two-col">
-                <div class="form-group">
-                    <label style="font-weight: 600; color: #1e293b;">Symptoms / Chief Complaint</label>
-                    <input id="Symptoms" placeholder="e.g., cough, sore throat, fever" oninput="updateNote()" />
-                </div>
-                <div class="form-group">
-                    <label style="font-weight: 600; color: #1e293b;">Visit Type Category</label>
-                    <input id="ER" placeholder="Emergent/Routine (defaults to 'no E/R')" oninput="updateNote()" />
-                </div>
-            </div>
-
-            <!-- Row 3: Insurance with Special Rules -->
-            <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 16px; border-radius: 6px;">
-                <div class="two-col">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="font-weight: 600; color: #1e293b;">Insurance / Program Type</label>
-                        <select id="insurance-status-select" onchange="updateNote()" style="width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #fff;">
-                            <option value="">-- Select Insurance or Program --</option>
-                        </select>
+            <section class="card" id="note-section">
+                <div class="word-page">
+                    <h1 class="main-title">📝 Appointment Note Builder & Visit Guide</h1>
+                    
+                    <div class="action-buttons-bar">
+                        <button class="btn ghost" onclick="resetForm()">↺ Reset</button>
+                        <button class="btn primary" onclick="copyResult()">📋 Copy Note</button>
                     </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="font-weight: 600; color: #1e293b;">Member ID</label>
-                        <input id="InsuranceID" placeholder="Insurance member ID" oninput="updateNote();autoSelectInsuranceByMemberId(this.value)"/>
+
+                    <!-- Contenedor de 2 Columnas -->
+                    <div class="note-grid-container">
+                        
+                        <!-- COLUMNA 1: Constructor de Notas -->
+                        <div class="note-column-left">
+                            
+                            <!-- Row 2: Symptoms & UC/ER -->
+                            <div class="form-card-box">
+                                <div class="two-col">
+                                    <div class="form-group no-margin">
+                                        <label class="form-label">Symptoms / Chief Complaint</label>
+                                        <input id="Symptoms" placeholder="e.g., cough, sore throat, fever" oninput="updateNote()" class="form-input" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">UC/ER</label>
+                                        <div class="input-relative-flex">
+                                            <select id="ER" onchange="onHospitalSelectChange()" class="form-select">
+                                                <option value="">-- Select Hospital / Facility --</option>
+                                            </select>
+                                            <input id="ER-custom-input" placeholder="Or type custom facility..." oninput="updateNote(); checkHospitalConditions();" class="form-input-custom" />
+                                        </div>
+                                        <div class="er-toggle-container">
+                                            <span id="er-mode-toggle" onclick="toggleHospitalInputMode()" class="er-toggle-link">Switch to manual input</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="er-conditions" class="dynamic-conditions-text"></div>
+                            </div>
+
+                            <!-- Row 3: Insurance with Special Rules -->
+                            <div class="form-card-box">
+                                <div class="two-col">
+                                    <div class="form-group no-margin">
+                                        <label class="form-label">Insurance / Program Type</label>
+                                        <select id="insurance-status-select" onchange="updateNote()" class="form-select">
+                                            <option value="">-- Select Insurance or Program --</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group no-margin">
+                                        <label class="form-label">Member ID</label>
+                                        <input id="InsuranceID" placeholder="Insurance member ID" oninput="updateNote();autoSelectInsuranceByMemberId(this.value)" class="form-input" />
+                                    </div>
+                                </div>
+                                <div id="insurance-conditions" class="dynamic-conditions-text"></div>
+                            </div>
+
+                            <!-- Row 4: Additional Notes -->
+                            <div class="form-group no-margin">
+                                <label class="form-label">Additional Notes</label>
+                                <textarea id="n5" rows="2" placeholder="Allergies, transportation needs, preferred callback times..." oninput="updateNote()" class="form-textarea"></textarea>
+                            </div>
+
+                            <!-- Row 5: Generated Note Final Output -->
+                            <div class="form-group no-margin">
+                                <label class="form-label">Generated Note (Copy-Ready Format)</label>
+                                <div id="result" class="note-result min-height-result"></div>
+                            </div>
+                        </div>
+
+                        <!-- COLUMNA 2: Visit Type Directory & Filter -->
+                        <div class="directory-column-right">
+                            <label class="form-label mb-8">🔍 Visit Type Directory & Filter</label>
+                            
+                            <input type="text" id="live-search-input" placeholder="🔍 Filtrar tipos de visita, códigos o guías..." class="live-search-input" oninput="filterEpicGuide(this.value)" />
+
+                            <div class="epic-guide-scroll-container">
+                                <div id="content-area" class="msg-box info-msg min-width-content">Cargando y sincronizando datos dinámicamente...</div>
+                            </div>
+
+                            <select id="visit-type-select" class="display-none"></select>
+
+                            <div id="visit-details-panel" class="visit-details-panel">
+                                <div><strong>⏱️ Standard Check-in Time:</strong> <span id="result-checkin">--</span></div>
+                                <div class="mt-4"><strong>📌 Guidance / Instructions:</strong> <span id="result-guidance">--</span></div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
-                <div id="insurance-conditions" style="font-size: 12px; margin-top: 8px; font-weight: 500;"></div>
-            </div>
-
-            <!-- Row 4: Additional Notes -->
-            <div class="form-group">
-                <label style="font-weight: 600; color: #1e293b;">Additional Notes</label>
-                <textarea id="n5" rows="2" placeholder="Allergies, transportation needs, preferred callback times..." oninput="updateNote()"></textarea>
-            </div>
-
-            <!-- Row 5: Generated Note Final Output -->
-            <div class="form-group">
-                <label style="font-weight: 600; color: #1e293b;">Generated Note (Copy-Ready Format)</label>
-                <div id="result" class="note-result"></div>
-            </div>
-            
-            <!-- Row 1: Visit Type Directory, Search & Dynamic Content Area -->
-            <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 16px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <label style="font-weight: 600; color: #1e293b; margin-bottom: 8px; display: block;">🔍 Visit Type Directory & Filter</label>
-                
-                <!-- Buscador Dinámico en Vivo -->
-                <input type="text" id="live-search-input" placeholder="🔍 Filtrar tipos de visita, códigos o guías..." style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95em; box-sizing: border-box; outline: none; margin-bottom: 12px;" oninput="filterEpicGuide(this.value)" />
-
-                <!-- Contenedor scrollable donde se cargará dinámicamente la tabla -->
-                <div style="max-height: 420px; overflow-y: auto; padding-right: 4px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc;">
-                    <div id="content-area" class="msg-box info-msg" style="padding: 20px;">Cargando y sincronizando datos dinámicamente...</div>
-                </div>
-
-                <!-- Hidden fallback select if required by internal logic -->
-                <select id="visit-type-select" style="display: none;"></select>
-
-                <!-- Automatic Visit Details Panel -->
-                <div id="visit-details-panel" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 6px; font-size: 13px; color: #166534; margin-top: 10px;">
-                    <div><strong>⏱️ Standard Check-in Time:</strong> <span id="result-checkin">--</span></div>
-                    <div style="margin-top: 4px;"><strong>📌 Guidance / Instructions:</strong> <span id="result-guidance">--</span></div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-</section>
+            </section>
 
             <section id="map-section" class="map-full" style="display:none">
                 <div id="map" class="map-viewport"></div>
@@ -486,6 +497,46 @@ window.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
         console.error('Error in UI initialization:', e);
     }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    let isNoteSectionVisible = false;
+
+    // 1. Observador para detectar si la sección de notas está visible en el viewport
+    const noteSection = document.getElementById('note-section');
+    if (noteSection) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                isNoteSectionVisible = entry.isIntersecting;
+            });
+        }, { threshold: 0.2 }); // Se activa cuando al menos el 20% de la sección es visible
+
+        observer.observe(noteSection);
+    }
+
+    // 2. Listener global para la combinación Ctrl + C
+    document.addEventListener('keydown', (e) => {
+        // Verifica si presionaron Ctrl (o Cmd en Mac) + la tecla 'C' (o 'c')
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+            
+            // Si la sección de notas está visible
+            if (isNoteSectionVisible) {
+                
+                // Opcional: Si el usuario tiene seleccionado texto de manera nativa (ej. en un textarea o input),
+                // es mejor dejar que el navegador haga el copiado normal. Pero si NO hay texto seleccionado,
+                // forzamos tu función personalizada 'copyResult()'.
+                const selectedText = window.getSelection().toString();
+                
+                if (!selectedText) {
+                    e.preventDefault(); // Evita el comportamiento por defecto si es necesario
+                    if (typeof copyResult === 'function') {
+                        copyResult();
+                        console.log("📋 'Ctrl + C' detectado: Ejecutando copyResult() automáticamente.");
+                    }
+                }
+            }
+        }
+    });
 });
 
 /* ======= Expose Global UI Functions ======= */
