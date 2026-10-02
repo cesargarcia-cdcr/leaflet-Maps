@@ -36,10 +36,12 @@ min-height: 100vh;
 }
 
 .page {
-flex: 1;
-max-width: min(1400px, 70vw);
-margin: 0 auto;
-padding: 20px;
+    width: 100% !important;
+    max-width: 98vw !important; /* O bien un ancho amplio fijo como 1600px */
+    margin: 0 auto;
+    padding: 15px 30px;
+    box-sizing: border-box;
+    flex: 1;
 }
 
 @media (max-width: 1024px) {
