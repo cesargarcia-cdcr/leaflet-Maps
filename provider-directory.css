@@ -1,0 +1,481 @@
+/* ==========================================================================
+   PROVIDER DIRECTORY SUITE (Modern Dashboard Redesign)
+   ========================================================================== */
+
+/* ======= Card Master Grid Layout ======= */
+#masterProviderGrid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(340px, 1fr)) !important;
+    gap: 20px !important;
+    padding: 4px;
+}
+
+@media (max-width: 1024px) {
+    #masterProviderGrid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ======= Unified Header Toolbar ======= */
+.pdir-inline-filters-row {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-left: auto;
+}
+
+#masterProviderSearch,
+.pdir-inline-select,
+.pdir-inline-input {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+    font-size: 0.85rem;
+    color: #1e293b;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#masterProviderSearch:focus,
+.pdir-inline-select:focus,
+.pdir-inline-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+#masterProviderSearch { width: 230px; }
+.pdir-inline-select { max-width: 180px; }
+.pdir-inline-input { width: 170px; }
+
+.pdir-panel-reset {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background-color: #f8fafc;
+    color: #475569;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pdir-panel-reset:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+/* ======= Autocomplete Suggestions Box Styles ======= */
+#pdir-search-wrapper {
+    position: relative;
+}
+
+.pdir-autocomplete-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    z-index: 99;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.pdir-auto-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #1e293b;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.15s ease;
+}
+
+.pdir-auto-item:last-child {
+    border-bottom: none;
+}
+
+.pdir-auto-item:hover {
+    background-color: #f8fafc;
+}
+
+.pdir-auto-spec {
+    font-size: 11px;
+    color: #64748b;
+    margin-left: 6px;
+}
+
+/* ======= Keyword Cloud Tag Pills ======= */
+/* ======= Keyword Cloud Tag Pills (Organizado y Desplazable) ======= */
+#pdirKeywordsCloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 110px; /* Altura suficiente para mostrar 2 o 3 filas */
+    overflow-y: auto;  /* Habilita el scroll vertical explícitamente */
+    overflow-x: hidden;
+    padding: 8px;
+    margin-bottom: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    align-content: flex-start; /* Evita que los elementos se estiren verticalmente */
+}
+
+/* Scrollbar sutil y visible para el contenedor de tags */
+#pdirKeywordsCloud::-webkit-scrollbar {
+    width: 6px;
+}
+#pdirKeywordsCloud::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+#pdirKeywordsCloud::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+#pdirKeywordsCloud::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.pdir-tag-pill {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    height: fit-content; /* Asegura que cada chip mantenga su propia altura */
+}
+
+.pdir-tag-pill:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+.pdir-tag-pill.is-active {
+    background-color: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
+/* ======= Re-engineered Provider Cards ======= */
+.pdir-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pdir-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+    border-color: #cbd5e1;
+}
+
+.pdir-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.pdir-meta-left {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pdir-doc-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    line-height: 1.3;
+}
+
+/* Metadata Text Elements */
+.pdir-ids {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.pdir-ids strong {
+    color: #334155;
+}
+
+/* Specialty Badges */
+.pdir-badge {
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    white-space: nowrap;
+    border: 1px solid #bfdbfe;
+}
+
+/* ======= Clinical Guidelines UI Box ======= */
+.pdir-guidelines-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 8px;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pdir-guideline-row {
+    color: #334155;
+}
+
+.pdir-do-line {
+    color: #16a34a;
+}
+
+.pdir-dont-line {
+    color: #dc2626;
+}
+
+/* ======= Calendar Grid & Badges Layout ======= */
+.pdir-schedule-container {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.pdir-schedule-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pdir-schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    max-height: 140px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* Minimal Custom Scrollbar for Schedules */
+.pdir-schedule-grid::-webkit-scrollbar {
+    width: 4px;
+}
+.pdir-schedule-grid::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+.pdir-schedule-grid::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+.pdir-date-badge {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 2px;
+    text-align: center;
+    font-size: 0.72rem;
+    color: #334155;
+    font-weight: 600;
+}
+
+.pdir-badge-check {
+    color: #16a34a;
+}
+
+/* ======= Empty States ======= */
+.pdir-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    color: #64748b;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   MODERN DASHBOARD TOOLBAR DESIGN (Beautified Header Suite)
+   ========================================================================== */
+
+.pdir-unified-header-container {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 16px 20px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.pdir-primary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.pdir-title-text {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.pdir-search-wrapper {
+    position: relative;
+    flex: 1;
+    max-width: 480px;
+    min-width: 290px;
+}
+
+.pdir-search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.9rem;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.pdir-filter-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.pdir-filter-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex: 1;
+}
+
+.pdir-inline-select,
+.pdir-inline-input {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #475569;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    outline: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.pdir-inline-select:hover,
+.pdir-inline-input:hover {
+    border-color: #cbd5e1;
+    background-color: #f8fafc;
+}
+
+.pdir-inline-select:focus,
+.pdir-inline-input:focus {
+    border-color: #3b82f6;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+}
+
+.pdir-inline-select {
+    min-width: 190px;
+    max-width: 240px;
+}
+
+.pdir-inline-input {
+    width: 200px;
+    cursor: text;
+}
+
+.pdir-panel-reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    background-color: #f1f5f9;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.pdir-panel-reset:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+}
+
+.pdir-panel-reset:active {
+    transform: scale(0.97);
+}
+
+@media (max-width: 768px) {
+    .pdir-primary-row,
+    .pdir-filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .pdir-search-wrapper,
+    .pdir-filter-group {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .pdir-inline-select,
+    .pdir-inline-input {
+        flex: 1;
+        min-width: 100%;
+    }
+    
+    .pdir-panel-reset {
+        width: 100%;
+        justify-content: center;
+    }
+}

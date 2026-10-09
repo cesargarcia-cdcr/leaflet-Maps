@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cargando Sistema...</title>
+    <!-- Include your loading screen styles -->
+    <link rel="stylesheet" href="loading-screen.css">
+</head>
+<body>
+    <!-- Your Loading Screen DOM elements -->
+    <div id="loading-screen" style="display: flex; ...">
+        <h1>Cargando Clinicas del Camino Real...</h1>
+        <div id="loading-status">Verificando sesión...</div>
+    </div>
+
+    <!-- Core Loader Scripts -->
+    <script src="loading-screen.js"></script>
+    <script src="data-loader.js"></script>
+    
+    <script>
+        // Listen for when data-loader.js finishes ETL completely
+        window.addEventListener('AppDataReady', function() {
+            console.log("🚀 Gateway ETL Complete. Engaging hyperdrive to index.html...");
+            
+            // Short delay so the user sees 100% completion on the loading screen
+            setTimeout(function() {
+                window.location.href = 'index.html';
+            }, 400);
+        });
+    </script>
+</body>
+</html>

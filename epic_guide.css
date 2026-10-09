@@ -1,0 +1,125 @@
+/* --- Estilos Mejorados para la Guía de Visitas y Tablas Dinámicas --- */
+
+/* Contenedor principal de secciones */
+.section-container {
+    margin-bottom: 14px;
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.section-container:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Cabecera de cada sección */
+.section-header {
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    color: #ffffff;
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: 0.95em;
+    letter-spacing: 0.3px;
+    border-bottom: 1px solid #1d4ed8;
+}
+
+/* Estilos de la tabla interna */
+.section-container table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.section-container th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.section-container td {
+    padding: 10px 12px;
+    font-size: 0.85em;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+/* Fila interactiva al hacer hover */
+.section-container tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.section-container tbody tr:hover {
+    background-color: #f0fdf4 !important; /* Toque verde sutil clínico */
+    cursor: pointer;
+}
+
+.section-container tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Caja de búsqueda mejorada */
+#live-search-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 18px;
+    padding-right: 40px !important;
+    transition: all 0.2s ease;
+}
+
+#live-search-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Scrollbar fina para el contenedor de la tabla */
+div[style*="max-height: 420px"]::-webkit-scrollbar {
+    width: 6px;
+}
+
+div[style*="max-height: 420px"]::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+div[style*="max-height: 420px"]::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+div[style*="max-height: 420px"]::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Estilo para que la cabecera parezca un botón interactivo */
+.section-header {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Indicador de flecha en la cabecera */
+.section-header::after {
+    content: "▼";
+    font-size: 0.75em;
+    transition: transform 0.2s ease;
+}
+
+/* Cuando la sección está colapsada, rotamos la flecha y ocultamos la tabla */
+.section-container.collapsed .section-header::after {
+    transform: rotate(-90deg);
+}
+
+.section-container.collapsed table {
+    display: none;
+}

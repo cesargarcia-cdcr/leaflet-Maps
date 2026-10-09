@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Clinicas Directory</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <header class="app-header" id="appHeader">
+    <div class="toolbar">
+      <div class="title">
+        <h1>Clinicas Directory</h1>
+        <span class="subtitle">Clean web layout inspired by the PDF; content comes from your CSV</span>
+      </div>
+      <div class="search">
+        <span class="icon" aria-hidden="true">🔎</span>
+        <label class="sr-only" for="q">Search directory</label>
+        <input id="q" type="search" placeholder="Search name, department, clinic, ext, phone, fax…" autocomplete="off" />
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div id="result-meta" class="meta" aria-live="polite"></div>
+    <div id="root"></div>
+    <div id="empty" class="empty hidden">No results match your search.</div>
+  </div>
+
+  <footer style="color:#64748b;font-size:12px;text-align:center;margin:32px 0 12px;">
+    Data source: <code class="inline">Clinicas-Directory.csv</code>. Layout grouped by Clinic → Department.
+  </footer>
+
+  <script>
+    // ========= Keep the fixed header height in sync and offset the page =========
+    (function(){
+      const header = document.getElementById('appHeader');
+      const setOffsets = () => {
+        if(!header) return;
+        const h = header.offsetHeight; // actual rendered height
+        document.documentElement.style.setProperty('--toolbarH', h + 'px');
+        // Push the whole page content below the fixed header
+        document.body.style.paddingTop = h + 'px';
+      };
+      const ro = 'ResizeObserver' in window ? new ResizeObserver(setOffsets) : null;
+      if(ro) ro.observe(header);
+      window.addEventListener('load', setOffsets);
+      window.addEventListener('resize', setOffsets);
+    })();
+
+    // ========= CSV loader & parser =========
+    async function loadCSV(url){
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('Failed to load CSV: ' + res.status);
+      return await res.text();
+    }
+
+    // Robust CSV parser: handles quoted fields, commas, and newlines inside quotes.
+    function parseCSV(text){
+      const rows = [];
+      let i = 0, field = '', row = [], inQuotes = false;
+
+      // Normalize newlines
+      text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+      while(i < text.length){
+        const c = text[i];
+
+        if(inQuotes){
+          if(c === '"'){
+            if(text[i+1] === '"'){ field += '"'; i += 2; continue; } // escaped quote
+            inQuotes = false; i++; continue;
+          } else {
+            field += c; i++; continue;
+          }
+        }
+
+        // not in quotes
+        if(c === '"'){ inQuotes = true; i++; continue; }
+        if(c === ','){ row.push(field); field=''; i++; continue; }
+        if(c === '\n'){
+          row.push(field); rows.push(row); field=''; row=[]; i++; continue;
+        }
+        field += c; i++;
+      }
+      // last field
+      row.push(field); rows.push(row);
+
+      // Trim BOM if present
+      if(rows.length && rows[0].length){
+        rows[0][0] = rows[0][0].replace(/^\uFEFF/, '');
+      }
+      return rows;
+    }
+
+    function toObjects(rows){
+      const headers = rows.shift().map(h => h.trim());
+      const hlen = headers.length;
+      return rows
+        .filter(r => r.some(v => (v||'').trim().length)) // remove fully empty rows
+        .map(r => {
+          const obj = {};
+          for(let i=0;i<hlen;i++){
+            obj[headers[i] ?? ('Col'+i)] = (r[i] ?? '').trim();
+          }
+          return obj;
+        });
+    }
+
+    // Sanitize field for display
+    function pretty(value){
+      if(!value) return '';
+      return value
+        .replace(/\\\n/g, ' • ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    }
+
+    // ========= Grouping & Rendering =========
+    function groupData(items){
+      // Items expected columns: Clinic, Department, Name, Ext, Phone, Fax
+      const order = [];
+      const byClinic = new Map();
+
+      for(const it of items){
+        const clinic = pretty(it['Clinic']);
+        const dept = pretty(it['Department']);
+        if(!clinic || !dept) continue;
+
+        if(!byClinic.has(clinic)){
+          byClinic.set(clinic, { order: [], byDept: new Map() });
+          order.push(clinic);
+        }
+        const C = byClinic.get(clinic);
+        if(!C.byDept.has(dept)){
+          C.byDept.set(dept, []);
+          C.order.push(dept);
+        }
+        C.byDept.get(dept).push({
+          name: pretty(it['Name']),
+          ext: pretty(it['Ext']),
+          phone: pretty(it['Phone']),
+          fax: pretty(it['Fax'])
+        });
+      }
+      return { order, byClinic };
+    }
+
+    function el(tag, props={}, ...children){
+      const n = document.createElement(tag);
+      for(const [k,v] of Object.entries(props)){
+        if(k === 'class') n.className = v;
+        else if(k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+        else if(k === 'html') n.innerHTML = v;
+        else n.setAttribute(k, v);
+      }
+      for(const c of children){
+        if(c == null) continue;
+        if(typeof c === 'string') n.appendChild(document.createTextNode(c));
+        else n.appendChild(c);
+      }
+      return n;
+    }
+
+    function buildEntryCard(item){
+      const card = el('div', { class: 'entry' });
+      const name = el('div', { class: 'name' }, item.name || '(No name)');
+      const rows = el('div', { class: 'row' });
+
+      if(item.ext) rows.append(el('span', {}, el('span',{class:'k'},'Ext:'),' ', el('span',{class:'v'}, item.ext)));
+      if(item.phone) rows.append(el('span', {}, el('span',{class:'k'},'Phone:'),' ', el('span',{class:'v'}, item.phone)));
+      if(item.fax) rows.append(el('span', {}, el('span',{class:'k'},'Fax:'),' ', el('span',{class:'v'}, item.fax)));
+
+      card.append(name, rows);
+      return card;
+    }
+
+    function render(groups){
+      const root = document.getElementById('root');
+      root.innerHTML = '';
+      const index = []; // for search
+
+      for(const clinic of groups.order){
+        const block = el('section', { class: 'clinic' });
+
+        const head = el('div', { class: 'clinic-head' },
+          el('h2', {}, clinic),
+          el('span', { class: 'small' }, '— grouped by department')
+        );
+
+        const body = el('div', { class: 'clinic-body' });
+        const departments = el('div', { class: 'departments' });
+        const C = groups.byClinic.get(clinic);
+
+        for(const dept of C.order){
+          const dwrap = el('section', { class: 'dept' });
+          const dhead = el('div', { class: 'dept-head' },
+            el('h3', {}, dept)
+          );
+          const entries = el('div', { class: 'entries' });
+
+          for(const item of C.byDept.get(dept)){
+            const card = buildEntryCard(item);
+            const searchable = [
+              clinic, dept,
+              item.name||'', item.ext||'',
+              item.phone||'', item.fax||''
+            ].join(' ').toLowerCase();
+            index.push({ el: card, deptEl: dwrap, clinicEl: block, text: searchable });
+            entries.append(card);
+          }
+
+          dwrap.append(dhead, entries);
+          departments.append(dwrap);
+        }
+
+        body.append(departments);
+        block.append(head, body);
+        root.append(block);
+      }
+      return index;
+    }
+
+    // ========= Live Search =========
+    function setupSearch(index){
+      const q = document.getElementById('q');
+      const meta = document.getElementById('result-meta');
+      const empty = document.getElementById('empty');
+
+      function applyFilter(){
+        const term = q.value.trim().toLowerCase();
+        let shown = 0;
+
+        // Track visibility for departments and clinics
+        const deptVisible = new Map();
+        const clinicVisible = new Map();
+
+        for(const rec of index){
+          const match = !term || rec.text.includes(term);
+          rec.el.classList.toggle('hidden', !match);
+          if(match) shown++;
+
+          const dv = (deptVisible.get(rec.deptEl) || 0) + (match ? 1 : 0);
+          deptVisible.set(rec.deptEl, dv);
+          const cv = (clinicVisible.get(rec.clinicEl) || 0) + (match ? 1 : 0);
+          clinicVisible.set(rec.clinicEl, cv);
+        }
+
+        // hide empty departments & clinics
+        for(const [dEl, count] of deptVisible.entries()){
+          dEl.classList.toggle('hidden', count === 0);
+        }
+        for(const [cEl, count] of clinicVisible.entries()){
+          cEl.classList.toggle('hidden', count === 0);
+        }
+
+        // update meta & empty state
+        meta.textContent = term
+          ? `Showing ${shown.toLocaleString()} entr${shown===1?'y':'ies'} for “${q.value}”.`
+          : `Showing all directory entries. Type to filter.`;
+        empty.classList.toggle('hidden', shown !== 0);
+      }
+
+      q.addEventListener('input', applyFilter);
+      applyFilter(); // initial
+    }
+
+    // ========= Boot =========
+    (async function main(){
+      try{
+        // IMPORTANT: keep CSV filename the same folder as this HTML
+        const raw = await loadCSV('Clinicas-Directory.csv');
+        const rows = parseCSV(raw);
+        const items = toObjects(rows);
+
+        const { order, byClinic } = groupData(items);
+        const index = render({ order, byClinic });
+        setupSearch(index);
+
+        document.getElementById('result-meta').textContent =
+          'Loaded directory from CSV. Type to filter.';
+      }catch(err){
+        console.error(err);
+        document.getElementById('root').innerHTML =
+          '<div class="empty">Could not load <code class="inline">Clinicas-Directory.csv</code>. '+
+          'Place it in the same folder as this HTML and open via a local web server.</div>';
+      }
+    })();
+  </script>
+</body>
+</html>

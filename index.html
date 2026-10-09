@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+   <!-- 👁️ Focus & Visibility Monitor (Detects if app spends 20+ min in background) -->
+    <script>
+        (function() {
+            if (!window._visibilityTrackingInitialized) {
+                window._visibilityTrackingInitialized = true;
+                let hiddenTimeStart = 0;
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'hidden') {
+                        hiddenTimeStart = Date.now();
+                    } else if (document.visibilityState === 'visible' && hiddenTimeStart > 0) {
+                        const elapsedHidden = Date.now() - hiddenTimeStart;
+                        if (elapsedHidden >= 20 * 60 * 1000) {
+                            localStorage.setItem('app_lost_focus_long', 'true');
+                        }
+                        hiddenTimeStart = 0;
+                    }
+                });
+            }
+        })();
+    </script>
+
+    <!-- 🛡️ Session Verification via red_leader -->
+    <script>
+        (function() {
+            try {
+                if (typeof window.red_leader === 'function') {
+                    window.red_leader([0]);
+                } else {
+                    window.addEventListener('DOMContentLoaded', () => {
+                        if (typeof window.red_leader === 'function') {
+                            window.red_leader([0]);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Error invoking red_leader from guard script:", e);
+            }
+        })();
+    </script>
+
+    <!-- ⚙️ Sync Validation (First Run, Background rule, or 10h absolute threshold) -->
+    <script>
+    window.checkAndRedirectSync = function(force = false) {
+        try {
+            const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
+            const hasPayload = localStorage.getItem("cache_payload");
+            const hasLitePayloadCache = localStorage.getItem("lite_payload_cache");
+            
+            const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
+            const TEN_HOURS_MS = 10 * 60 * 60 * 1000;
+            const now = Date.now();
+            
+            // 1. First run del día: compara el timestamp guardado con la fecha actual
+            const lastDate = lastTimestamp ? new Date(lastTimestamp).toDateString() : "";
+            const currentDate = new Date(now).toDateString();
+            const isFirstRunToday = !lastTimestamp || (lastDate !== currentDate);
+
+            // 2. Evaluaciones de tiempo e inactividad basadas en app_last_sync_timestamp
+            const isOlderThan5Hours = (now - lastTimestamp) >= FIVE_HOURS_MS;
+            const isOlderThan10Hours = (now - lastTimestamp) >= TEN_HOURS_MS;
+            const lostFocusLong = localStorage.getItem("app_lost_focus_long") === "true";
+
+            // Trigger combinado con tu regla de 10 horas y la condición de 20 min sin foco + 5 hrs
+            const needsBackgroundSync = (lostFocusLong && isOlderThan5Hours) || isOlderThan10Hours;
+
+            // Condición final unificada
+            const needsSync = force || isFirstRunToday || !hasPayload || !hasLitePayloadCache || needsBackgroundSync;
+
+            if (needsSync) {
+                const currentPath = window.location.pathname;
+                if (!currentPath.includes('loading-screen')) {
+                    const fastParam = hasLitePayloadCache ? '&fast=1' : '';
+                    const targetSearch = window.location.search 
+                        ? window.location.search + fastParam 
+                        : (hasLitePayloadCache ? '?fast=1' : '');
+
+                    window.location.replace('loading-screen.html' + targetSearch);
+                    return true;
+                }
+            } else {
+                localStorage.removeItem("app_lost_focus_long");
+
+                if (!document.getElementById('dynamic-hide-splash')) {
+                    const style = document.createElement('style');
+                    style.id = 'dynamic-hide-splash';
+                    style.innerHTML = '#sync-splash { display: none !important; opacity: 0 !important; pointer-events: none !important; }';
+                    document.head.appendChild(style);
+                }
+            }
+        } catch (e) {
+            console.error("Error in sync validation:", e);
+        }
+        return false;
+    };
+
+    (function() {
+        window.checkAndRedirectSync(false);
+    })();
+</script>
+
+    <title>Clinic Note Builder & Locator</title>
+    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="12" font-size="12">🗂️</text></svg>' />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <!-- 🎨 Hojas de Estilo Oficiales -->
+    <link rel="stylesheet" href="layout.css"> 
+    <link rel="stylesheet" href="notes.css"> 
+    <link rel="stylesheet" href="map.css"> 
+    <link rel="stylesheet" href="directory.css">
+    <link rel="stylesheet" href="Guidelines_Info.css">
+    <link rel="stylesheet" href="provider-directory.css">
+    <link rel="stylesheet" href="epic_guide.css">
+    <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
+</head>
+<body>
+    <!-- 🌌 HUD SPLASH SCREEN -->
+    <div id="sync-splash" class="sync-splash-container">
+        <div class="sync-splash-content">
+            <h2 class="sync-title">Clinicas del Camino Real</h2>
+            <p id="sync-status" class="sync-status-text">Verifying corporate session...</p>
+            <div class="sync-progress-track">
+                <div id="bt-progress-bar" class="sync-progress-bar"></div>
+            </div>
+            <div class="sync-footer-info">
+                <span id="bt-state-text">CONNECTING</span>
+                <span id="bt-percentage">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <button class="burger" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+        <div class="sidebar-overlay" onclick="toggleMenu()"></div>
+        
+        <aside class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-item active" onclick="navigateTo('note')">Note-builder</div>
+                <div class="nav-item" onclick="navigateTo('map')">Map</div>
+                <div class="nav-item" onclick="navigateTo('directory')">Clinic Directory</div>
+                <div class="nav-item" onclick="navigateTo('provider-directory')">Provider Directory</div>
+                <div class="nav-item" onclick="navigateTo('info')">Guidelines & Info</div>
+
+                <div class="sidebar-footer">
+                    <hr class="sidebar-divider">
+                    <div class="nav-sync-action" onclick="window.triggerManualSync()" title="Force data update from cloud">
+                        🔄 Sync Data
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <div class="page">
+            <header class="brand"></header>
+
+            <section class="card" id="note-section">
+                <div class="word-page">
+                    <h1 class="main-title">📝 Appointment Note Builder & Visit Guide</h1>
+                    
+                    <div class="action-buttons-bar">
+                        <button class="btn ghost" onclick="resetForm()">↺ Reset</button>
+                        <button class="btn primary" onclick="copyResult()">📋 Copy Note</button>
+                    </div>
+
+                    <!-- Contenedor de 2 Columnas -->
+                    <div class="note-grid-container">
+                        
+                        <!-- COLUMNA 1: Constructor de Notas -->
+                        <div class="note-column-left">
+                            
+                            <!-- Row 2: Symptoms & UC/ER -->
+                            <div class="form-card-box">
+                                <div class="two-col">
+                                    <div class="form-group no-margin">
+                                        <label class="form-label">Symptoms / Chief Complaint</label>
+                                        <input id="Symptoms" placeholder="e.g., cough, sore throat, fever" oninput="updateNote()" class="form-input" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">UC/ER</label>
+                                        <div class="input-relative-flex">
+                                            <select id="ER" onchange="onHospitalSelectChange()" class="form-select">
+                                                <option value="">-- Select Hospital / Facility --</option>
+                                            </select>
+                                            <input id="ER-custom-input" placeholder="Or type custom facility..." oninput="updateNote(); checkHospitalConditions();" class="form-input-custom" />
+                                        </div>
+                                        <div class="er-toggle-container">
+                                            <span id="er-mode-toggle" onclick="toggleHospitalInputMode()" class="er-toggle-link">Switch to manual input</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="er-conditions" class="dynamic-conditions-text"></div>
+                            </div>
+
+                            <!-- Row 3: Insurance with Special Rules -->
+                            <div class="form-card-box">
+                                <div class="two-col">
+                                    <div class="form-group no-margin">
+                                        <label class="form-label">Insurance / Program Type</label>
+                                        <select id="insurance-status-select" onchange="updateNote()" class="form-select">
+                                            <option value="">-- Select Insurance or Program --</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group no-margin">
+                                        <label class="form-label">Member ID</label>
+                                        <input id="InsuranceID" placeholder="Insurance member ID" oninput="updateNote();autoSelectInsuranceByMemberId(this.value)" class="form-input" />
+                                    </div>
+                                </div>
+                                <div id="insurance-conditions" class="dynamic-conditions-text"></div>
+                            </div>
+
+                            <!-- Row 4: Additional Notes -->
+                            <div class="form-group no-margin">
+                                <label class="form-label">Additional Notes</label>
+                                <textarea id="n5" rows="2" placeholder="Allergies, transportation needs, preferred callback times..." oninput="updateNote()" class="form-textarea"></textarea>
+                            </div>
+
+                            <!-- Row 5: Generated Note Final Output -->
+                            <div class="form-group no-margin">
+                                <label class="form-label">Generated Note (Copy-Ready Format)</label>
+                                <div id="result" class="note-result min-height-result"></div>
+                            </div>
+                        </div>
+
+                        <!-- COLUMNA 2: Visit Type Directory & Filter -->
+                        <div class="directory-column-right">
+                            <!-- Botón flotante -->
+                            <button type="button" class="expand-floating-btn" onclick="toggleFloatingDirectory()" id="expandBtn">⤢ Expandir</button>
+                            
+                            <label class="form-label mb-8">🔍 Visit Type Directory & Filter</label>
+                            
+                            <input type="text" id="live-search-input" placeholder="🔍 Filtrar tipos de visita, códigos o guías..." class="live-search-input" oninput="filterEpicGuide(this.value)" />
+
+                            <div class="epic-guide-scroll-container">
+                                <div id="content-area" class="msg-box info-msg min-width-content">Cargando y sincronizando datos dinámicamente...</div>
+                            </div>
+
+                            <select id="visit-type-select" class="display-none"></select>
+
+                            <div id="visit-details-panel" class="visit-details-panel">
+                                <div><strong>⏱️ Standard Check-in Time:</strong> <span id="result-checkin">--</span></div>
+                                <div class="mt-4"><strong>📌 Guidance / Instructions:</strong> <span id="result-guidance">--</span></div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <section id="map-section" class="map-full" style="display:none">
+                <div id="map" class="map-viewport"></div>
+                <div class="map-controls">
+                    <div class="mc-row">
+                        <div class="mc-card">
+                            <div class="mc-line mc-search" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                
+                                <input id="searchInput" class="mc-input" placeholder="Enter address, ZIP, or code..." style="flex: 2; min-width: 220px;" />
+
+                                <select id="clinicSelect" class="mc-select" style="flex: 2; min-width: 240px; padding: 7px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #fff;">
+                                    <option value="">-- Select Clinic (Optional) --</option>
+                                </select>
+
+                                <div style="display: flex; gap: 6px;">
+                                    <button class="btn primary" onclick="findNearest()">🔎 Search</button>
+                                    <button class="btn ghost" onclick="clearSearch()">✕ Clear</button>
+                                </div>
+
+                            </div>
+                        </div>
+                        <div class="mc-fab-col">
+                            <button class="mc-fab" title="Recenter" onclick="window.AppMap?.invalidate()">⤢</button>
+                        </div>
+                    </div>
+                </div>
+                <aside id="place-sheet" class="sheet" aria-hidden="true">
+                    <div class="sheet-hd">
+                        <div class="sheet-title">Selected Clinic</div>
+                        <button class="sheet-close" title="Close" onclick="window.closePlaceSheet?.()">✕</button>
+                    </div>
+                    <div class="sheet-body" id="clinic-info-body">
+                        <div class="empty-state">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                            <div>Click a clinic marker or use search.</div>
+                        </div>
+                    </div>
+                </aside>
+            </section>
+
+            <section class="card" id="directory-section" style="display:none">
+                <div class="card-hd dir-sticky-hd" id="dirStickyHd">
+                    <h3>📘 Directory (CSV)</h3>
+                    <div class="actions">
+                        <div class="search-wrapper" style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <select id="dirClinicSelect" class="dir-select" title="Filter by clinic">
+                                <option value="">All clinics</option>
+                            </select>
+                            <input id="dirSearchCSV" placeholder="Search name, department, ext, phone..." oninput="CSVDir_filter()" />
+                        </div>
+                        <button class="btn ghost" onclick="CSVDir_reset()">✕ Clear</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="csvdir-meta" class="csvdir-meta"></div>
+                    <div id="csvdir-root" class="csvdir-root"></div>
+                    <div id="csvdir-empty" class="csvdir-empty">No matches found.</div>
+                </div>
+            </section>
+
+            <section class="card" id="provider-directory-section" style="display:none">
+                <!-- Redesigned Dual-Layer Toolbar Header -->
+                <div class="card-hd dir-sticky-hd pdir-unified-header-container">
+                    
+                    <!-- Primary Row: Title and Global Omni-Search -->
+                    <div class="pdir-primary-row">
+                        <div class="pdir-title-area">
+                            <h3 class="pdir-title-text">👨‍⚕️ Provider Directory</h3>
+                        </div>
+                        <div class="pdir-search-wrapper">
+                            <span class="pdir-search-icon">🔍</span>
+                            <input id="masterProviderSearch" placeholder="Search provider name, internal ID, NPI, or specialty..." />
+                        </div>
+                    </div>
+
+                    <!-- Replace your secondary row container in index.html with this structured version -->
+                    <div class="pdir-filter-row" id="pdirInlineFiltersRow">
+                        <!-- Dropdown filters will be cleanly placed here by JS -->
+                    </div>
+
+                    <!-- Freshly Added Element: Interactive Quick-Filter Tag Cloud Container -->
+                    <div id="pdirKeywordsCloud" class="pdir-keywords-cloud" style="display: none;">
+                        <!-- Clickable smart keywords will inject dynamically here -->
+                    </div>
+
+
+                </div>
+
+                <div class="card-body">
+                    <div id="masterProviderGrid" class="info-grid">
+                        <!-- Provider cards load dynamically here -->
+                    </div>
+                </div>
+            </section>
+
+
+            <section class="card" id="info-section" style="display:none; padding: 4px;">
+                <div class="card-hd" style="padding: 6px 10px;">
+                    <h3 style="font-size: 0.85rem; margin: 0;">📋 Guidelines & Info </h3>
+                </div>
+                <div class="card-body" style="padding: 4px; flex-direction: column; gap: 6px;">
+                    
+                </div>
+            </section>
+        </div>
+        <!-- 💡 Floating Help Button & Modal -->
+        <button class="floating-help-btn" onclick="toggleHelpModal()" title="Ayuda y Atajos">?</button>
+
+        <div id="help-modal-overlay" class="help-modal-overlay" onclick="toggleHelpModal()"></div>
+        <div id="help-modal-container" class="help-modal-box">
+            <div class="help-modal-header">
+                <h3>⌨️ Atajos de Teclado y Ayuda</h3>
+                <button class="help-modal-close" onclick="toggleHelpModal()">✕</button>
+            </div>
+            <div class="help-modal-body">
+                <p class="help-intro">Usa estos atajos rápidos para navegar eficientemente por la aplicación:</p>
+                <ul class="help-shortcuts-list">
+                    <li><span>Note-builder</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>1</kbd></li>
+                    <li><span>Map</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>2</kbd></li>
+                    <li><span>Clinic Directory</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>3</kbd></li>
+                    <li><span>Provider Directory</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>4</kbd></li>
+                    <li><span>Guidelines & Info</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>5</kbd></li>
+                    <li><span>Copiar Nota (en sección Note)</span> <kbd>Ctrl</kbd> + <kbd>C</kbd></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <div class="toast" id="toast">✓ Copied to clipboard!</div>
+
+<!-- Core Scripts & Components -->
+    <script src="notes.js"></script>
+    <script src="Guidelines_Info.js"></script>
+    <script src="map.js"></script>
+    <script src="provider-directory.js"></script>
+    <script src="directory.js"></script>
+    <script src="loading-screen-W-LOGS.js"></script>
+    <script src="epic_guide.js"></script>
+    <script src="block-F12.js"></script>
+
+    <script>
+        window.APP_DATA = window.APP_DATA || {};
+        window.APP_FILES = window.APP_FILES || {};
+
+        window.registerDataFile = function(config, data) {
+            if (!window.APP_FILES[config.file]) {
+                window.APP_FILES[config.file] = config;
+            }
+            window.APP_DATA[config.dataKey] = data;
+            console.log("📁 Registered:", config.file);
+        };
+    </script>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log("⚡ [Index] Verification completed. Ensuring component initialization...");
+            
+            if (typeof window.initManualMap === 'function') {
+                window.initManualMap();
+            } else if (typeof window.obtenerCsv === 'function' || localStorage.getItem("cache_payload")) {
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('AppDataLoaded'));
+                }, 100);
+            }
+        });
+    </script>
+
+    <script>
+        function openModal(id) {
+            var modal = document.getElementById(id);
+            var overlay = document.getElementById('overlay');
+            if (modal && overlay) {
+                modal.style.display = 'block';
+                overlay.style.display = 'block';
+            }
+        }
+
+        function closeAll() {
+            var modals = document.getElementsByClassName('modal');
+            for (var i = 0; i < modals.length; i++) {
+                modals[i].style.display = 'none';
+            }
+            var overlay = document.getElementById('overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
+    </script>
+
+    <script>
+'use strict';
+
+/* ======= Sidebar / Burger ======= */
+function enforceCollapsedSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    const burger = document.querySelector('.burger');
+    if (sidebar) {
+        sidebar.classList.remove('open');
+        sidebar.style.transform = 'translateX(-100%)';
+    }
+    if (overlay) overlay.classList.remove('show');
+    if (burger) {
+        burger.style.display = 'block';
+        burger.classList.remove('active');
+    }
+}
+
+function toggleMenu(force) {
+    const burger = document.querySelector('.burger');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (!sidebar || !burger || !overlay) return;
+
+    const isOpen = sidebar.classList.contains('open');
+    const willOpen = (force === true) ? true : (force === false) ? false : !isOpen;
+
+    if (willOpen) {
+        burger.classList.add('active');
+        sidebar.classList.add('open');
+        overlay.classList.add('show');
+        sidebar.style.transform = 'translateX(0)';
+    } else {
+        burger.classList.remove('active');
+        sidebar.classList.remove('open');
+        overlay.classList.remove('show');
+        sidebar.style.transform = 'translateX(-100%)';
+    }
+}
+
+/* ======= Section Navigation (1 to 5) ======= */
+function navigateTo(s) {
+    const sections = {
+        note: document.getElementById('note-section'),
+        map: document.getElementById('map-section'),
+        directory: document.getElementById('directory-section'),
+        'provider-directory': document.getElementById('provider-directory-section'),
+        info: document.getElementById('info-section')
+    };
+
+    Object.values(sections).forEach(el => {
+        if (el) el.style.display = 'none';
+    });
+
+    if (s === 'note' && sections.note) sections.note.style.display = 'block';
+    if (s === 'map' && sections.map) {
+        sections.map.style.display = 'block';
+        if (window.AppMap && typeof window.AppMap.invalidateSize === 'function') {
+            setTimeout(() => {
+                try { window.AppMap.invalidateSize(); } catch (e) {}
+            }, 150);
+        }
+    }
+    if (s === 'directory' && sections.directory) {
+        sections.directory.style.display = 'block';
+        if (typeof window.CSVDir_syncStickyTop === 'function') window.CSVDir_syncStickyTop();
+        if (typeof window.CSVDir_defaultCollapse === 'function') window.CSVDir_defaultCollapse();
+        if (typeof window.CSVDir_filter === 'function') window.CSVDir_filter();
+    }
+    if (s === 'provider-directory' && sections['provider-directory']) {
+        sections['provider-directory'].style.display = 'block';
+        if (typeof initMasterProviderDirectory === 'function') initMasterProviderDirectory();
+    }
+    if (s === 'info' && sections.info) sections.info.style.display = 'block';
+
+    const items = document.querySelectorAll('.sidebar .nav-item');
+    items.forEach((el, i) => el.classList.toggle('active',
+        (s === 'note' && i === 0) ||
+        (s === 'map' && i === 1) ||
+        (s === 'directory' && i === 2) ||
+        (s === 'provider-directory' && i === 3) || 
+        (s === 'info' && i === 4)
+    ));
+
+    if (typeof toggleMenu === 'function') toggleMenu(false);
+}
+
+/* ======= Shortcuts Alt+Shift+1/2/3/4/5 ======= */
+document.addEventListener('keydown', e => {
+    if (e.altKey && e.shiftKey) {
+        if (e.key === '1' || e.code === 'Digit1') { e.preventDefault(); navigateTo('note'); }
+        if (e.key === '2' || e.code === 'Digit2') { e.preventDefault(); navigateTo('map'); }
+        if (e.key === '3' || e.code === 'Digit3') { e.preventDefault(); navigateTo('directory'); }
+        if (e.key === '4' || e.code === 'Digit4') { e.preventDefault(); navigateTo('provider-directory'); }
+        if (e.key === '5' || e.code === 'Digit5') { e.preventDefault(); navigateTo('info'); }
+    }
+});
+
+/* ======= Bootstrap UI Core ======= */
+window.addEventListener('DOMContentLoaded', () => {
+    try {
+        enforceCollapsedSidebar();
+        const overlay = document.querySelector('.sidebar-overlay');
+        overlay?.addEventListener('click', () => toggleMenu(false));
+        navigateTo('map');
+    } catch (e) {
+        console.error('Error in UI initialization:', e);
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    let isNoteSectionVisible = false;
+
+    // 1. Observador para detectar si la sección de notas está visible en el viewport
+    const noteSection = document.getElementById('note-section');
+    if (noteSection) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                isNoteSectionVisible = entry.isIntersecting;
+            });
+        }, { threshold: 0.2 }); // Se activa cuando al menos el 20% de la sección es visible
+
+        observer.observe(noteSection);
+    }
+
+    // 2. Listener global para la combinación Ctrl + C
+    document.addEventListener('keydown', (e) => {
+        // Verifica si presionaron Ctrl (o Cmd en Mac) + la tecla 'C' (o 'c')
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+            
+            // Si la sección de notas está visible
+            if (isNoteSectionVisible) {
+                
+                // Opcional: Si el usuario tiene seleccionado texto de manera nativa (ej. en un textarea o input),
+                // es mejor dejar que el navegador haga el copiado normal. Pero si NO hay texto seleccionado,
+                // forzamos tu función personalizada 'copyResult()'.
+                const selectedText = window.getSelection().toString();
+                
+                if (!selectedText) {
+                    e.preventDefault(); // Evita el comportamiento por defecto si es necesario
+                    if (typeof copyResult === 'function') {
+                        copyResult();
+                        console.log("📋 'Ctrl + C' detectado: Ejecutando copyResult() automáticamente.");
+                    }
+                }
+            }
+        }
+    });
+});
+
+/* ======= Expose Global UI Functions ======= */
+window.navigateTo = navigateTo;
+window.toggleMenu = toggleMenu;
+window.enforceCollapsedSidebar = enforceCollapsedSidebar;
+</script>
+
+<script>
+function toggleHelpModal() {
+    const modal = document.getElementById('help-modal-container');
+    const overlay = document.getElementById('help-modal-overlay');
+    
+    if (!modal || !overlay) return;
+    
+    const isOpen = modal.style.display === 'block';
+    if (isOpen) {
+        modal.style.display = 'none';
+        overlay.style.display = 'none';
+    } else {
+        modal.style.display = 'block';
+        overlay.style.display = 'block';
+    }
+}
+</script>
+
+</body>
+</html>
