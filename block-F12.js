@@ -201,7 +201,7 @@ async function triggerMacAutomatedTerminal() {
 }
 
 // ==========================================
-// ANIMATION AND AUDIO SEQUENCE
+// ANIMATION AND AUDIO SEQUENCE (CDCR Terminal)
 // ==========================================
 function runTerminalSequence() {
     const log = document.getElementById('mac-terminal-log');
@@ -216,13 +216,12 @@ function runTerminalSequence() {
     const foreWindow = document.querySelector('.foreground-window');
 
     const sequence = [
-        { type: "> probe network gateway", reply: "\nCONNECTION SECURED." },
-        { type: "\n> access main security grid", reply: "\nACCESS DENIED." },
-        { type: "\n> access main program grid", reply: "\nACCESS DENIED.\n...DEVICE LOCKED BY ADMINISTRATIVE LOCKOUT UNIT." }
+        { type: "CDCR, System Security Interface\nVersion 4.0.5, Alpha E\nReady...\n> access security", reply: "\naccess: PERMISSION DENIED." },
+        { type: "\n> access security grid", reply: "\naccess: PERMISSION DENIED." },
+        { type: "\n> access main security grid", reply: "\naccess: PERMISSION DENIED.\n...and..." }
     ];
 
     let currentStep = 0;
-    if (log) log.innerHTML = "SYSTEM READY.\n";
 
     function typeCommand(lineObj) {
         if (!document.getElementById('mac-terminal-log')) return;
@@ -236,7 +235,7 @@ function runTerminalSequence() {
             if (index < textToType.length) {
                 log.innerHTML += textToType[index];
                 index++;
-                setTimeout(typeChar, 45);
+                setTimeout(typeChar, 35);
             } else {
                 setTimeout(() => {
                     if (!document.getElementById('mac-terminal-log')) return;
@@ -249,20 +248,48 @@ function runTerminalSequence() {
                     }
                     
                     if (currentStep < sequence.length) {
-                        setTimeout(() => typeCommand(sequence[currentStep]), 800);
+                        setTimeout(() => typeCommand(sequence[currentStep]), 600);
                     } else {
+                        // Play the infinite loop of "YOU DIDN'T SAY THE MAGIC WORD!"
                         setTimeout(() => {
-                            if (lockdownAudio) lockdownAudio.play().catch(() => {});
-                            triggerTrapMatrix();
+                            startMagicWordFlood();
                         }, 800);
                     }
-                }, 350);
+                }, 250);
             }
         }
         typeChar();
     }
 
-    setTimeout(() => typeCommand(sequence[0]), 500);
+    setTimeout(() => typeCommand(sequence[0]), 300);
+
+    // Function to flood the screen with the classic phrase before the trap
+    function startMagicWordFlood() {
+        const magicText = "\nYOU DIDN'T SAY THE MAGIC WORD!";
+        let floodCount = 0;
+        
+        function addLine() {
+            if (!document.getElementById('mac-terminal-log')) return;
+            log.innerHTML += magicText;
+            
+            // Auto-scroll down to simulate the terminal filling up
+            if (terminalScreen) {
+                terminalScreen.scrollTop = terminalScreen.scrollHeight;
+            }
+
+            floodCount++;
+            if (floodCount < 12) {
+                setTimeout(addLine, 120);
+            } else {
+                // Once the screen is full, trigger the lockdown audio and Nedry's image.
+                setTimeout(() => {
+                    if (lockdownAudio) lockdownAudio.play().catch(() => {});
+                    triggerTrapMatrix();
+                }, 600);
+            }
+        }
+        addLine();
+    }
 
     function triggerTrapMatrix() {
         if (terminalScreen) terminalScreen.classList.add('hidden');
