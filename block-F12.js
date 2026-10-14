@@ -110,14 +110,14 @@ document.addEventListener('keydown', function(e) {
     // 1. Activate countdown with Ctrl + Shift + X
     if (isDevToolsBackdoor(e)) {
         devToolsGracePeriod = true;
-        console.log("🔓 Backdoor enabled: You have 5 seconds to press F12 or open DevTools.");
+        console.log("🔓 Magic Word Accepted: You have 8 seconds to press F12 or open DevTools.");
 
         if (graceTimer) clearTimeout(graceTimer);
 
         graceTimer = setTimeout(() => {
             devToolsGracePeriod = false;
             console.log("🔒 Grace period ended. Security restored.");
-        }, 5000);
+        }, 8000);
 
         return;
     }
