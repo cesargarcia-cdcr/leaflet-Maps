@@ -184,11 +184,12 @@ window.LSEngine.initializeMap = function() {
         
         const map = L.map(mapContainer, {
             zoomControl: true,
-            attributionControl: false
+            attributionControl: true
         }).setView([defaultLat, defaultLng], 10);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 19,
+            attribution: 'Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, &copy; OpenStreetMap contributors, and the GIS User Community'
         }).addTo(map);
 
         window.LSEngine.state.mapInstance = map;
