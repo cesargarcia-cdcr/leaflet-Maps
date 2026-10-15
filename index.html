@@ -7,27 +7,6 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-   <!-- 👁️ Focus & Visibility Monitor (Detects if app spends 20+ min in background) -->
-    <script>
-        (function() {
-            if (!window._visibilityTrackingInitialized) {
-                window._visibilityTrackingInitialized = true;
-                let hiddenTimeStart = 0;
-                document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'hidden') {
-                        hiddenTimeStart = Date.now();
-                    } else if (document.visibilityState === 'visible' && hiddenTimeStart > 0) {
-                        const elapsedHidden = Date.now() - hiddenTimeStart;
-                        if (elapsedHidden >= 20 * 60 * 1000) {
-                            localStorage.setItem('app_lost_focus_long', 'true');
-                        }
-                        hiddenTimeStart = 0;
-                    }
-                });
-            }
-        })();
-    </script>
-
     <!-- 🛡️ Session Verification via red_leader -->
     <script>
         (function() {
@@ -47,63 +26,112 @@
         })();
     </script>
 
-    <!-- ⚙️ Sync Validation (First Run, Background rule, or 10h absolute threshold) -->
+    <!-- ⚙️ Sync Validation (10h absolute threshold or 4h + 20m away) -->
     <script>
-    window.checkAndRedirectSync = function(force = false) {
-        try {
-            const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
-            const hasPayload = localStorage.getItem("cache_payload");
-            const hasLitePayloadCache = localStorage.getItem("lite_payload_cache");
-            
-            const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
-            const TEN_HOURS_MS = 10 * 60 * 60 * 1000;
-            const now = Date.now();
-            
-            // 1. First run del día: compara el timestamp guardado con la fecha actual
-            const lastDate = lastTimestamp ? new Date(lastTimestamp).toDateString() : "";
-            const currentDate = new Date(now).toDateString();
-            const isFirstRunToday = !lastTimestamp || (lastDate !== currentDate);
+    (function() {
+        const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+        const TEN_HOURS_MS = 10 * 60 * 60 * 1000;
+        const AWAY_THRESHOLD_MS = 20 * 60 * 1000;
+        const AWAY_SINCE_KEY = "app_not_viewed_since";
+        let awaySince = 0;
+        let hasWindowFocus = document.hasFocus();
+        let redirectTimer = null;
 
-            // 2. Evaluaciones de tiempo e inactividad basadas en app_last_sync_timestamp
-            const isOlderThan5Hours = (now - lastTimestamp) >= FIVE_HOURS_MS;
-            const isOlderThan10Hours = (now - lastTimestamp) >= TEN_HOURS_MS;
-            const lostFocusLong = localStorage.getItem("app_lost_focus_long") === "true";
+        function getLastSyncTimestamp() {
+            const timestamp = Number(localStorage.getItem("app_last_sync_timestamp") || 0);
+            return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : 0;
+        }
 
-            // Trigger combinado con tu regla de 10 horas y la condición de 20 min sin foco + 5 hrs
-            const needsBackgroundSync = (lostFocusLong && isOlderThan5Hours) || isOlderThan10Hours;
+        function isNotViewed() {
+            return document.visibilityState === "hidden" || !hasWindowFocus;
+        }
 
-            // Condición final unificada
-            const needsSync = force || isFirstRunToday || !hasPayload || !hasLitePayloadCache || needsBackgroundSync;
-
-            if (needsSync) {
-                const currentPath = window.location.pathname;
-                if (!currentPath.includes('loading-screen')) {
-                    const fastParam = hasLitePayloadCache ? '&fast=1' : '';
-                    const targetSearch = window.location.search 
-                        ? window.location.search + fastParam 
-                        : (hasLitePayloadCache ? '?fast=1' : '');
-
-                    window.location.replace('loading-screen.html' + targetSearch);
-                    return true;
+        function updateAwayState() {
+            if (isNotViewed()) {
+                if (!awaySince) {
+                    const storedTime = Number(sessionStorage.getItem(AWAY_SINCE_KEY) || 0);
+                    awaySince = Number.isFinite(storedTime) && storedTime > 0 ? storedTime : Date.now();
+                    sessionStorage.setItem(AWAY_SINCE_KEY, String(awaySince));
                 }
             } else {
+                awaySince = 0;
+                sessionStorage.removeItem(AWAY_SINCE_KEY);
                 localStorage.removeItem("app_lost_focus_long");
+            }
+        }
 
-                if (!document.getElementById('dynamic-hide-splash')) {
-                    const style = document.createElement('style');
-                    style.id = 'dynamic-hide-splash';
-                    style.innerHTML = '#sync-splash { display: none !important; opacity: 0 !important; pointer-events: none !important; }';
+        window.checkAndRedirectSync = function(force = false) {
+            try {
+                const now = Date.now();
+                const lastTimestamp = getLastSyncTimestamp();
+                const hasPayload = localStorage.getItem("cache_payload");
+                const hasLitePayloadCache = localStorage.getItem("lite_payload_cache");
+                const elapsedSinceSync = lastTimestamp ? now - lastTimestamp : Infinity;
+                const tenHoursElapsed = elapsedSinceSync >= TEN_HOURS_MS;
+                const backgroundSyncDue = awaySince > 0
+                    && elapsedSinceSync >= FOUR_HOURS_MS
+                    && now - awaySince >= AWAY_THRESHOLD_MS;
+                const needsSync = force || !hasPayload || !hasLitePayloadCache || tenHoursElapsed || backgroundSyncDue;
+
+                if (needsSync) {
+                    if (!window.location.pathname.includes("loading-screen")) {
+                        const fastParam = hasLitePayloadCache ? "&fast=1" : "";
+                        const targetSearch = window.location.search
+                            ? window.location.search + fastParam
+                            : (hasLitePayloadCache ? "?fast=1" : "");
+
+                        window.location.replace("loading-screen.html" + targetSearch);
+                        return true;
+                    }
+                } else if (!document.getElementById("dynamic-hide-splash")) {
+                    const style = document.createElement("style");
+                    style.id = "dynamic-hide-splash";
+                    style.innerHTML = "#sync-splash { display: none !important; opacity: 0 !important; pointer-events: none !important; }";
                     document.head.appendChild(style);
                 }
+            } catch (e) {
+                console.error("Error in sync validation:", e);
             }
-        } catch (e) {
-            console.error("Error in sync validation:", e);
-        }
-        return false;
-    };
+            return false;
+        };
 
-    (function() {
-        window.checkAndRedirectSync(false);
+        function evaluateSyncNeed() {
+            updateAwayState();
+            if (window.checkAndRedirectSync()) return;
+            scheduleNextCheck();
+        }
+
+        function scheduleNextCheck() {
+            if (redirectTimer !== null) clearTimeout(redirectTimer);
+            if (window.location.pathname.includes("loading-screen")) return;
+
+            const now = Date.now();
+            const lastTimestamp = getLastSyncTimestamp();
+            const syncDeadline = lastTimestamp ? lastTimestamp + TEN_HOURS_MS : now;
+            let nextDeadline = syncDeadline;
+
+            if (awaySince > 0 && lastTimestamp) {
+                const backgroundDeadline = Math.max(
+                    lastTimestamp + FOUR_HOURS_MS,
+                    awaySince + AWAY_THRESHOLD_MS
+                );
+                nextDeadline = Math.min(nextDeadline, backgroundDeadline);
+            }
+
+            redirectTimer = setTimeout(evaluateSyncNeed, Math.max(0, nextDeadline - now));
+        }
+
+        document.addEventListener("visibilitychange", evaluateSyncNeed);
+        window.addEventListener("blur", () => {
+            hasWindowFocus = false;
+            evaluateSyncNeed();
+        });
+        window.addEventListener("focus", () => {
+            hasWindowFocus = true;
+            evaluateSyncNeed();
+        });
+
+        evaluateSyncNeed();
     })();
 </script>
 
@@ -113,7 +141,7 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <!-- 🎨 Hojas de Estilo Oficiales -->
     <link rel="stylesheet" href="layout.css"> 
-    /* <link rel="stylesheet" href="notes.css"> */
+    <link rel="stylesheet" href="notes.css"> 
     <link rel="stylesheet" href="map.css"> 
     <link rel="stylesheet" href="directory.css">
     <link rel="stylesheet" href="Guidelines_Info.css">
