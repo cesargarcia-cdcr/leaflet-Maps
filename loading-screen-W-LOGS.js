@@ -13,37 +13,42 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
 
 
 (function() {
-    async function clearLogDirectories() {
+    let logWriteQueue = Promise.resolve();
+
+    async function removeLogDirectories() {
         const rootDir = await navigator.storage.getDirectory();
         for (const directoryName of ["Logs", "logs"]) {
-            let logsDir;
             try {
-                logsDir = await rootDir.getDirectoryHandle(directoryName);
+                await rootDir.removeEntry(directoryName, { recursive: true });
             } catch (err) {
-                if (err.name === "NotFoundError") continue;
-                throw err;
-            }
-
-            const entriesToDelete = [];
-            for await (const [entryName] of logsDir.entries()) {
-                entriesToDelete.push(entryName);
-            }
-            for (const entryName of entriesToDelete) {
-                await logsDir.removeEntry(entryName, { recursive: true });
+                if (err.name !== "NotFoundError") throw err;
             }
         }
     }
 
+    function clearLogDirectories() {
+        const clearOperation = logWriteQueue.catch(() => {}).then(removeLogDirectories);
+        logWriteQueue = clearOperation;
+        return clearOperation;
+    }
+
     async function writeLogToOPFS(logFilename, logContentString) {
-        try {
-            await clearLogDirectories();
+        const writeOperation = logWriteQueue.catch(() => {}).then(async () => {
+            if (!logContentString.trim()) return false;
+
+            await removeLogDirectories();
             const rootDir = await navigator.storage.getDirectory();
-            const logsDir = await rootDir.getDirectoryHandle("logs", { create: true });
+            const logsDir = await rootDir.getDirectoryHandle("Logs", { create: true });
             const fileHandle = await logsDir.getFileHandle(logFilename, { create: true });
             const writable = await fileHandle.createWritable();
             await writable.write(logContentString);
             await writable.close();
             return true;
+        });
+        logWriteQueue = writeOperation;
+
+        try {
+            return await writeOperation;
         } catch (err) {
             console.error("💥 [Green Leader]: Error writing auto-log to OPFS:", err);
             return false;
@@ -80,18 +85,16 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
         originalConsoleError.apply(console, args);
     };
 
-    // Volcar y guardar los registros automáticamente al cerrar o cambiar de página
-    window.addEventListener('beforeunload', () => {
-        if (logBuffer.length > 0) {
-            try {
-                writeLogToOPFS(sessionLogFilename, logBuffer.join('\n')).then(saved => {
-                    if (!saved) console.error("💥 [Green Leader]: Could not save session log before leaving the page.");
-                });
-            } catch (e) {
-                console.error("💥 [Green Leader]: Could not save session log before leaving the page:", e);
-            }
-        }
+    const flushLogBuffer = () => {
+        if (logBuffer.length === 0) return Promise.resolve(true);
+        return writeLogToOPFS(sessionLogFilename, logBuffer.join('\n'));
+    };
+    window.GreenLeaderStorage.flushLogs = flushLogBuffer;
+    setInterval(() => { flushLogBuffer(); }, 2000);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushLogBuffer();
     });
+    flushLogBuffer();
 
     console.log("🟢 [Green Leader]: OPFS Auto-Logging subsystem successfully engaged and monitoring flight channels.");
 })();
@@ -221,6 +224,7 @@ window.triggerManualSync = async function() {
 
     // 3. Clean redirect with reload timestamp
     await new Promise(resolve => setTimeout(resolve, 900));
+    await window.GreenLeaderStorage.flushLogs();
     const freshUrl = new URL(window.location.href);
     freshUrl.searchParams.set('reload_ts', Date.now());
     window.location.href = freshUrl.toString();
@@ -480,37 +484,13 @@ async function backupParamDataToOPFS() {
 }
 
 // --- 🟢 GREEN LEADER: OPFS LOGS DIRECTORY ENGINEERING ---
-async function writeLogToOPFS(logFilename, logContentString) {
-    try {
-        console.log("🟢 [Green Leader]: Stowing log file into OPFS logs bay:", logFilename);
-        await clearOPFSLogs();
-        const rootDir = await navigator.storage.getDirectory();
-        
-        // Crear o acceder al subdirectorio dedicado para logs
-        const logsDir = await rootDir.getDirectoryHandle("logs", { create: true });
-        
-        // Crear o sobrescribir el archivo de log dentro del directorio
-        const fileHandle = await logsDir.getFileHandle(logFilename, { create: true });
-        const writable = await fileHandle.createWritable();
-        await writable.write(logContentString);
-        await writable.close();
-        
-        console.log(`✅ [Green Leader]: Log successfully saved to OPFS -> logs/${logFilename}`);
-        return true;
-    } catch (err) {
-        console.error("💥 [Green Leader]: Error writing log to OPFS:", err);
-        return false;
-    }
-}
-
 async function clearOPFSLogs() {
     await window.GreenLeaderStorage.clearOPFSLogs();
 }
 
 // Registrar en el espacio global del Green Leader
 window.GreenLeaderStorage = window.GreenLeaderStorage || {};
-window.GreenLeaderStorage.writeLogToOPFS = writeLogToOPFS;
-window.writeLogToOPFS = writeLogToOPFS; // Alias global opcional
+window.writeLogToOPFS = window.GreenLeaderStorage.writeLogToOPFS;
 
 async function writeDatasetToOPFS(filename, contentString) {
     console.log("🟢 [Green Leader]: Stowing cargo safely into OPFS bay:", filename);
@@ -789,6 +769,57 @@ async function reconcileSyncedAssetDirectory(rootDir, directoryName, expectedFil
     return removeStaleSyncedFiles(directoryHandle, expectedFiles);
 }
 
+async function loadSyncedAssetInventory(rootDir) {
+    try {
+        const appDataDir = await rootDir.getDirectoryHandle("App_Data");
+        const inventoryHandle = await appDataDir.getFileHandle("asset_sync_inventory.json");
+        const inventory = JSON.parse(await (await inventoryHandle.getFile()).text());
+        if (!Array.isArray(inventory.Guidelines_Info) || !Array.isArray(inventory.Directory)) {
+            throw new Error("Asset sync inventory has an invalid format.");
+        }
+        return {
+            Guidelines_Info: new Set(inventory.Guidelines_Info),
+            Directory: new Set(inventory.Directory)
+        };
+    } catch (err) {
+        if (err.name !== "NotFoundError") {
+            console.warn("⚠️ [OPFS Sync]: Could not read the cached asset inventory; rebuilding it after this sync.", err);
+        }
+        return null;
+    }
+}
+
+async function saveSyncedAssetInventory(rootDir, inventory) {
+    const appDataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
+    const inventoryHandle = await appDataDir.getFileHandle("asset_sync_inventory.json", { create: true });
+    const writable = await inventoryHandle.createWritable();
+    await writable.write(JSON.stringify({
+        Guidelines_Info: [...inventory.get("Guidelines_Info")],
+        Directory: [...inventory.get("Directory")]
+    }));
+    await writable.close();
+}
+
+async function removeTrackedAsset(rootDir, directoryName, relativePath) {
+    const pathParts = relativePath.split("/");
+    if (pathParts.length === 0 || pathParts.some(part => !part || part === "." || part === "..")) {
+        throw new Error(`Invalid tracked asset path '${relativePath}'.`);
+    }
+
+    let currentDir;
+    try {
+        currentDir = await rootDir.getDirectoryHandle(directoryName);
+        for (const folderName of pathParts.slice(0, -1)) {
+            currentDir = await currentDir.getDirectoryHandle(folderName);
+        }
+        await currentDir.removeEntry(pathParts[pathParts.length - 1]);
+        return true;
+    } catch (err) {
+        if (err.name === "NotFoundError") return false;
+        throw err;
+    }
+}
+
 // --- SECONDARY SYNC TASK ---
 window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
     if (isOfflineMode()) {
@@ -810,6 +841,7 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
             window.LSEngine.setProgress(50, "Fetching manifest for background assets...", "SYNCING");
         }
 
+        const previousInventory = await loadSyncedAssetInventory(rootDir);
         const response = await fetch(manifestUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -936,9 +968,20 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
             console.warn("⚠️ [OPFS Sync]: At least one manifest file failed; skipping stale-file cleanup to avoid deleting valid local copies.");
         } else {
             for (const [directoryName, expectedFiles] of expectedFilesByDirectory) {
-                const removedCount = await reconcileSyncedAssetDirectory(rootDir, directoryName, expectedFiles);
+                let removedCount = 0;
+                if (previousInventory) {
+                    const previousFiles = previousInventory[directoryName];
+                    for (const stalePath of previousFiles) {
+                        if (!expectedFiles.has(stalePath)) {
+                            if (await removeTrackedAsset(rootDir, directoryName, stalePath)) removedCount++;
+                        }
+                    }
+                } else {
+                    removedCount = await reconcileSyncedAssetDirectory(rootDir, directoryName, expectedFiles);
+                }
                 console.log(`🧹 [OPFS Sync]: Removed ${removedCount} stale file(s) from ${directoryName}.`);
             }
+            await saveSyncedAssetInventory(rootDir, expectedFilesByDirectory);
         }
 
         if (typeof window.LSEngine.setProgress === 'function') {
@@ -1005,7 +1048,9 @@ window.LSEngine.setProgress = function(percent, message, stateText) {
         }
 
         setTimeout(() => {
-            window.location.replace(basePath + currentSearchParams);
+            window.GreenLeaderStorage.flushLogs().finally(() => {
+                window.location.replace(basePath + currentSearchParams);
+            });
         }, 500);
     }
 };
