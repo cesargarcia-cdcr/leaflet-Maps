@@ -95,10 +95,11 @@ async function red_leader(steps = [0, 1, 2, 3, 4]) {
         if (steps.includes(0)) {
             console.log("🟡 [Gold Leader]: Engaging security sweep (SharePoint session verification)...");
             const sessionActive = await verifySharePointSession();
-            if (!sessionActive) throw new Error("Security breach: Session expired.");
+            if (!sessionActive) return false;
         }
 
         if (steps.includes(1)) {
+            if (isOfflineMode()) return true;
             console.log("🟡 [Gold Leader]: Executing step 2 (Lite payload)...");
             if (window.LSEngine && typeof window.LSEngine.taskFetchMainDataLite === 'function') {
                 await window.LSEngine.taskFetchMainDataLite();
@@ -106,6 +107,7 @@ async function red_leader(steps = [0, 1, 2, 3, 4]) {
         }
 
         if (steps.includes(2)) {
+            if (isOfflineMode()) return true;
             console.log("🔴 [Red Leader]: Commencing main trench run (fetching and processing core data)...");
             const success = await fetchAndProcessData(true);
             if (!success) throw new Error("Synchronization process failed.");
@@ -129,13 +131,21 @@ async function red_leader(steps = [0, 1, 2, 3, 4]) {
                 showAppEntryButton();
             }
         }
+        return true;
     } catch (err) {
         console.error("💥 [Red Leader]: Mission error encountered:", err.message);
+        return false;
     }
 }
 window.red_leader = red_leader;
 
+function isOfflineMode() {
+    return window.LSEngine?.offlineMode === true || sessionStorage.getItem("app_offline_mode") === "true";
+}
+
 async function checkAndSyncData() {
+    if (isOfflineMode()) return;
+
     const splash = document.getElementById("sync-splash");
     const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
     const hasLocalPayload = localStorage.getItem("cache_payload");
@@ -182,6 +192,8 @@ window.red_leader.checkAndSyncData = checkAndSyncData;
 // --- 🚨 TRIGGER MANUAL SYNC ---
 window.triggerManualSync = async function() {
     console.log("🚨 [Red Leader]: Manual sync override initiated!");
+    sessionStorage.removeItem("app_offline_mode");
+    if (window.LSEngine) window.LSEngine.offlineMode = false;
     
     // 1. Back up ?data=... to OPFS before clearing everything
     await backupParamDataToOPFS();
@@ -303,6 +315,11 @@ function checkSharePointLogo() {
 }
 
 async function verifySharePointSession() {
+    if (isOfflineMode()) {
+        console.log("🔓 [Gold Leader]: Offline mode is active; skipping session verification.");
+        return false;
+    }
+
     console.log("🟡 [Gold Leader]: Checking SharePoint session...");
     let active = await checkSharePointLogo();
     if (active) return true;
@@ -312,29 +329,44 @@ async function verifySharePointSession() {
     if (active) return true;
 
     console.warn("🟡 [Gold Leader]: Session expired. Triggering automatic login lock screen.");
-    triggerAutomaticLoginFlow();
-    return false;
+    return triggerAutomaticLoginFlow();
 }
+
+let loginDecisionPromise = null;
 
 function triggerAutomaticLoginFlow() {
     console.log("🟡 [Gold Leader]: Deploying authentication lock screen...");
     const splash = document.getElementById("sync-splash");
     if (splash) splash.style.display = "none";
 
-    if (document.getElementById("sp-lock-screen")) return;
+    if (loginDecisionPromise) return loginDecisionPromise;
 
-    const lockScreen = document.createElement("div");
-    lockScreen.id = "sp-lock-screen";
-    lockScreen.style.cssText = `
+    loginDecisionPromise = new Promise(resolve => {
+        let isResolved = false;
+        let sessionPollInterval;
+        let loginWindow = null;
+        const completeLoginDecision = isOnline => {
+            if (isResolved) return;
+            isResolved = true;
+            clearInterval(sessionPollInterval);
+            try { if (loginWindow && !loginWindow.closed) loginWindow.close(); } catch (e) {}
+            document.getElementById("sp-lock-screen")?.remove();
+            loginDecisionPromise = null;
+            resolve(isOnline);
+        };
+
+        const lockScreen = document.createElement("div");
+        lockScreen.id = "sp-lock-screen";
+        lockScreen.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
         background: rgba(15, 23, 42, 0.98); z-index: 999999;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         color: white; font-family: system-ui, sans-serif; text-align: center; padding: 20px;
-    `;
+        `;
     
-    const sharePointSiteUrl = "https://clinicasdelcaminoreal.sharepoint.com/sites/CDCROperationsHub";
+        const sharePointSiteUrl = "https://clinicasdelcaminoreal.sharepoint.com/sites/CDCROperationsHub";
 
-    lockScreen.innerHTML = `
+        lockScreen.innerHTML = `
         <div style="max-width: 440px; background: #1e293b; padding: 35px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155;">
             <h2 style="margin-top: 0; color: #f87171; font-size: 22px;">Sign-In Required / Offline</h2>
             <p id="lock-status-text" style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
@@ -353,54 +385,57 @@ function triggerAutomaticLoginFlow() {
             </button>
         </div>
         <style> @keyframes spin { to { transform: rotate(360deg); } } </style>
-    `;
+        `;
     
-    document.body.appendChild(lockScreen);
+        document.body.appendChild(lockScreen);
 
-    let loginWindow = null;
-    const openPopup = () => {
-        console.log("🟡 [Gold Leader]: Opening authentication window in a normal browser session...");
+        const openPopup = () => {
+            console.log("🟡 [Gold Leader]: Opening authentication window in a normal browser session...");
         
-        // Al NO pasar dimensiones (width, height, etc.), Chrome en modo --app 
-        // abre el enlace en una ventana normal del navegador, usando el perfil 
-        // principal y evitando el aislamiento de cookies.
-        loginWindow = window.open(sharePointSiteUrl, "_blank");
+            // Al NO pasar dimensiones (width, height, etc.), Chrome en modo --app
+            // abre el enlace en una ventana normal del navegador, usando el perfil
+            // principal y evitando el aislamiento de cookies.
+            loginWindow = window.open(sharePointSiteUrl, "_blank");
 
-        if (!loginWindow || loginWindow.closed || typeof loginWindow.closed == 'undefined') {
-            console.warn("🟡 [Gold Leader]: Popup blocked or restricted by browser settings.");
-        }
-    };
+            if (!loginWindow || loginWindow.closed || typeof loginWindow.closed == 'undefined') {
+                console.warn("🟡 [Gold Leader]: Popup blocked or restricted by browser settings.");
+            }
+        };
 
-    openPopup();
+        openPopup();
     
-    document.getElementById("btn-reopen-popup").addEventListener("click", () => {
-        if (!loginWindow || loginWindow.closed) openPopup();
-    });
+        document.getElementById("btn-reopen-popup").addEventListener("click", () => {
+            if (!loginWindow || loginWindow.closed) openPopup();
+        });
 
-    document.getElementById("btn-offline-mode").addEventListener("click", async () => {
-        console.log("🔓 [Gold Leader]: User requested offline mode bypass. Getting out of lock screen!");
-        try { if (loginWindow && !loginWindow.closed) loginWindow.close(); } catch (e) {}
-        lockScreen.remove();
-        
-        const restored = await restoreCacheFromOPFSToLocalStorage();
-        if (restored || localStorage.getItem("cache_payload")) {
-            console.log("✅ [Gold Leader]: Offline mode engaged successfully.");
-            window.dispatchEvent(new CustomEvent("PayloadReady"));
-        } else {
-            alert("No local OPFS backup found. Internet connection and authentication are required for the first run.");
-            triggerAutomaticLoginFlow();
-        }
-    });
-
-    const sessionPollInterval = setInterval(async () => {
-        if (await checkSharePointLogo()) {
-            console.log("🟡 [Gold Leader]: Session detected. Closing popup and continuing...");
+        document.getElementById("btn-offline-mode").addEventListener("click", async () => {
+            console.log("🔓 [Gold Leader]: User selected offline mode; skipping all remote synchronization.");
+            sessionStorage.setItem("app_offline_mode", "true");
+            window.LSEngine = window.LSEngine || {};
+            window.LSEngine.offlineMode = true;
             clearInterval(sessionPollInterval);
             try { if (loginWindow && !loginWindow.closed) loginWindow.close(); } catch (e) {}
-            lockScreen.remove();
-            checkAndSyncData();
-        }
-    }, 2000);
+        
+            const restored = await restoreOfflineData();
+            if (!restored) {
+                console.warn("⚠️ [Gold Leader]: No cached payload was found. Continuing offline without downloaded data.");
+            }
+            window.dispatchEvent(new CustomEvent("PayloadReady"));
+            completeLoginDecision(false);
+        });
+
+        sessionPollInterval = setInterval(async () => {
+            if (isResolved || isOfflineMode()) return;
+            const sessionActive = await checkSharePointLogo();
+            if (sessionActive && !isResolved && !isOfflineMode()) {
+                console.log("🟡 [Gold Leader]: Session detected. Closing popup and continuing...");
+                completeLoginDecision(true);
+                checkAndSyncData();
+            }
+        }, 2000);
+    });
+
+    return loginDecisionPromise;
 }
 
 
@@ -447,6 +482,29 @@ async function writeLogToOPFS(logFilename, logContentString) {
         console.error("💥 [Green Leader]: Error writing log to OPFS:", err);
         return false;
     }
+}
+
+async function clearOPFSLogs() {
+    const rootDir = await navigator.storage.getDirectory();
+    let logsDir;
+
+    try {
+        logsDir = await rootDir.getDirectoryHandle("Logs");
+    } catch (err) {
+        if (err.name === "NotFoundError") return;
+        throw err;
+    }
+
+    const entriesToDelete = [];
+    for await (const [entryName] of logsDir.entries()) {
+        entriesToDelete.push(entryName);
+    }
+
+    for (const entryName of entriesToDelete) {
+        await logsDir.removeEntry(entryName, { recursive: true });
+    }
+
+    console.log(`🧹 [Green Leader]: Cleared ${entriesToDelete.length} previous entries from OPFS Logs.`);
 }
 
 // Registrar en el espacio global del Green Leader
@@ -513,11 +571,48 @@ async function restoreCacheFromOPFSToLocalStorage(filename = "cache_payload.json
     return false;
 }
 
+async function restoreOfflineData() {
+    let restored = await restoreCacheFromOPFSToLocalStorage("lite_payload.json");
+    if (!restored) restored = await restoreCacheFromOPFSToLocalStorage("cache_payload.json");
+    if (restored) return true;
+
+    for (const storageKey of ["lite_payload_cache", "cache_payload"]) {
+        const content = localStorage.getItem(storageKey);
+        if (!content) continue;
+
+        try {
+            const parsedData = JSON.parse(content);
+            if (!parsedData || typeof parsedData !== "object") continue;
+
+            window.LSEngine = window.LSEngine || {};
+            window.LSEngine.state = window.LSEngine.state || {};
+            for (const [sectionKey, sectionData] of Object.entries(parsedData)) {
+                const globalPropName = `global${sectionKey.charAt(0).toUpperCase()}${sectionKey.slice(1)}`;
+                window.LSEngine.state[globalPropName] = sectionData;
+                if (Array.isArray(sectionData)) {
+                    localStorage.setItem(`csv_${sectionKey}`, JSON.stringify(sectionData));
+                }
+            }
+            return true;
+        } catch (err) {
+            console.warn(`⚠️ [Green Leader]: Ignoring invalid local offline cache '${storageKey}':`, err);
+        }
+    }
+
+    return false;
+}
+
 window.LSEngine = window.LSEngine || {};
 window.LSEngine.state = window.LSEngine.state || {};
+window.LSEngine.restoreOfflineData = restoreOfflineData;
 
 // --- CORE LITE REQUEST ---
 window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targetFilename = "lite_payload.json") {
+    if (isOfflineMode()) {
+        await restoreOfflineData();
+        return;
+    }
+
     let baseUrl = overrideUrl || getPowerAutomateUrl();
     
     if (!baseUrl) {
@@ -563,6 +658,11 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
 
 // --- MAIN FETCH ENGINE ---
 async function fetchAndProcessData(isManual = false) {
+    if (isOfflineMode()) {
+        console.log("🔓 [Red Leader]: Skipping data request because offline mode is active.");
+        return false;
+    }
+
     const splash = document.getElementById("sync-splash");
     if (isManual) showSplash(splash);
     
@@ -576,6 +676,12 @@ async function fetchAndProcessData(isManual = false) {
             console.warn("💥 [Red Leader Down]: Power Automate URL telemetry link not found in query parameters.");
             hideSplash(splash);
             return false;
+        }
+
+        try {
+            await clearOPFSLogs();
+        } catch (err) {
+            console.error("💥 [Green Leader]: Could not clear previous OPFS logs before synchronization:", err);
         }
         
         const csvController = new AbortController();
@@ -645,6 +751,11 @@ async function fetchAndProcessData(isManual = false) {
 
 // --- SECONDARY SYNC TASK ---
 window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
+    if (isOfflineMode()) {
+        console.log("🔓 [Green Leader]: Skipping manifest and asset sync because offline mode is active.");
+        return;
+    }
+
     let baseUrl = overrideUrl || window.LSEngine.getPowerAutomateUrl();
     if (!baseUrl) return;
 

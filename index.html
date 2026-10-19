@@ -61,6 +61,10 @@
         }
 
         window.checkAndRedirectSync = function(force = false) {
+            if (sessionStorage.getItem("app_offline_mode") === "true") {
+                return false;
+            }
+
             try {
                 const now = Date.now();
                 const lastTimestamp = getLastSyncTimestamp();

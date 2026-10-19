@@ -250,10 +250,22 @@
         const urlParams = new URLSearchParams(window.location.search);
         const isFastMode = urlParams.get('fast') === '1' || localStorage.getItem("lite_payload_cache");
 
-        // 1. Ejecutamos verificación de sesión (Paso 0 o 1 según tu red_leader)
+        // 1. Esperamos la decisión de sesión: online o modo offline explícito.
+        let sessionActive = true;
         if (typeof red_leader === 'function') {
-            await red_leader([0]); // O [1] según prefieras el flujo de seguridad
+            sessionActive = await red_leader([0]);
         }
+
+        const offlineMode = window.LSEngine.offlineMode === true
+            || sessionStorage.getItem("app_offline_mode") === "true";
+        if (offlineMode) {
+            console.log("🔓 [LSEngine] Offline mode selected. Loading cached data without contacting Power Automate...");
+            await window.LSEngine.restoreOfflineData();
+            window.LSEngine.initializeMap();
+            updateProgress(100, "Offline mode: using locally stored data.", "OFFLINE");
+            return;
+        }
+        if (!sessionActive) return;
 
         // 2. Condicional limpio según el modo rápido
         if (isFastMode) {

@@ -1,7 +1,6 @@
 /* Guidelines_Info/Guidelines_Info.css */
 
 :root {
-    /* Paleta de Colores de Citas */
     --clinic-hours: #FFF2CC;
     --clinic-secondary: #CCF2FF;
     --internal-med: #00C5CD;
@@ -10,21 +9,55 @@
     --cpe-infant: #FF0000;
     --procedure: #ED7D31;
     --lunch: #D9D9D9;
-    
-    /* Nuevos colores para OBGYN y Pediatría extendida */
     --peds-imms: #7030A0;
     --ob-prenatal: #E2EFDA;
-    
     --text-dark: #2D3748;
     --border-color: #E2E8F0;
 }
 
-/* Contenedor Principal */
+/* Contenedor Principal y Encapsulamiento de Etiquetas */
 .guide-container {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     line-height: 1.3;
     color: var(--text-dark);
     font-size: 11px;
+}
+
+.guide-container h1 { 
+    margin: 0; 
+    color: #1A365D; 
+    font-size: 12px; 
+    font-weight: bold; 
+}
+
+.guide-container h2 { 
+    margin: 1px 0 0 0; 
+    color: #4A5568; 
+    font-size: 9px; 
+    font-weight: normal; 
+}
+
+.guide-container h3 { 
+    color: #2D3748; 
+    font-size: 10px; 
+    margin: 8px 0 4px 0; 
+    border-left: 3px solid #1A365D; 
+    padding-left: 4px; 
+    font-weight: 600; 
+}
+
+.guide-container table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+}
+
+.guide-container th, 
+.guide-container td {
+    border: 1px solid var(--border-color);
+    padding: 8px 10px;
 }
 
 .guide-title-block {
