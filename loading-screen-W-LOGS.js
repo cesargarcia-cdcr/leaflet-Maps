@@ -14,29 +14,71 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
 
 (function() {
     let logWriteQueue = Promise.resolve();
+    const DEFAULT_LOG_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-    async function removeLogDirectories() {
-        const rootDir = await navigator.storage.getDirectory();
-        for (const directoryName of ["Logs", "logs"]) {
-            try {
-                await rootDir.removeEntry(directoryName, { recursive: true });
-            } catch (err) {
-                if (err.name !== "NotFoundError") throw err;
+    async function removeExpiredLogFiles(directoryHandle, cutoff, removeEmptyDirectories = false) {
+        const entries = [];
+        for await (const [entryName, entryHandle] of directoryHandle.entries()) {
+            entries.push([entryName, entryHandle]);
+        }
+
+        let removedCount = 0;
+        for (const [entryName, entryHandle] of entries) {
+            if (entryHandle.kind === "directory") {
+                removedCount += await removeExpiredLogFiles(entryHandle, cutoff, true);
+                if (removeEmptyDirectories) {
+                    let isEmpty = true;
+                    for await (const _ of entryHandle.entries()) {
+                        isEmpty = false;
+                        break;
+                    }
+                    if (isEmpty) await directoryHandle.removeEntry(entryName);
+                }
+                continue;
+            }
+
+            const file = await entryHandle.getFile();
+            if (file.lastModified < cutoff) {
+                await directoryHandle.removeEntry(entryName);
+                removedCount++;
             }
         }
+        return removedCount;
     }
 
-    function clearLogDirectories() {
-        const clearOperation = logWriteQueue.catch(() => {}).then(removeLogDirectories);
-        logWriteQueue = clearOperation;
-        return clearOperation;
+    async function deleteExpiredLogFiles(maxAgeMs) {
+        const rootDir = await navigator.storage.getDirectory();
+        const cutoff = Date.now() - maxAgeMs;
+        let removedCount = 0;
+        for (const directoryName of ["Logs", "logs"]) {
+            let logsDir;
+            try {
+                logsDir = await rootDir.getDirectoryHandle(directoryName);
+            } catch (err) {
+                if (err.name === "NotFoundError") continue;
+                throw err;
+            }
+            removedCount += await removeExpiredLogFiles(logsDir, cutoff);
+        }
+        return removedCount;
+    }
+
+    // maxAgeMs is a retention duration in milliseconds; older files are removed.
+    function clearOPFSLogs(maxAgeMs = DEFAULT_LOG_MAX_AGE_MS) {
+        if (!Number.isFinite(maxAgeMs) || maxAgeMs < 0) {
+            return Promise.reject(new RangeError("Log retention age must be a non-negative number of milliseconds."));
+        }
+
+        const cleanupOperation = logWriteQueue.catch(() => {}).then(() => deleteExpiredLogFiles(maxAgeMs));
+        logWriteQueue = cleanupOperation;
+        return cleanupOperation;
     }
 
     async function writeLogToOPFS(logFilename, logContentString) {
         const writeOperation = logWriteQueue.catch(() => {}).then(async () => {
             if (!logContentString.trim()) return false;
 
-            await removeLogDirectories();
+            await deleteExpiredLogFiles(DEFAULT_LOG_MAX_AGE_MS);
             const rootDir = await navigator.storage.getDirectory();
             const logsDir = await rootDir.getDirectoryHandle("Logs", { create: true });
             const fileHandle = await logsDir.getFileHandle(logFilename, { create: true });
@@ -58,7 +100,7 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
     // Exponer la función de forma segura en el espacio global
     window.GreenLeaderStorage = window.GreenLeaderStorage || {};
     window.GreenLeaderStorage.writeLogToOPFS = writeLogToOPFS;
-    window.GreenLeaderStorage.clearOPFSLogs = clearLogDirectories;
+    window.GreenLeaderStorage.clearOPFSLogs = clearOPFSLogs;
 
     // Buffer de sesión y nombre de archivo único por instancia de carga
     const sessionTimestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -186,7 +228,7 @@ async function checkAndSyncData() {
     
     if (!sessionActive) {
         if (splash) splash.style.display = "none";
-        const restored = await restoreCacheFromOPFSToLocalStorage();
+        const restored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage();
         if (restored || hasLocalPayload) {
             window.dispatchEvent(new CustomEvent("PayloadReady"));
         } else {
@@ -198,12 +240,12 @@ async function checkAndSyncData() {
     try {
         const success = await fetchAndProcessData(true);
         if (!success) {
-            await restoreCacheFromOPFSToLocalStorage();
+            await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage();
             if (splash) splash.style.display = "none";
             window.dispatchEvent(new CustomEvent("PayloadReady"));
         }
     } catch (error) {
-        await restoreCacheFromOPFSToLocalStorage();
+        await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage();
         if (splash) splash.style.display = "none";
         window.dispatchEvent(new CustomEvent("PayloadReady"));
     }
@@ -217,10 +259,10 @@ window.triggerManualSync = async function() {
     if (window.LSEngine) window.LSEngine.offlineMode = false;
     
     // 1. Back up ?data=... to OPFS before clearing everything
-    await backupParamDataToOPFS();
+    await window.GreenLeaderStorage.backupParamDataToOPFS();
     
     // 2. Clear all local cache using the adjusted function
-    clearLocalDatasetsCache();
+    window.GreenLeaderStorage.clearLocalDatasetsCache();
 
     // 3. Clean redirect with reload timestamp
     await new Promise(resolve => setTimeout(resolve, 900));
@@ -438,7 +480,7 @@ function triggerAutomaticLoginFlow() {
             clearInterval(sessionPollInterval);
             try { if (loginWindow && !loginWindow.closed) loginWindow.close(); } catch (e) {}
         
-            const restored = await restoreOfflineData();
+            const restored = await window.GreenLeaderStorage.restoreOfflineData();
             if (!restored) {
                 console.warn("⚠️ [Gold Leader]: No cached payload was found. Continuing offline without downloaded data.");
             }
@@ -462,15 +504,12 @@ function triggerAutomaticLoginFlow() {
 
 
 // --- 🟢 GREEN LEADER: OPFS & STORAGE ENGINEERING ---
-function clearLocalDatasetsCache() {
+window.GreenLeaderStorage.clearLocalDatasetsCache = function() {
     console.log("🟢 [Green Leader]: Purging all localStorage cache via clear()...");
     localStorage.clear();
-}
-window.GreenLeaderStorage = window.GreenLeaderStorage || {};
-window.GreenLeaderStorage.clearLocalDatasetsCache = clearLocalDatasetsCache;
-window.clearLocalDatasetsCache = clearLocalDatasetsCache;
+};
 
-async function backupParamDataToOPFS() {
+window.GreenLeaderStorage.backupParamDataToOPFS = async function() {
     const rawDataParam = new URLSearchParams(window.location.search).get("data");
     if (rawDataParam) {
         const rootDir = await navigator.storage.getDirectory();
@@ -481,18 +520,9 @@ async function backupParamDataToOPFS() {
         await writable.close();
         console.log("🟢 [Green Leader]: Parameter ?data=... successfully backed up to OPFS.");
     }
-}
+};
 
-// --- 🟢 GREEN LEADER: OPFS LOGS DIRECTORY ENGINEERING ---
-async function clearOPFSLogs() {
-    await window.GreenLeaderStorage.clearOPFSLogs();
-}
-
-// Registrar en el espacio global del Green Leader
-window.GreenLeaderStorage = window.GreenLeaderStorage || {};
-window.writeLogToOPFS = window.GreenLeaderStorage.writeLogToOPFS;
-
-async function writeDatasetToOPFS(filename, contentString) {
+window.GreenLeaderStorage.writeDatasetToOPFS = async function(filename, contentString) {
     console.log("🟢 [Green Leader]: Stowing cargo safely into OPFS bay:", filename);
     const rootDir = await navigator.storage.getDirectory();
     const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
@@ -501,9 +531,9 @@ async function writeDatasetToOPFS(filename, contentString) {
     const writable = await fileHandle.createWritable();
     await writable.write(contentString);
     await writable.close();
-}
+};
 
-async function restoreCacheFromOPFSToLocalStorage(filename = "cache_payload.json") {
+window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage = async function(filename = "cache_payload.json") {
     try {
         console.log(`🟢 [Green Leader]: 📂 Reading and mapping dynamically from OPFS using file: (${filename})...`);
         
@@ -549,11 +579,11 @@ async function restoreCacheFromOPFSToLocalStorage(filename = "cache_payload.json
         console.warn(`⚠️ [Green Leader]: Could not find or process file '${filename}' in OPFS:`, err);
     }
     return false;
-}
+};
 
-async function restoreOfflineData() {
-    let restored = await restoreCacheFromOPFSToLocalStorage("lite_payload.json");
-    if (!restored) restored = await restoreCacheFromOPFSToLocalStorage("cache_payload.json");
+window.GreenLeaderStorage.restoreOfflineData = async function() {
+    let restored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage("lite_payload.json");
+    if (!restored) restored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage("cache_payload.json");
     if (restored) return true;
 
     for (const storageKey of ["lite_payload_cache", "cache_payload"]) {
@@ -580,16 +610,15 @@ async function restoreOfflineData() {
     }
 
     return false;
-}
+};
 
 window.LSEngine = window.LSEngine || {};
 window.LSEngine.state = window.LSEngine.state || {};
-window.LSEngine.restoreOfflineData = restoreOfflineData;
 
 // --- CORE LITE REQUEST ---
 window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targetFilename = "lite_payload.json") {
     if (isOfflineMode()) {
-        await restoreOfflineData();
+        await window.GreenLeaderStorage.restoreOfflineData();
         return;
     }
 
@@ -597,10 +626,10 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
     
     if (!baseUrl) {
         console.log(`📂 [LSEngine] No URL provided. Attempting offline fallback from OPFS using '${targetFilename}'...`);
-        const restored = await restoreCacheFromOPFSToLocalStorage(targetFilename);
+        const restored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage(targetFilename);
         if (!restored && targetFilename !== "cache_payload.json") {
             console.log("🔄 Attempting emergency fallback with 'cache_payload.json'...");
-            await restoreCacheFromOPFSToLocalStorage("cache_payload.json");
+            await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage("cache_payload.json");
         }
         return;
     }
@@ -626,7 +655,7 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
     const payload = await response.json();
     const payloadString = JSON.stringify(payload);
     
-    await writeDatasetToOPFS(targetFilename, payloadString);
+    await window.GreenLeaderStorage.writeDatasetToOPFS(targetFilename, payloadString);
     
     window.LSEngine.state.globalClinics = payload.clinics || [];
     window.LSEngine.state.globalExtensions = payload.extensions || [];
@@ -659,7 +688,7 @@ async function fetchAndProcessData(isManual = false) {
         }
 
         try {
-            await clearOPFSLogs();
+            await window.GreenLeaderStorage.clearOPFSLogs();
         } catch (err) {
             console.error("💥 [Green Leader]: Could not clear previous OPFS logs before synchronization:", err);
         }
@@ -703,8 +732,8 @@ async function fetchAndProcessData(isManual = false) {
         const csvPayload = await csvResponse.json();
         const payloadString = JSON.stringify(csvPayload);
 
-        await writeDatasetToOPFS("cache_payload.json", payloadString);
-        await writeDatasetToOPFS("lite_payload.json", payloadString);
+        await window.GreenLeaderStorage.writeDatasetToOPFS("cache_payload.json", payloadString);
+        await window.GreenLeaderStorage.writeDatasetToOPFS("lite_payload.json", payloadString);
 
         localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
         localStorage.setItem("app_last_sync_date", new Date().toISOString().split("T")[0]);
@@ -729,7 +758,7 @@ async function fetchAndProcessData(isManual = false) {
 }
 
 
-function getSyncedAssetPath(item) {
+window.GreenLeaderStorage.getSyncedAssetPath = function(item) {
     let rawPath = item.path || "";
     if (rawPath.endsWith("/") && item.name) {
         rawPath += item.name;
@@ -737,9 +766,9 @@ function getSyncedAssetPath(item) {
         rawPath = rawPath + "/" + item.name;
     }
     return rawPath.replace(/([^:]\/)\/+/g, "$1");
-}
+};
 
-async function removeStaleSyncedFiles(directoryHandle, expectedFiles, parentPath = "") {
+window.GreenLeaderStorage.removeStaleSyncedFiles = async function(directoryHandle, expectedFiles, parentPath = "") {
     const entries = [];
     for await (const [entryName, entryHandle] of directoryHandle.entries()) {
         entries.push([entryName, entryHandle]);
@@ -749,16 +778,16 @@ async function removeStaleSyncedFiles(directoryHandle, expectedFiles, parentPath
     for (const [entryName, entryHandle] of entries) {
         const relativePath = parentPath ? `${parentPath}/${entryName}` : entryName;
         if (entryHandle.kind === "directory") {
-            removedCount += await removeStaleSyncedFiles(entryHandle, expectedFiles, relativePath);
+            removedCount += await window.GreenLeaderStorage.removeStaleSyncedFiles(entryHandle, expectedFiles, relativePath);
         } else if (!expectedFiles.has(relativePath)) {
             await directoryHandle.removeEntry(entryName);
             removedCount++;
         }
     }
     return removedCount;
-}
+};
 
-async function reconcileSyncedAssetDirectory(rootDir, directoryName, expectedFiles) {
+window.GreenLeaderStorage.reconcileSyncedAssetDirectory = async function(rootDir, directoryName, expectedFiles) {
     let directoryHandle;
     try {
         directoryHandle = await rootDir.getDirectoryHandle(directoryName);
@@ -766,10 +795,10 @@ async function reconcileSyncedAssetDirectory(rootDir, directoryName, expectedFil
         if (err.name === "NotFoundError") return 0;
         throw err;
     }
-    return removeStaleSyncedFiles(directoryHandle, expectedFiles);
-}
+    return window.GreenLeaderStorage.removeStaleSyncedFiles(directoryHandle, expectedFiles);
+};
 
-async function loadSyncedAssetInventory(rootDir) {
+window.GreenLeaderStorage.loadSyncedAssetInventory = async function(rootDir) {
     try {
         const appDataDir = await rootDir.getDirectoryHandle("App_Data");
         const inventoryHandle = await appDataDir.getFileHandle("asset_sync_inventory.json");
@@ -787,9 +816,9 @@ async function loadSyncedAssetInventory(rootDir) {
         }
         return null;
     }
-}
+};
 
-async function saveSyncedAssetInventory(rootDir, inventory) {
+window.GreenLeaderStorage.saveSyncedAssetInventory = async function(rootDir, inventory) {
     const appDataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
     const inventoryHandle = await appDataDir.getFileHandle("asset_sync_inventory.json", { create: true });
     const writable = await inventoryHandle.createWritable();
@@ -798,13 +827,13 @@ async function saveSyncedAssetInventory(rootDir, inventory) {
         Directory: [...inventory.get("Directory")]
     }));
     await writable.close();
-}
+};
 
-async function removeTrackedAsset(rootDir, directoryName, relativePath) {
+window.GreenLeaderStorage.removeTrackedAsset = async function(rootDir, directoryName, relativePath) {
     const pathParts = relativePath.split("/");
     if (pathParts.length === 0 || pathParts.some(part => !part || part === "." || part === "..")) {
         throw new Error(`Invalid tracked asset path '${relativePath}'.`);
-    }
+    };
 
     let currentDir;
     try {
@@ -841,7 +870,7 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
             window.LSEngine.setProgress(50, "Fetching manifest for background assets...", "SYNCING");
         }
 
-        const previousInventory = await loadSyncedAssetInventory(rootDir);
+        const previousInventory = await window.GreenLeaderStorage.loadSyncedAssetInventory(rootDir);
         const response = await fetch(manifestUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -880,7 +909,7 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
             const progressPercent = Math.min(50 + Math.floor((processedCount / totalFiles) * 45), 95);
 
             try {
-                const cleanFilePath = getSyncedAssetPath(item);
+                const cleanFilePath = window.GreenLeaderStorage.getSyncedAssetPath(item);
 
                 const targetBaseDir = cleanFilePath.includes("Guidelines_Info") 
                     ? await rootDir.getDirectoryHandle("Guidelines_Info", { create: true })
@@ -973,15 +1002,15 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     const previousFiles = previousInventory[directoryName];
                     for (const stalePath of previousFiles) {
                         if (!expectedFiles.has(stalePath)) {
-                            if (await removeTrackedAsset(rootDir, directoryName, stalePath)) removedCount++;
+                            if (await window.GreenLeaderStorage.removeTrackedAsset(rootDir, directoryName, stalePath)) removedCount++;
                         }
                     }
                 } else {
-                    removedCount = await reconcileSyncedAssetDirectory(rootDir, directoryName, expectedFiles);
+                    removedCount = await window.GreenLeaderStorage.reconcileSyncedAssetDirectory(rootDir, directoryName, expectedFiles);
                 }
                 console.log(`🧹 [OPFS Sync]: Removed ${removedCount} stale file(s) from ${directoryName}.`);
             }
-            await saveSyncedAssetInventory(rootDir, expectedFilesByDirectory);
+            await window.GreenLeaderStorage.saveSyncedAssetInventory(rootDir, expectedFilesByDirectory);
         }
 
         if (typeof window.LSEngine.setProgress === 'function') {

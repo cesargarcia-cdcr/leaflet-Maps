@@ -260,7 +260,7 @@
             || sessionStorage.getItem("app_offline_mode") === "true";
         if (offlineMode) {
             console.log("🔓 [LSEngine] Offline mode selected. Loading cached data without contacting Power Automate...");
-            await window.LSEngine.restoreOfflineData();
+            await window.GreenLeaderStorage.restoreOfflineData();
             window.LSEngine.initializeMap();
             updateProgress(100, "Offline mode: using locally stored data.", "OFFLINE");
             return;
@@ -271,12 +271,12 @@
         if (isFastMode) {
             console.log("⚡ [LSEngine] Modo rápido (?fast=1) activado: Saltando fetch lite y cargando desde OPFS...");
             if (typeof red_leader === 'function') {
-                await restoreCacheFromOPFSToLocalStorage('lite_payload.json'); 
+                await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
             }
         } else {
             console.log("🌐 [LSEngine] Ejecutando petición de datos principales (Lite Payload)...");
             await window.LSEngine.taskFetchMainDataLite();
-            await restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+            await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
         }
 
         // 3. Pintar el mapa de inmediato
@@ -288,7 +288,7 @@
             // 4. Ejecutamos el resto de los procesos pesados usando red_leader (Pasos 2 y 4)
             if (typeof red_leader === 'function') {
                 await red_leader([2, 4]);
-                await restoreCacheFromOPFSToLocalStorage(); // 👈 Asegura el mapeo a localStorage y estado global al terminar
+                await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage(); // 👈 Asegura el mapeo a localStorage y estado global al terminar
             }
         }
     } catch (err) {
