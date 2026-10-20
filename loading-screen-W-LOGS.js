@@ -206,6 +206,28 @@ function isOfflineMode() {
     return window.LSEngine?.offlineMode === true || sessionStorage.getItem("app_offline_mode") === "true";
 }
 
+async function ensureOnlineSession() {
+    if (isOfflineMode()) return false;
+    return verifySharePointSession();
+}
+
+async function fetchWithSession(url, options) {
+    const response = await fetch(url, options);
+    if (response.status !== 401 && response.status !== 403) return response;
+
+    if (!await ensureOnlineSession()) return null;
+
+    if (!options.signal) return fetch(url, options);
+
+    const retryController = new AbortController();
+    const retryTimeout = setTimeout(() => retryController.abort(), 60000);
+    try {
+        return await fetch(url, { ...options, signal: retryController.signal });
+    } finally {
+        clearTimeout(retryTimeout);
+    }
+}
+
 async function checkAndSyncData() {
     if (isOfflineMode()) return;
 
@@ -289,6 +311,7 @@ function updateProgress(percent, message, state = "LOADING") {
 function showSplash(splashElement) {
     if (!splashElement) return;
     console.log("🔵 [Blue Leader]: Raising deflector shields (showing splash screen)...");
+    splashElement.classList.remove("is-hidden");
     splashElement.style.pointerEvents = "auto";
     splashElement.style.display = "flex";
     splashElement.style.opacity = "1";
@@ -301,6 +324,7 @@ function hideSplash(splashElement) {
     splashElement.style.pointerEvents = "none";
     setTimeout(() => { 
         splashElement.style.display = "none"; 
+        splashElement.classList.add("is-hidden");
         if (window.AppMap && typeof window.AppMap.invalidateSize === 'function') {
             window.AppMap.invalidateSize();
         }
@@ -488,7 +512,6 @@ function triggerAutomaticLoginFlow() {
             if (sessionActive && !isResolved && !isOfflineMode()) {
                 console.log("🟡 [Gold Leader]: Session detected. Closing popup and continuing...");
                 completeLoginDecision(true);
-                checkAndSyncData();
             }
         }, 2000);
     });
@@ -627,6 +650,8 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
         }
         return;
     }
+
+    if (!await ensureOnlineSession()) return;
     
     const cacheBusterToken = `_cb=${Date.now()}`;
     console.log("⚡ [Cache Busting] Applied to Lite Payload:", cacheBusterToken);
@@ -637,13 +662,14 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
         updateProgress(30, "Downloading system data...", "FETCHING");
     }
 
-    const response = await fetch(finalEndpointUrl, {
+    const response = await fetchWithSession(finalEndpointUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
         body: JSON.stringify({ action: "load" })
     });
 
+    if (!response) return;
     if (!response.ok) throw new Error(`Data fetch error (HTTP ${response.status})`);
 
     const payload = await response.json();
@@ -681,6 +707,8 @@ async function fetchAndProcessData(isManual = false) {
             return false;
         }
 
+        if (!await ensureOnlineSession()) return false;
+
         try {
             await window.GreenLeaderStorage.clearOPFSLogs();
         } catch (err) {
@@ -698,7 +726,7 @@ async function fetchAndProcessData(isManual = false) {
         
         let csvResponse;
         try {
-            csvResponse = await fetch(baseUrl, {
+            csvResponse = await fetchWithSession(baseUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({}), 
@@ -717,6 +745,7 @@ async function fetchAndProcessData(isManual = false) {
         
         clearTimeout(csvTimeout);
 
+        if (!csvResponse) return false;
         if (!csvResponse.ok) {
             console.error(`💥 [Red Leader Error]: Server rejected payload transmission. HTTP Status: ${csvResponse.status} ${csvResponse.statusText}`);
             throw new Error(`Data fetch error (HTTP ${csvResponse.status})`);
@@ -854,6 +883,8 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
     if (!baseUrl) return;
 
     try {
+        if (!await ensureOnlineSession()) return;
+
         const rootDir = await navigator.storage.getDirectory();
         
         const cacheBusterToken = `_cb=${Date.now()}`;
@@ -865,13 +896,14 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
         }
 
         const previousInventory = await window.GreenLeaderStorage.loadSyncedAssetInventory(rootDir);
-        const response = await fetch(manifestUrl, {
+        const response = await fetchWithSession(manifestUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             cache: "no-store",
             body: JSON.stringify({ action: "READ_MANIFEST" })
         });
 
+        if (!response) return;
         if (!response.ok) return;
 
         const payload = await response.json();
@@ -899,6 +931,8 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
         ]);
 
         for (const item of fileItems) {
+            if (!await ensureOnlineSession()) return;
+
             processedCount++;
             const progressPercent = Math.min(50 + Math.floor((processedCount / totalFiles) * 45), 95);
 
@@ -968,13 +1002,14 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     window.LSEngine.setProgress(progressPercent, `Downloading asset (${processedCount}/${totalFiles}): ${item.name}`, "DOWNLOADING");
                 }
 
-                const downloadRes = await fetch(baseUrl, {
+                const downloadRes = await fetchWithSession(baseUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     cache: "no-store",
                     body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: cleanFilePath })
                 });
 
+                if (!downloadRes) return;
                 if (!downloadRes.ok) throw new Error(`Asset download failed (HTTP ${downloadRes.status})`);
                 const fileContent = await downloadRes.text();
                 const writable = await fileHandle.createWritable();

@@ -475,9 +475,25 @@ body.fullscreen-map { overflow: hidden; }
   gap: 6px;
 }
 
-#place-sheet .clinic-extension-phone {
-  color: #2563eb;
-  font-weight: 600;
+#place-sheet .clinic-extension-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+  color: #475569;
+  font-size: 0.75rem;
+}
+
+#place-sheet .clinic-extension-contact-item strong {
+  color: #334155;
+}
+
+#place-sheet .map-lite-contact {
+  color: #cbd5e1;
+}
+
+#place-sheet .map-lite-contact .clinic-extension-contact-item strong {
+  color: #f8fafc;
 }
 
 #place-sheet .clinic-provider-row {
@@ -604,11 +620,6 @@ body.fullscreen-map { overflow: hidden; }
   color: #f8fafc;
 }
 
-#place-sheet .map-lite-phone {
-  color: #38bdf8;
-  font-weight: 600;
-}
-
 #place-sheet .map-lite-extension-row {
   margin-top: 2px;
   border-top: 1px dashed #334155;
@@ -636,6 +647,10 @@ body.fullscreen-map { overflow: hidden; }
 #place-sheet .map-lite-primary-phone span {
   color: #f8fafc;
   font-weight: 600;
+}
+
+#place-sheet .map-lite-primary-fax {
+  margin-top: 4px;
 }
 
 /* Provider guideline popover is appended to body, with its own scope. */

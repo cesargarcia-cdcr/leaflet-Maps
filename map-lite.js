@@ -98,8 +98,13 @@ function renderClinicDetails(clinic) {
                 <div class="map-lite-extension-group">
                   <div class="map-lite-extension-heading">
                     <span class="map-lite-section-name">🔹 ${sec}</span>
-                    ${v.phone ? `<span class="map-lite-phone">${v.phone}</span>` : ''}
                   </div>
+                  ${v.phone || v.fax ? `
+                    <div class="clinic-extension-contact map-lite-contact">
+                      ${v.phone ? `<span class="clinic-extension-contact-item"><strong>Phone:</strong> ${v.phone}</span>` : ''}
+                      ${v.fax ? `<span class="clinic-extension-contact-item"><strong>Fax:</strong> ${v.fax}</span>` : ''}
+                    </div>
+                  ` : ''}
                   ${rows.map(r => `
                     <div class="map-lite-extension-row">
                       <span class="map-lite-extension-label">${r.label}</span>
@@ -112,9 +117,11 @@ function renderClinicDetails(clinic) {
         html += `</div></div>`;
     } else {
         const phone = clinic.phone || clinic.Phone || clinic.TELEFONO || 'N/A';
+        const fax = clinic.fax || clinic.Fax || clinic.FAX;
         html += `
             <div class="map-lite-primary-phone">
                 <p>📞 Teléfono Principal: <span>${phone}</span></p>
+                ${fax ? `<p class="map-lite-primary-fax">Fax: <span>${fax}</span></p>` : ''}
             </div>`;
     }
 

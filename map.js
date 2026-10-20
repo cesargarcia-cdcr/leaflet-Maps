@@ -422,8 +422,13 @@
             <div class="modern-ext-group">
               <div class="modern-ext-title">
                 <span>🔹 ${sec}</span>
-                ${v.phone ? `<span class="clinic-extension-phone">${v.phone}</span>` : ''}
               </div>
+              ${v.phone || v.fax ? `
+                <div class="clinic-extension-contact">
+                  ${v.phone ? `<span class="clinic-extension-contact-item"><strong>Phone:</strong> ${v.phone}</span>` : ''}
+                  ${v.fax ? `<span class="clinic-extension-contact-item"><strong>Fax:</strong> ${v.fax}</span>` : ''}
+                </div>
+              ` : ''}
               ${rows.map(r => `
                 <div class="modern-grid-row">
                   <div class="modern-lbl">${r.label}</div>
