@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const infoSectionBody = document.querySelector('#info-section .card-body');
     if (!infoSectionBody) return;
 
-    infoSectionBody.innerHTML = '<span style="font-size: 0.75rem; color: #64748b; padding: 10px;">Escaneando directorios clínicos...</span>';
+    infoSectionBody.innerHTML = '<span class="guidelines-status guidelines-loading">Escaneando directorios clínicos...</span>';
 
     // Función auxiliar para extraer el peso numérico, evaluar la regla de Critical y limpiar el nombre visual
     function parseSortingName(rawName) {
@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const guidelines = data.guidelines;
             
             if (!guidelines || Object.keys(guidelines).length === 0) {
-                infoSectionBody.innerHTML = '<div style="padding: 6px; font-style: italic; color: #94a3b8; font-size: 0.7rem;">No se encontraron carpetas en Guidelines_Info/</div>';
+                infoSectionBody.innerHTML = '<div class="guidelines-status guidelines-empty">No se encontraron carpetas en Guidelines_Info/</div>';
                 return;
             }
 
@@ -80,28 +80,20 @@ document.addEventListener("DOMContentLoaded", function() {
                 // DETECCIÓN CRÍTICA: Usamos el flag evaluado en la función parseSortingName
                 const isCritical = folderInfo.isCritical;
                 
-                if (isCritical) {
-                    infoGroup.style.cssText = 'border: 1px solid #f5c6cb; border-radius: 4px; background: #fff5f5; margin-bottom: 6px; border-left: 4px solid var(--cpe-infant);';
-                } else {
-                    infoGroup.style.cssText = 'border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; margin-bottom: 6px;';
-                }
-                
-                // Ajustamos también el color del texto del encabezado si es crítico[cite: 1]
-                const headerColor = isCritical ? '#721c24' : '#1a365d';
-                const borderBottomColor = isCritical ? '#f5c6cb' : '#e2e8f0';
+                infoGroup.classList.toggle('is-critical', isCritical);
                 
                 infoGroup.innerHTML = `
-                    <div style="padding: 4px 8px; font-size: 0.75rem; font-weight: bold; color: ${headerColor}; border-bottom: 1px solid ${borderBottomColor};">
+                    <div class="guidelines-group-header">
                         📁 ${folderInfo.displayName}
                     </div>
-                    <div class="group-content" style="padding: 4px;"></div>
+                    <div class="group-content"></div>
                 `;
                 
                 const groupContent = infoGroup.querySelector('.group-content');
                 const rawFiles = guidelines[folderName];
 
                 if (rawFiles.length === 0) {
-                    groupContent.innerHTML = '<div style="padding: 4px; font-style: italic; color: #94a3b8; font-size: 0.7rem;">No hay documentos en esta carpeta.</div>';
+                    groupContent.innerHTML = '<div class="guidelines-file-empty">No hay documentos en esta carpeta.</div>';
                 }
 
                 // 4. ORDENAR LOS ARCHIVOS HTML dentro de esta carpeta[cite: 1]
@@ -113,26 +105,24 @@ document.addEventListener("DOMContentLoaded", function() {
                     const fileInfo = parseSortingName(nameWithoutExt);
                     
                     const details = document.createElement('details');
-                    details.style.cssText = 'background: #ffffff; border: 1px solid #e2e8f0; border-radius: 3px; margin-bottom: 4px;';
+                    details.className = 'guidelines-file-details';
                     
                     // Evaluar si el archivo es de alta prioridad/seguridad crítica[cite: 1]
                     const lowerName = fileInfo.cleanName.toLowerCase();
                     const isHighRisk = lowerName.includes('dea') || lowerName.includes('fraud') || lowerName.includes('compliance');
                     
                     // Si es de alto riesgo, cambiamos el color del texto del resumen y añadimos un aviso visual[cite: 1]
-                    const summaryColor = isHighRisk ? '#c53030' : '#4a5568';
                     const fileIcon = isHighRisk ? '🛡️' : '📄';
-                    const extraWeight = isHighRisk ? 'font-weight: 700;' : 'font-weight: 600;';
                     
                     // ID único para evitar colisiones[cite: 1]
                     const targetId = `dynamic-${folderName}-${nameWithoutExt}`.replace(/\s+/g, '-');
                     
                     details.innerHTML = `
-                        <summary style="font-size: 0.75rem; ${extraWeight} padding: 4px 6px; cursor: pointer; color: ${summaryColor}; outline: none;">
+                        <summary class="guidelines-file-summary${isHighRisk ? ' is-high-risk' : ''}">
                             ${fileIcon} ${fileInfo.displayName}
                         </summary>
-                        <div id="${targetId}" style="padding: 6px; border-top: 1px solid #f1f5f9; max-height: 55vh; overflow-y: auto;">
-                            <span style="font-size: 0.7rem; color: #94a3b8;">Cargando contenido...</span>
+                        <div id="${targetId}" class="guidelines-file-content guidelines-file-content-compact">
+                            <span class="guidelines-loading">Cargando contenido...</span>
                         </div>
                     `;
                     
@@ -149,7 +139,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             document.getElementById(targetId).innerHTML = htmlContent;
                         })
                         .catch(err => {
-                            document.getElementById(targetId).innerHTML = `<span style="color:#ef4444; font-size:0.7rem;">⚠️ Error al cargar contenido: ${err.message}</span>`;
+                            document.getElementById(targetId).innerHTML = `<span class="guidelines-error">⚠️ Error al cargar contenido: ${err.message}</span>`;
                         });
                 });
                 infoSectionBody.appendChild(infoGroup);
@@ -157,6 +147,6 @@ document.addEventListener("DOMContentLoaded", function() {
         })
         .catch(error => {
             console.error("Error al mapear directorios clínicos:", error);
-            infoSectionBody.innerHTML = `<div style="color:#ef4444; padding:6px; font-size:0.75rem;">❌ Error crítico del sistema de archivos: ${error.message}</div>`;
+            infoSectionBody.innerHTML = `<div class="guidelines-error">❌ Error crítico del sistema de archivos: ${error.message}</div>`;
         });
 });

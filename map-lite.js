@@ -69,12 +69,13 @@ function renderClinicDetails(clinic) {
     const sections = Object.keys(sectionsMap);
 
     let html = `
-      <div style="margin-bottom:14px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
-        <div style="font-weight:700; font-size:1.1rem; color:#38bdf8; line-height:1.3;">🏥 ${name}</div>
-        <div style="margin-top:5px; font-size:0.75rem; color:#94a3b8; display:flex; align-items:center; gap:5px;">
+      <div class="map-lite-details">
+       <div class="map-lite-clinic-header">
+        <div class="map-lite-clinic-name">🏥 ${name}</div>
+        <div class="map-lite-clinic-address">
           <span>📌</span> <span>${address}</span>
         </div>
-      </div>`;
+       </div>`;
 
     if (sections.length > 0) {
         // Orden preferido de secciones idéntico al de tu aplicación principal
@@ -82,9 +83,9 @@ function renderClinicDetails(clinic) {
         const ordered = [...order.filter(s => sections.includes(s)), ...sections.filter(s => !order.includes(s)).sort()];
 
         html += `
-        <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 10px;">
-            <div style="font-weight: 600; font-size: 0.8rem; color: #38bdf8; margin-bottom: 8px; border-bottom: 1px solid #334155; padding-bottom: 4px; letter-spacing: 0.5px;">📞 EXTENSIONS & LINES</div>
-            <div style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; padding-right: 2px;">`;
+        <div class="map-lite-extensions">
+            <div class="map-lite-extensions-title">📞 EXTENSIONS & LINES</div>
+            <div class="map-lite-extension-list">`;
 
         ordered.forEach((sec) => {
             const v = sectionsMap[sec] || {};
@@ -94,15 +95,15 @@ function renderClinicDetails(clinic) {
             if (!v.front && !v.back && v.ext) rows.push({ label: 'EXT', value: nb(v.ext) });
 
             html += `
-                <div style="background: #1e293b; padding: 6px 8px; border-radius: 6px; border: 1px solid #334155; font-size: 0.75rem;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
-                    <span style="font-weight: 600; color: #f8fafc;">🔹 ${sec}</span>
-                    ${v.phone ? `<span style="color:#38bdf8; font-weight:600;">${v.phone}</span>` : ''}
+                <div class="map-lite-extension-group">
+                  <div class="map-lite-extension-heading">
+                    <span class="map-lite-section-name">🔹 ${sec}</span>
+                    ${v.phone ? `<span class="map-lite-phone">${v.phone}</span>` : ''}
                   </div>
                   ${rows.map(r => `
-                    <div style="display: flex; justify-content: space-between; margin-top: 2px; border-top: 1px dashed #334155; padding-top: 2px;">
-                      <span style="color: #94a3b8; font-weight: 500;">${r.label}</span>
-                      <span style="color: #cbd5e1; text-align: right; max-width: 70%; word-break: break-word;">${r.value}</span>
+                    <div class="map-lite-extension-row">
+                      <span class="map-lite-extension-label">${r.label}</span>
+                      <span class="map-lite-extension-value">${r.value}</span>
                     </div>
                   `).join('')}
                 </div>`;
@@ -112,11 +113,12 @@ function renderClinicDetails(clinic) {
     } else {
         const phone = clinic.phone || clinic.Phone || clinic.TELEFONO || 'N/A';
         html += `
-            <div style="background: #0f172a; padding: 10px; border-radius: 6px; border: 1px solid #334155;">
-                <p style="font-size: 0.8rem; color: #94a3b8; margin: 0;">📞 Teléfono Principal: <span style="color: #f8fafc; font-weight: 600;">${phone}</span></p>
+            <div class="map-lite-primary-phone">
+                <p>📞 Teléfono Principal: <span>${phone}</span></p>
             </div>`;
     }
 
+    html += '</div>';
     body.innerHTML = html;
     window.openSheet();
 }

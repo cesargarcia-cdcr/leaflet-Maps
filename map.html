@@ -18,13 +18,13 @@
     <link rel="stylesheet" href="notes.css"> 
     <link rel="stylesheet" href="map.css">
 </head>
-<body style="margin:0; padding:0; height:100vh; overflow:hidden; display:flex; flex-direction:column;">
+<body class="map-page">
 
     <!-- Controles superiores del mapa (Buscador y botón de regreso opcional) -->
-    <div class="map-controls" style="padding: 10px; background: white; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; gap: 10px; align-items: center;">
-        <a href="index.html" class="btn ghost" style="text-decoration:none; padding: 6px 12px; border: 1px solid #ccc; border-radius: 4px;">⬅️ Volver</a>
-        <div class="mc-search" style="display: flex; gap: 6px; flex: 1; max-width: 500px;">
-            <input id="searchInput" class="mc-input" list="clinicNameList" placeholder="Address, ZIP, code, nickname, or clinic name" style="flex:1; padding: 6px;" />
+    <div class="map-controls map-page-controls">
+        <a href="index.html" class="btn ghost map-page-back">⬅️ Volver</a>
+        <div class="mc-search map-page-search">
+            <input id="searchInput" class="mc-input map-page-search-input" list="clinicNameList" placeholder="Address, ZIP, code, nickname, or clinic name" />
             <datalist id="clinicNameList"></datalist>
             <button class="btn primary" onclick="findNearest()">🔎 Find</button>
             <button class="btn ghost" onclick="clearSearch()">✕ Clear</button>
@@ -32,7 +32,7 @@
     </div>
 
     <!-- Contenedor del Mapa -->
-    <div id="map" class="map-viewport" style="width:100%; flex:1;"></div>
+    <div id="map" class="map-viewport map-page-viewport"></div>
 
     <!-- Panel lateral deslizante de la clínica -->
     <aside id="place-sheet" class="sheet" aria-hidden="true">

@@ -35,7 +35,7 @@
             let txtOrigen = (i === 0) ? `HOY: ${fechaOrigen.toLocaleDateString('es-ES', opciones)}` : fechaOrigen.toLocaleDateString('es-ES', opciones);
             
             let txt72 = (f72.getDay() === 0) ? "Domingo (CERRADO)" : 
-                        (i === 0) ? `${f72.toLocaleDateString('es-ES', opciones)} <br><span style="color:#c62828;"><strong>Antes de las: ${horaActualStr}</strong></span>` : 
+                        (i === 0) ? `${f72.toLocaleDateString('es-ES', opciones)} <br><span class="booking-deadline"><strong>Antes de las: ${horaActualStr}</strong></span>` :
                         f72.toLocaleDateString('es-ES', opciones);
 
             let fila = `<tr>

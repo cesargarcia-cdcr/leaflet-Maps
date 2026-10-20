@@ -314,6 +314,13 @@ font-family: system-ui, sans-serif;
 transition: opacity 0.4s ease;
 }
 
+#sync-splash.is-hidden,
+.app-container .is-hidden {
+display: none !important;
+opacity: 0;
+pointer-events: none;
+}
+
 #note-section {
 background: transparent;
 border: none;
@@ -440,6 +447,8 @@ margin-top: 10px;
   overflow-y: auto;
   padding-top: 70px;
 }
+
+
 
 /* Estado abierto del menú lateral */
 .sidebar.open {

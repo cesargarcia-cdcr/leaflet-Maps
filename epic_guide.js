@@ -169,15 +169,16 @@ function loadAndRenderData() {
         sectionDiv.appendChild(headerDiv);
 
         let table = document.createElement('table');
+        table.className = 'epic-guide-table';
         table.innerHTML = `
             <thead>
                 <tr>
-                    <th style="width: 8%;" class="text-center">Visit Code</th>
-                    <th style="width: 22%;">Epic Visit Types</th>
-                    <th style="width: 22%;">NextGen Visit Types</th>
-                    <th style="width: 30%;">Scheduling Guidelines</th>
-                    <th style="width: 9%;" class="text-center">Reg. Time</th>
-                    <th style="width: 9%;" class="text-center">Meta Reg. Time</th>
+                    <th class="text-center">Visit Code</th>
+                    <th>Epic Visit Types</th>
+                    <th>NextGen Visit Types</th>
+                    <th>Scheduling Guidelines</th>
+                    <th class="text-center">Reg. Time</th>
+                    <th class="text-center">Meta Reg. Time</th>
                 </tr>
             </thead>
             <tbody></tbody>

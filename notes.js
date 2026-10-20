@@ -140,7 +140,7 @@ function initInsuranceDropdown() {
             <select id="insurance-dropdown" onchange="onInsuranceSelectChange()" class="insurance-select">
                 <option value="">-- Select Insurance / Program --</option>
             </select>
-            <input id="insurance-custom-input" placeholder="Or type custom..." oninput="updateNote(); checkInsuranceConditions();" class="insurance-custom-input" style="display: none;" />
+            <input id="insurance-custom-input" placeholder="Or type custom..." oninput="updateNote(); checkInsuranceConditions();" class="insurance-custom-input" />
         </div>
         <div class="insurance-footer">
             <span id="insurance-mode-toggle" onclick="toggleInsuranceInputMode()" class="insurance-mode-toggle">Switch to manual input</span>

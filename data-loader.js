@@ -150,7 +150,7 @@ function mostrarBotonEntradaApp() {
     if (!footerPanel) return;
     
     footerPanel.innerHTML = `
-        <button id="enter-app-btn" style="width: 100%; padding: 10px; background: #38bdf8; color: #0f172a; border: none; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);">
+        <button id="enter-app-btn" class="sync-enter-button">
             🚀 Enter Main Application
         </button>
     `;

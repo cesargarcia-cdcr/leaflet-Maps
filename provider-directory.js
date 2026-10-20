@@ -137,10 +137,10 @@
             return;
         const uniqueKeywords = extractUniqueKeywords();
         if (uniqueKeywords.length === 0) {
-            cloudContainer.style.display = 'none';
+            cloudContainer.classList.add('is-hidden');
             return;
         }
-        cloudContainer.style.display = 'flex';
+        cloudContainer.classList.remove('is-hidden');
         cloudContainer.innerHTML = '';
         uniqueKeywords.forEach(keyword => {
             const tagButton = document.createElement('button');

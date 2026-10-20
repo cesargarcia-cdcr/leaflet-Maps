@@ -14,7 +14,7 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
 
 (function() {
     let logWriteQueue = Promise.resolve();
-    const DEFAULT_LOG_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+    const DEFAULT_LOG_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 
     async function removeExpiredLogFiles(directoryHandle, cutoff, removeEmptyDirectories = false) {
         const entries = [];
@@ -421,34 +421,28 @@ function triggerAutomaticLoginFlow() {
 
         const lockScreen = document.createElement("div");
         lockScreen.id = "sp-lock-screen";
-        lockScreen.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        background: rgba(15, 23, 42, 0.98); z-index: 999999;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        color: white; font-family: system-ui, sans-serif; text-align: center; padding: 20px;
-        `;
+        lockScreen.className = "loading-auth-overlay";
     
         const sharePointSiteUrl = "https://clinicasdelcaminoreal.sharepoint.com/sites/CDCROperationsHub";
 
         lockScreen.innerHTML = `
-        <div style="max-width: 440px; background: #1e293b; padding: 35px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155;">
-            <h2 style="margin-top: 0; color: #f87171; font-size: 22px;">Sign-In Required / Offline</h2>
-            <p id="lock-status-text" style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+        <div class="loading-auth-card">
+            <h2 class="loading-auth-title">Sign-In Required / Offline</h2>
+            <p id="lock-status-text" class="loading-auth-status">
                 Your corporate session could not be verified automatically. Authenticate via popup or continue in offline mode using local OPFS backups.
             </p>
-            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; color: #38bdf8; font-size: 13px; font-weight: 500; margin-bottom: 20px;">
-                <div style="width: 14px; height: 14px; border: 2px solid #38bdf8; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <div class="loading-auth-waiting">
+                <div class="loading-auth-spinner"></div>
                 Waiting for authentication...
             </div>
             
-            <button id="btn-offline-mode" style="background: #0284c7; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 10px;">
+            <button id="btn-offline-mode" class="loading-auth-offline-button">
                 🔓 Continue in Offline Mode (Use OPFS Cache)
             </button>
-            <button id="btn-reopen-popup" style="background: #334155; color: #cbd5e1; border: none; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; width: 100%;">
+            <button id="btn-reopen-popup" class="loading-auth-popup-button">
                 Reopen Login Window
             </button>
         </div>
-        <style> @keyframes spin { to { transform: rotate(360deg); } } </style>
         `;
     
         document.body.appendChild(lockScreen);

@@ -2,6 +2,10 @@
    APPOINTMENT NOTE BUILDER & VISIT GUIDE STYLES (notes.css)
    ========================================================================== */
 
+#note-section .booking-deadline {
+    color: #c62828;
+}
+
 .word-page {
     background: #ffffff;
     border-radius: 8px;
@@ -224,6 +228,7 @@
 }
 
 .insurance-custom-input {
+    display: none;
     flex: 1;
     padding: 7px 10px;
     border-radius: 6px;

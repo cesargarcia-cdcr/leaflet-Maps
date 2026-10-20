@@ -1,5 +1,23 @@
 /* --- Estilos Mejorados para la Guía de Visitas y Tablas Dinámicas --- */
 
+.epic-guide-page #content-area .epic-guide-table,
+.app-container #content-area .epic-guide-table {
+    width: 100%;
+}
+
+.epic-guide-page #content-area .epic-guide-table th:nth-child(1),
+.app-container #content-area .epic-guide-table th:nth-child(1) { width: 8%; }
+.epic-guide-page #content-area .epic-guide-table th:nth-child(2),
+.app-container #content-area .epic-guide-table th:nth-child(2) { width: 22%; }
+.epic-guide-page #content-area .epic-guide-table th:nth-child(3),
+.app-container #content-area .epic-guide-table th:nth-child(3) { width: 22%; }
+.epic-guide-page #content-area .epic-guide-table th:nth-child(4),
+.app-container #content-area .epic-guide-table th:nth-child(4) { width: 30%; }
+.epic-guide-page #content-area .epic-guide-table th:nth-child(5),
+.app-container #content-area .epic-guide-table th:nth-child(5) { width: 9%; }
+.epic-guide-page #content-area .epic-guide-table th:nth-child(6),
+.app-container #content-area .epic-guide-table th:nth-child(6) { width: 9%; }
+
 /* Contenedor principal de secciones */
 .section-container {
     margin-bottom: 14px;

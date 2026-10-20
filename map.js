@@ -379,18 +379,18 @@
         const todayDisplayStr = `${dayName} ${monthName} ${dayNum}`;
         let html = '';
 
-        const nicknameDisplay = c.nicknames ? `<div style="font-size:0.75rem; color:#0284c7; font-weight:700; margin-top:2px;">Alias: ${c.nicknames}</div>` : '';
+        const nicknameDisplay = c.nicknames ? `<div class="clinic-detail-nickname">Alias: ${c.nicknames}</div>` : '';
 
         html += `
-      <div style="margin-bottom:20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+      <div class="clinic-detail-header">
+        <div class="clinic-detail-heading-row">
           <div>
-            <div style="font-weight:800; font-size:1.3rem; color:#0f172a; line-height:1.2;">🏥 ${c.name}</div>
+            <div class="clinic-detail-name">🏥 ${c.name}</div>
             ${nicknameDisplay}
           </div>
-          ${distance !== undefined ? `<div style="font-size:.75rem; font-weight:700; color:#1d4ed8; background:#dbeafe; padding:4px 10px; border-radius:20px; white-space:nowrap;">📍 ${distance.toFixed(1)} mi</div>` : ''}
+          ${distance !== undefined ? `<div class="clinic-detail-distance">📍 ${distance.toFixed(1)} mi</div>` : ''}
         </div>
-        <div style="margin-top:8px; font-size:0.85rem; color:#475569; display:flex; align-items:center; gap:6px;">
+        <div class="clinic-detail-address">
           <span>📌</span> <span>${c.address ?? ''}</span>
         </div>
       </div>`;
@@ -422,7 +422,7 @@
             <div class="modern-ext-group">
               <div class="modern-ext-title">
                 <span>🔹 ${sec}</span>
-                ${v.phone ? `<span style="color:#2563eb; font-weight:600;">${v.phone}</span>` : ''}
+                ${v.phone ? `<span class="clinic-extension-phone">${v.phone}</span>` : ''}
               </div>
               ${rows.map(r => `
                 <div class="modern-grid-row">
@@ -441,21 +441,21 @@
 
         if (linkedProviders.length > 0) {
             html += linkedProviders.map(p => `
-        <div class="provider-row" style="padding: 6px 0; border-bottom: 1px dashed #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
-            <div style="flex: 1; display: flex; align-items: center; gap: 6px;">
-                <span style="color: #475569; font-family: monospace; font-weight: 700; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 1px 5px; border-radius: 3px; font-size: 0.75rem;">
+        <div class="provider-row clinic-provider-row">
+            <div class="clinic-provider-details">
+                <span class="clinic-provider-id">
                     🆔 ${p['Provider ID'] || 'N/A'}
                 </span>
-                <a href="#" onclick="event.preventDefault(); window.showProviderPopover?.('${p['Provider ID'] || ''}')" style="color: #4f46e5; text-decoration: none; font-weight: 700; cursor: pointer;">
+                <a href="#" class="clinic-provider-link" onclick="event.preventDefault(); window.showProviderPopover?.('${p['Provider ID'] || ''}')">
                    ${p['Employee Name']}
                 </a>
-                <span style="color:#64748b; font-size:0.75rem;">${p.Specialty ? `[${p.Specialty}]` : ''}</span>
+                <span class="clinic-provider-specialty">${p.Specialty ? `[${p.Specialty}]` : ''}</span>
             </div>
             <span class="provider-badge">${p['JOB NAME'] ?? 'MD'}</span>
         </div>
     `).join('');
         } else {
-            html += `<div style="font-size:0.8rem; color:#64748b; text-align:center; padding: 4px 0;">📅 No providers scheduled for today.</div>`;
+            html += `<div class="clinic-no-providers">📅 No providers scheduled for today.</div>`;
         }
 
         html += `</div></div>`;
@@ -874,36 +874,36 @@
 
         const backdrop = document.createElement('div');
         backdrop.id = 'pdir-popover-backdrop';
-        backdrop.style = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.2); z-index:99999; display:flex; align-items:center; justify-content:center;';
+        backdrop.className = 'pdir-popover-backdrop';
 
         const popover = document.createElement('div');
         popover.id = 'pdir-popover-card';
-        popover.style = 'width:440px; max-width:90vw; background:#ffffff; padding:18px; border-radius:8px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2); border:1px solid #e2e8f0; font-family: system-ui, -apple-system, sans-serif;';
+        popover.className = 'pdir-popover-card';
 
-        let guidelinesHtml = '<div style="margin-top:10px; font-size:0.8rem; color:#64748b; text-align:center; font-style:italic;">⚠️ No scheduling guidelines registered.</div>';
+        let guidelinesHtml = '<div class="pdir-guidelines-empty">⚠️ No scheduling guidelines registered.</div>';
         if (docDos || docDonts) {
             guidelinesHtml = `
-                <div style="margin-top:12px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; font-size:0.85rem; line-height:1.5;">
-                    ${docDos ? `<div style="color:#16a34a; margin-bottom:8px;"><strong>Do's ✔:</strong> ${docDos}</div>` : ''}
-                    ${docDonts ? `<div style="color:#dc2626;"><strong>Don'ts ❌:</strong> ${docDonts}</div>` : ''}
+                <div class="pdir-guidelines">
+                    ${docDos ? `<div class="pdir-guidelines-dos"><strong>Do's ✔:</strong> ${docDos}</div>` : ''}
+                    ${docDonts ? `<div class="pdir-guidelines-donts"><strong>Don'ts ❌:</strong> ${docDonts}</div>` : ''}
                 </div>
             `;
         }
 
         popover.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:start; gap:10px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
-                <div style="flex:1;">
-                    <h4 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">${docName}${docDegree ? `, ${docDegree}` : ''}</h4>
-                    <div style="font-size:0.75rem; color:#64748b; margin-top:4px; display:flex; flex-direction:column; gap:2px;">
+            <div class="pdir-popover-header">
+                <div class="pdir-popover-provider">
+                    <h4 class="pdir-popover-name">${docName}${docDegree ? `, ${docDegree}` : ''}</h4>
+                    <div class="pdir-popover-meta">
                         <span>🔑 Provider ID: <strong>${cleanTargetId}</strong> | 🌐 NPI: <strong>${docNpi}</strong></span>
                         ${docLang ? `<span>🗣️ ${docLang}</span>` : ''}
                     </div>
                 </div>
-                <span style="background:#e0e7ff; color:#4338ca; font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:4px; white-space:nowrap;">${docSpec}</span>
+                <span class="pdir-popover-specialty">${docSpec}</span>
             </div>
             ${guidelinesHtml}
-            <div style="margin-top:14px; text-align:right;">
-                <button onclick="removeProviderPopover()" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#475569; padding:6px 14px; border-radius:4px; font-size:0.8rem; font-weight:600; cursor:pointer;">Close</button>
+            <div class="pdir-popover-actions">
+                <button class="pdir-popover-close" onclick="removeProviderPopover()">Close</button>
             </div>
         `;
 

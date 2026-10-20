@@ -1,5 +1,124 @@
 /* Guidelines_Info/Guidelines_Info.css */
 
+.guidelines-info-root,
+.app-container #info-section {
+    padding: 4px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.app-container #info-section > .info-section-header {
+    padding: 6px 10px;
+}
+
+.app-container #info-section .info-section-title {
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.app-container #info-section > .info-section-body {
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#info-section .info-group {
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #f8fafc;
+    margin-bottom: 6px;
+}
+
+#info-section .info-group.is-critical {
+    border-color: #f5c6cb;
+    background: #fff5f5;
+    border-left: 4px solid var(--cpe-infant);
+}
+
+#info-section .guidelines-group-header {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #1a365d;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+#info-section .info-group.is-critical .guidelines-group-header {
+    color: #721c24;
+    border-bottom-color: #f5c6cb;
+}
+
+#info-section .group-content {
+    padding: 4px;
+}
+
+#info-section .guidelines-file-empty,
+#info-section .guidelines-status.guidelines-empty {
+    padding: 6px;
+    font-style: italic;
+    color: #94a3b8;
+    font-size: 0.7rem;
+}
+
+#info-section .guidelines-file-empty {
+    padding: 4px;
+}
+
+#info-section .guidelines-file-details {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 3px;
+    margin-bottom: 4px;
+}
+
+#info-section .guidelines-file-summary {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 6px;
+    cursor: pointer;
+    color: #4a5568;
+    outline: none;
+}
+
+#info-section .guidelines-file-summary.is-high-risk {
+    color: #c53030;
+    font-weight: 700;
+}
+
+#info-section .guidelines-file-content {
+    padding: 6px;
+    border-top: 1px solid #f1f5f9;
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+#info-section .guidelines-file-content-compact {
+    max-height: 55vh;
+}
+
+#info-section .guidelines-loading {
+    font-size: 0.7rem;
+    color: #94a3b8;
+}
+
+#info-section .guidelines-status.guidelines-loading {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: #64748b;
+    padding: 10px;
+}
+
+#info-section .guidelines-error {
+    color: #ef4444;
+    font-size: 0.7rem;
+}
+
+#info-section .guidelines-error:only-child {
+    display: block;
+    padding: 6px;
+    font-size: 0.75rem;
+}
+
 :root {
     --clinic-hours: #FFF2CC;
     --clinic-secondary: #CCF2FF;

@@ -31,7 +31,7 @@ window.APP_DATA = window.APP_DATA || {};
                 dirHandle = await rootDir.getDirectoryHandle("Directory", { create: false });
             } catch (e) {
                 console.warn("⚠️ La carpeta 'Directory' aún no existe en el OPFS.");
-                root.innerHTML = "<div style='padding:20px; color:orange;'>Esperando archivos del directorio...</div>";
+                root.innerHTML = "<div class='directory-status directory-status-pending'>Esperando archivos del directorio...</div>";
                 return;
             }
 
@@ -46,7 +46,7 @@ window.APP_DATA = window.APP_DATA || {};
             }
 
             if (fileCount === 0 && root.innerHTML.includes("Esperando")) {
-                root.innerHTML = "<div style='padding:20px; color:orange;'>No hay archivos en la carpeta Directory.</div>";
+                root.innerHTML = "<div class='directory-status directory-status-pending'>No hay archivos en la carpeta Directory.</div>";
                 return;
             }
 
@@ -56,7 +56,7 @@ window.APP_DATA = window.APP_DATA || {};
 
         } catch (err) {
             console.error("Error crítico cargando el directorio desde OPFS:", err);
-            root.innerHTML = "<div style='padding:20px; color:red;'>Error crítico cargando los directorios clínicos.</div>";
+            root.innerHTML = "<div class='directory-status directory-status-error'>Error crítico cargando los directorios clínicos.</div>";
         }
     }
 
