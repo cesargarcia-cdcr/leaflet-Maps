@@ -1,0 +1,295 @@
+:root {
+    --theme-control-bg: #ffffff;
+    --theme-control-text: #1e293b;
+    --theme-control-border: #cbd5e1;
+}
+
+.theme-toggle {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 99998;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid var(--theme-control-border);
+    border-radius: 999px;
+    background: var(--theme-control-bg);
+    color: var(--theme-control-text);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    font: 600 0.85rem/1.2 system-ui, sans-serif;
+    cursor: pointer;
+}
+
+.theme-toggle:focus-visible {
+    outline: 3px solid #38bdf8;
+    outline-offset: 2px;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --primary: #38bdf8;
+    --primary-hover: #0ea5e9;
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --border: #334155;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --text-dark: #cbd5e1;
+    --border-color: #334155;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --theme-control-bg: #1e293b;
+    --theme-control-text: #f8fafc;
+    --theme-control-border: #475569;
+}
+
+:root[data-theme="dark"] body {
+    background-color: var(--bg) !important;
+    color: var(--text);
+}
+
+:root[data-theme="dark"] :is(
+    .card,
+    .brand,
+    .sidebar,
+    .clinic,
+    .word-page,
+    .form-card-box,
+    .visit-details-panel,
+    .epic-guide-scroll-container,
+    .section-container,
+    .pdir-card,
+    .pdir-guidelines-box,
+    .pdir-schedule-container,
+    .pdir-unified-header-container,
+    .pdir-autocomplete-suggestions,
+    .pdir-tag-pill,
+    .pdir-date-badge,
+    .help-modal-box,
+    .help-modal-header,
+    #pdir-popover-backdrop #pdir-popover-card,
+    #pdir-popover-backdrop .pdir-guidelines,
+    .map-page-controls,
+    .map-page-back,
+    .mc-fab,
+    .map-controls .mc-card,
+    #place-sheet,
+    #app-frame-wrapper,
+    #sync-footer-panel,
+    .app-header
+) {
+    background-color: var(--panel);
+    color: var(--text);
+    border-color: var(--border);
+}
+
+:root[data-theme="dark"] :is(
+    .card-hd,
+    .nav-item:hover,
+    .nav-item.active,
+    .nav-item .shortcut,
+    .form-card-box,
+    .note-result,
+    .insurance-input-group,
+    .insurance-footer,
+    .insurance-footer-bar,
+    .directory-column-right.floating-expanded,
+    .status-placeholder,
+    .hospital-placeholder,
+    .hospital-neutral,
+    .section-container th,
+    .clinic,
+    .pdir-panel-reset,
+    .pdir-auto-item:hover,
+    .pdir-tag-pill:hover,
+    .pdir-tag-pill.is-active,
+    .pdir-schedule-grid,
+    .pdir-date-badge,
+    .pdir-empty,
+    #pdirKeywordsCloud,
+    .map-controls .mc-input,
+    .map-controls .mc-select,
+    .map-page-search-input,
+    .map-page-back,
+    .mc-fab,
+    .sheet-hd,
+    #place-sheet .sheet-hd,
+    #info-section .info-group,
+    #info-section .guidelines-file-details,
+    #info-section .guidelines-file-content,
+    #info-section .info-group:not(.is-critical) .guidelines-group-header
+) {
+    background-color: #0f172a;
+    color: var(--text);
+    border-color: var(--border);
+}
+
+:root[data-theme="dark"] :is(
+    input,
+    select,
+    textarea,
+    .form-input,
+    .form-select,
+    .form-textarea,
+    .form-input-custom,
+    .live-search-input,
+    .insurance-select,
+    .insurance-custom-input,
+    .pdir-inline-select,
+    .pdir-inline-input,
+    #masterProviderSearch,
+    .mc-input,
+    .mc-select,
+    .map-page-search-input
+) {
+    background-color: #0f172a;
+    color: var(--text);
+    border-color: var(--border);
+}
+
+:root[data-theme="dark"] :is(input, select, textarea)::placeholder {
+    color: #94a3b8;
+}
+
+:root[data-theme="dark"] :is(
+    .main-title,
+    .form-label,
+    .form-group label,
+    .nav-item,
+    .card-hd,
+    .help-modal-header h3,
+    .help-intro,
+    .help-shortcuts-list li,
+    .help-shortcuts-list kbd,
+    .clinic-address,
+    .dept-header,
+    .pdir-auto-item,
+    .pdir-doc-name,
+    .pdir-title-text,
+    .pdir-panel-reset,
+    .pdir-tag-pill,
+    .section-container td,
+    .section-container th,
+    .directory-page .directory-footer,
+    .directory-page h1,
+    .app-header,
+    .app-header :is(h1, h2, h3, p, span),
+    .map-page-controls,
+    #place-sheet .sheet-title,
+    .guide-container,
+    .guide-container h1,
+    .guide-container h2,
+    .guide-container h3,
+    #info-section .guidelines-file-summary,
+    #info-section .guidelines-group-header
+) {
+    color: var(--text);
+}
+
+:root[data-theme="dark"] :is(
+    .clinic-address,
+    .pdir-auto-spec,
+    .directory-page .directory-footer,
+    .directory-page .subtitle,
+    .help-modal-close,
+    .clinic .clinic-address,
+    .map-lite-clinic-address,
+    .map-lite-primary-phone p
+) {
+    color: var(--muted);
+}
+
+:root[data-theme="dark"] :is(
+    .section-container th,
+    .section-container td,
+    .dir-row td,
+    .guide-container th,
+    .guide-container td,
+    .pdir-auto-item,
+    .pdir-tag-pill,
+    .pdir-card,
+    .pdir-guidelines-box,
+    .pdir-schedule-container,
+    .pdir-unified-header-container,
+    .help-modal-header,
+    .help-shortcuts-list li,
+    #info-section .info-group,
+    #info-section .guidelines-file-details,
+    #info-section .guidelines-file-content
+) {
+    border-color: var(--border);
+}
+
+:root[data-theme="dark"] :is(
+    .nav-item.active,
+    .pdir-tag-pill.is-active,
+    .dir-row:hover,
+    .section-container tbody tr:hover
+) {
+    background-color: #334155;
+}
+
+:root[data-theme="dark"] .map-full {
+    background: var(--bg);
+}
+
+:root[data-theme="dark"] .directory-column-right.floating-expanded {
+    background: var(--panel) !important;
+    border-color: var(--border);
+}
+
+:root[data-theme="dark"] .pdir-auto-item,
+:root[data-theme="dark"] .pdir-panel-reset,
+:root[data-theme="dark"] .pdir-tag-pill,
+:root[data-theme="dark"] .pdir-date-badge,
+:root[data-theme="dark"] .pdir-empty,
+:root[data-theme="dark"] .pdir-title-text,
+:root[data-theme="dark"] #pdir-popover-backdrop #pdir-popover-card,
+:root[data-theme="dark"] #pdir-popover-backdrop .pdir-guidelines {
+    color: var(--text);
+}
+
+:root[data-theme="dark"] #pdir-popover-backdrop .pdir-guidelines {
+    border-color: var(--border);
+}
+
+:root[data-theme="dark"] #info-section .guide-container {
+    color: var(--text-dark);
+}
+
+:root[data-theme="dark"] .section-header {
+    background: linear-gradient(135deg, #0f172a, #1e3a5f);
+    border-color: var(--border);
+}
+
+:root[data-theme="dark"] .leaflet-tooltip.clinic-label {
+    background: #1e293b;
+    color: #38bdf8;
+    border-color: #334155;
+}
+
+:root[data-theme="dark"] .leaflet-control-layers,
+:root[data-theme="dark"] .leaflet-control-zoom a,
+:root[data-theme="dark"] .leaflet-popup-content-wrapper,
+:root[data-theme="dark"] .leaflet-popup-tip {
+    background-color: #1e293b;
+    color: #f8fafc;
+    border-color: #334155;
+}
+
+:root[data-theme="dark"] .leaflet-control-attribution {
+    background: rgba(15, 23, 42, 0.8);
+    color: #cbd5e1;
+}
+
+:root[data-theme="dark"] .leaflet-control-attribution a,
+:root[data-theme="dark"] .leaflet-control-layers-toggle,
+:root[data-theme="dark"] .leaflet-control-zoom a {
+    color: #38bdf8;
+}
+
+@media (max-width: 600px) {
+    .theme-toggle {
+        right: 10px;
+        bottom: 10px;
+    }
+}
