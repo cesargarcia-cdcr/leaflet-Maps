@@ -4,7 +4,7 @@
     width: 100vw !important;
     height: 100vh !important;
     z-index: 9999999 !important;
-    background: rgba(0, 0, 0, 0.4) !important;
+    background: var(--retro-overlay) !important;
     backdrop-filter: blur(5px) !important;
     display: flex !important;
     justify-content: center !important;
@@ -15,7 +15,7 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: "Geneva", "Chicago", "Monaco", "Courier New", monospace;
+    font-family: var(--font-family-retro);
 }
 
 #nedry-mac-overlay .mac-window-stage {
@@ -26,10 +26,10 @@
 }
 
 #nedry-mac-overlay .mac-window {
-    background-color: #fff;
-    border: 1px solid #000;
+    background-color: var(--retro-window);
+    border: 1px solid var(--retro-ink);
     position: absolute;
-    box-shadow: 2px 2px 0 #000;
+    box-shadow: 2px 2px 0 var(--retro-ink);
     display: flex;
     flex-direction: column;
 }
@@ -53,18 +53,18 @@
 #nedry-mac-overlay .window-header {
     height: 18px;
     flex-shrink: 0;
-    border-bottom: 1px solid #000;
+    border-bottom: 1px solid var(--retro-ink);
     position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(to bottom, #fff 0 2px, #000 2px 3px, #fff 3px 5px, #000 5px 6px, #fff 6px 8px, #000 8px 9px, #fff 9px 11px, #000 11px 12px, #fff 12px);
+    background: linear-gradient(to bottom, var(--retro-window) 0 2px, var(--retro-ink) 2px 3px, var(--retro-window) 3px 5px, var(--retro-ink) 5px 6px, var(--retro-window) 6px 8px, var(--retro-ink) 8px 9px, var(--retro-window) 9px 11px, var(--retro-ink) 11px 12px, var(--retro-window) 12px);
 }
 
 #nedry-mac-overlay .window-title {
-    background-color: #fff;
+    background-color: var(--retro-window);
     padding: 0 8px;
-    font-size: 10px;
+    font-size: var(--font-size-retro-title);
     font-weight: bold;
     letter-spacing: 0.5px;
 }
@@ -72,8 +72,8 @@
 #nedry-mac-overlay .close-box {
     width: 11px;
     height: 11px;
-    border: 1px solid #000;
-    background-color: #fff;
+    border: 1px solid var(--retro-ink);
+    background-color: var(--retro-window);
     position: absolute;
     left: 12px;
     top: 3px;
@@ -83,12 +83,12 @@
 #nedry-mac-overlay .window-toolbar {
     height: 16px;
     flex-shrink: 0;
-    border-bottom: 1px solid #000;
+    border-bottom: 1px solid var(--retro-ink);
     display: flex;
     padding: 0 12px;
-    font-size: 9px;
+    font-size: var(--font-size-retro-toolbar);
     align-items: center;
-    background-color: #fff;
+    background-color: var(--retro-window);
     gap: 40px;
 }
 
@@ -99,7 +99,7 @@
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
-    background-color: #fff;
+    background-color: var(--retro-window);
     position: relative;
     overflow: hidden;
     padding: 10px 0;
@@ -121,7 +121,7 @@
     width: 100%;
     max-height: 75%;
     border: none;
-    background-color: #fff;
+    background-color: var(--retro-window);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -139,31 +139,31 @@
     margin-top: 5px;
     margin-bottom: 5px;
     padding: 4px 24px;
-    font-family: "Geneva", "Chicago", "Monaco", monospace;
-    font-size: 11px;
+    font-family: var(--font-family-retro);
+    font-size: var(--font-size-retro-terminal);
     font-weight: bold;
-    background-color: #fff;
-    color: #000;
-    border: 1px solid #000;
+    background-color: var(--retro-window);
+    color: var(--retro-ink);
+    border: 1px solid var(--retro-ink);
     border-radius: 3px;
     cursor: pointer;
     outline: none;
-    box-shadow: 0 0 0 2px #fff, 0 0 0 3px #000;
+    box-shadow: 0 0 0 2px var(--retro-window), 0 0 0 3px var(--retro-ink);
     flex-shrink: 0;
 }
 
 #nedry-mac-overlay #systemAlertButton:active {
-    background-color: #000;
-    color: #fff;
-    box-shadow: 0 0 0 2px #000, 0 0 0 3px #000;
+    background-color: var(--retro-ink);
+    color: var(--retro-window);
+    box-shadow: 0 0 0 2px var(--retro-ink), 0 0 0 3px var(--retro-ink);
 }
 
 #nedry-mac-overlay .mac-terminal-screen {
     flex-grow: 1;
     width: 100%;
     max-height: 75%;
-    background: #00a;
-    border: 1px solid #000;
+    background: var(--retro-terminal);
+    border: 1px solid var(--retro-ink);
     padding: 10px;
     display: flex;
     flex-direction: column;
@@ -172,12 +172,12 @@
 }
 
 #nedry-mac-overlay #mac-terminal-log {
-    font-size: 11px;
+    font-size: var(--font-size-retro-terminal);
     font-weight: bold;
-    color: #fff;
+    color: var(--retro-terminal-text);
     line-height: 1.5;
     white-space: pre-wrap;
-    font-family: "Monaco", "Courier New", monospace;
+    font-family: var(--font-family-mono);
 }
 
 #nedry-mac-overlay .hidden {
@@ -189,6 +189,6 @@
 }
 
 @keyframes mac-system-flash {
-    from { background-color: #fff; }
-    to { background-color: #fcc; }
+    from { background-color: var(--retro-window); }
+    to { background-color: var(--retro-alert); }
 }

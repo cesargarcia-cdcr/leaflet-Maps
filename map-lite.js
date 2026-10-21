@@ -130,42 +130,6 @@ function renderClinicDetails(clinic) {
     window.openSheet();
 }
 
-// Verificación rápida en OPFS del archivo lite_payload.json antes de decidir si descargar
-window.LSEngine.checkAndLoadOPFSLite = async function(filename = "lite_payload.json") {
-    try {
-        console.log(`🔍 [OPFS Check]: Verificando existencia de '${filename}' en almacenamiento local...`);
-        const rootDir = await navigator.storage.getDirectory();
-        const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
-        
-        const fileHandle = await dataDir.getFileHandle(filename);
-        const file = await fileHandle.getFile();
-        const content = await file.text();
-
-        if (!content) {
-            console.warn(`⚠️ [OPFS Check]: El archivo '${filename}' está vacío.`);
-            return false;
-        }
-
-        const parsedData = JSON.parse(content);
-        
-        window.LSEngine.state.globalClinics = parsedData.clinics || [];
-        window.LSEngine.state.globalExtensions = parsedData.extensions || [];
-        window.LSEngine.state.globalClinicLookup = parsedData.clinicLookup || [];
-
-        if (parsedData.clinics) localStorage.setItem("csv_clinics", JSON.stringify(parsedData.clinics));
-        if (parsedData.extensions) localStorage.setItem("csv_extensions", JSON.stringify(parsedData.extensions));
-        if (parsedData.clinicLookup) localStorage.setItem("csv_clinicLookup", JSON.stringify(parsedData.clinicLookup));
-        
-        localStorage.setItem("lite_payload_cache", content);
-        console.log(`✅ [OPFS Check]: '${filename}' encontrado y mapeado con éxito.`);
-        return true;
-
-    } catch (err) {
-        console.log(`ℹ️ [OPFS Check]: '${filename}' no encontrado o inaccesible. Se procederá con descarga remota.`);
-        return false;
-    }
-};
-
 // Inicialización optimizada del mapa interactivo
 window.LSEngine.initializeMap = function() {
     console.log("📍 [Map-Lite]: Inicializando instancia del mapa interactivo...");

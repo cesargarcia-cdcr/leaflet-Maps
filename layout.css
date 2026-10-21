@@ -2,31 +2,19 @@
 layout.css — Complete Unified Layout & Design Core
 ========================================================= */
 
-/* --- 0. CSS Variables & Base Reset --- */
-:root {
---primary: #2563eb;
---primary-hover: #1d4ed8;
---bg: #f8fafc;
---panel: #ffffff;
---border: #cbd5e1;
---text: #1e293b;
---muted: #64748b;
---success: #16a34a;
---sidebar-width: 280px;
---shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
+/* --- 0. Base reset; shared design tokens live in theme.css --- */
 
-{
+* {
 box-sizing: border-box;
 margin: 0;
 padding: 0;
 }
 
 body {
-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+font-family: var(--font-family-base);
 background-color: var(--bg);
 color: var(--text);
-line-height: 1.5;
+line-height: var(--line-height-base);
 }
 
 /* --- 1. Global Container & Page Layout --- */
@@ -74,7 +62,7 @@ box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
 display: block;
 width: 24px;
 height: 3px;
-background: #fff;
+background: var(--text-on-dark);
 border-radius: 2px;
 transition: 0.3s;
 }
@@ -151,7 +139,7 @@ color: var(--primary);
 }
 
 .nav-item.active {
-background: #eff6ff;
+background: var(--primary-surface);
 color: var(--primary);
 border-left: 3px solid var(--primary);
 }
@@ -160,14 +148,14 @@ border-left: 3px solid var(--primary);
 margin-left: auto;
 font-size: 0.75rem;
 color: var(--muted);
-background: #f3f4f6;
+background: var(--surface-hover);
 padding: 2px 6px;
 border-radius: 4px;
 font-family: monospace;
 }
 
 .nav-sync-action {
-color: #4dabf7;
+color: var(--sync-action);
 padding: 10px 14px;
 cursor: pointer;
 border-radius: 6px;
@@ -202,7 +190,7 @@ border-bottom: 1px solid var(--border);
 display: flex;
 align-items: center;
 justify-content: space-between;
-background: #f8fafc;
+background: var(--bg);
 }
 
 .card-body {
@@ -235,7 +223,7 @@ width: 100%;
 padding: 8px 12px;
 border: 1px solid var(--border);
 border-radius: 6px;
-background-color: #fff;
+background-color: var(--panel);
 font-size: 0.9rem;
 color: var(--text);
 outline: none;
@@ -266,7 +254,7 @@ transition: background 0.2s, transform 0.1s;
 
 .btn.primary {
 background: var(--primary);
-color: #fff;
+color: var(--text-on-dark);
 }
 
 .btn.primary:hover {
@@ -303,14 +291,14 @@ top: 0;
 left: 0;
 width: 100vw;
 height: 100vh;
-background: #0f172a;
+background: var(--surface-darker);
 z-index: 999999;
 display: flex;
 flex-direction: column;
 align-items: center;
 justify-content: center;
-color: white;
-font-family: system-ui, sans-serif;
+color: var(--text-on-dark);
+font-family: var(--font-family-base);
 transition: opacity 0.4s ease;
 }
 
@@ -343,14 +331,14 @@ align-items: start;
 }
 
 .form-card-box {
-background: #f8fafc;
-border: 1px solid #cbd5e1;
+background: var(--bg);
+border: 1px solid var(--border);
 padding: 16px;
 border-radius: 6px;
 }
 
 .note-result {
-background: #fff;
+background: var(--panel);
 border: 1px solid var(--border);
 border-radius: 6px;
 padding: 12px;
@@ -386,7 +374,7 @@ position: fixed;
 bottom: 20px;
 right: 20px;
 background: var(--success);
-color: #fff;
+color: var(--text-on-dark);
 padding: 12px 20px;
 border-radius: 8px;
 box-shadow: 0 10px 24px rgba(0,0,0,.12);
@@ -417,12 +405,12 @@ They are kept here (commented or marked) for evaluation of redundancy or future 
 .min-width-content { min-width: 650px; }
 .visit-details-panel {
 display: none;
-background: #f0fdf4;
-border: 1px solid #bbf7d0;
+background: var(--success-surface);
+border: 1px solid var(--success-border);
 padding: 10px;
 border-radius: 6px;
 font-size: 13px;
-color: #166534;
+color: var(--success-text);
 margin-top: 10px;
 }
 */
@@ -499,7 +487,7 @@ margin-top: 10px;
 }
 
 .nav-item.active {
-  background: #eff6ff;
+  background: var(--primary-surface);
   color: var(--primary, #2563eb);
   border-left: 4px solid var(--primary, #2563eb);
 }
@@ -509,7 +497,7 @@ margin-top: 10px;
   margin-left: auto;
   font-size: 0.75rem;
   color: var(--muted, #64748b);
-  background: #f3f4f6;
+  background: var(--surface-hover);
   padding: 2px 6px;
   border-radius: 4px;
   font-family: monospace;
@@ -529,19 +517,19 @@ margin-top: 10px;
 
 .nav-sync-action {
   color: var(--primary, #2563eb);
-  background: #eff6ff;
+  background: var(--primary-surface);
   padding: 10px 14px;
   cursor: pointer;
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.9rem;
   text-align: center;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--primary-border);
   transition: background 0.15s;
 }
 
 .nav-sync-action:hover {
-  background: #dbeafe;
+  background: var(--primary-surface);
 }
 
 /* Botón flotante de interrogación corregido */
@@ -552,8 +540,8 @@ margin-top: 10px;
     width: 46px !important;
     height: 46px !important;
     border-radius: 50% !important;
-    background-color: #0f172a !important;
-    color: #ffffff !important;
+    background-color: var(--surface-darker) !important;
+    color: var(--text-on-dark) !important;
     border: 2px solid rgba(255, 255, 255, 0.2) !important;
     font-size: 1.3rem !important;
     font-weight: bold !important;
@@ -567,7 +555,7 @@ margin-top: 10px;
 }
 
 .floating-help-btn:hover {
-    background-color: #1e293b !important;
+    background-color: var(--surface-dark) !important;
     transform: scale(1.1) !important;
 }
 
@@ -592,8 +580,8 @@ margin-top: 10px;
     transform: translate(-50%, -50%);
     width: 90%;
     max-width: 420px;
-    background: #ffffff;
-    border-radius: 12px;
+    background: var(--panel);
+    border-radius: var(--radius-lg);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     z-index: 10001;
     overflow: hidden;
@@ -610,14 +598,14 @@ margin-top: 10px;
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .help-modal-header h3 {
     margin: 0;
     font-size: 1rem;
-    color: #1e293b;
+    color: var(--text);
 }
 
 .help-modal-close {
@@ -625,11 +613,11 @@ margin-top: 10px;
     border: none;
     font-size: 1.1rem;
     cursor: pointer;
-    color: #64748b;
+    color: var(--muted);
 }
 
 .help-modal-close:hover {
-    color: #0f172a;
+    color: var(--text);
 }
 
 .help-modal-body {
@@ -639,7 +627,7 @@ margin-top: 10px;
 .help-intro {
     margin: 0 0 16px 0;
     font-size: 0.85rem;
-    color: #475569;
+    color: var(--muted);
 }
 
 .help-shortcuts-list {
@@ -656,18 +644,18 @@ margin-top: 10px;
     justify-content: space-between;
     align-items: center;
     font-size: 0.85rem;
-    color: #334155;
+    color: var(--text-dark);
     padding-bottom: 6px;
-    border-bottom: 1px dashed #f1f5f9;
+    border-bottom: 1px dashed var(--surface-hover);
 }
 
 .help-shortcuts-list kbd {
-    background: #f1f5f9;
-    border: 1px solid #cbd5e1;
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
     border-radius: 4px;
     padding: 2px 6px;
     font-size: 0.75rem;
     font-family: monospace;
-    color: #0f172a;
+    color: var(--text);
     box-shadow: 0 1px 0 rgba(0,0,0,0.1);
 }

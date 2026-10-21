@@ -1,9 +1,7 @@
-/* Guidelines_Info/Guidelines_Info.css */
-
 .guidelines-info-root,
 .app-container #info-section {
     padding: 4px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--font-family-base);
 }
 
 .app-container #info-section > .info-section-header {
@@ -23,15 +21,15 @@
 }
 
 #info-section .info-group {
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border);
     border-radius: 4px;
-    background: #f8fafc;
+    background: var(--bg);
     margin-bottom: 6px;
 }
 
 #info-section .info-group.is-critical {
-    border-color: #f5c6cb;
-    background: #fff5f5;
+    border-color: var(--guide-error-border);
+    background: var(--guide-error-surface);
     border-left: 4px solid var(--cpe-infant);
 }
 
@@ -39,13 +37,13 @@
     padding: 4px 8px;
     font-size: 0.75rem;
     font-weight: bold;
-    color: #1a365d;
-    border-bottom: 1px solid #e2e8f0;
+    color: var(--guide-navy);
+    border-bottom: 1px solid var(--border-color);
 }
 
 #info-section .info-group.is-critical .guidelines-group-header {
-    color: #721c24;
-    border-bottom-color: #f5c6cb;
+    color: var(--guide-error-text);
+    border-bottom-color: var(--guide-error-border);
 }
 
 #info-section .group-content {
@@ -56,7 +54,7 @@
 #info-section .guidelines-status.guidelines-empty {
     padding: 6px;
     font-style: italic;
-    color: #94a3b8;
+    color: var(--muted);
     font-size: 0.7rem;
 }
 
@@ -65,8 +63,8 @@
 }
 
 #info-section .guidelines-file-details {
-    background: #fff;
-    border: 1px solid #e2e8f0;
+    background: var(--panel);
+    border: 1px solid var(--border-color);
     border-radius: 3px;
     margin-bottom: 4px;
 }
@@ -76,18 +74,18 @@
     font-weight: 600;
     padding: 4px 6px;
     cursor: pointer;
-    color: #4a5568;
+    color: var(--guide-heading);
     outline: none;
 }
 
 #info-section .guidelines-file-summary.is-high-risk {
-    color: #c53030;
+    color: var(--guide-danger);
     font-weight: 700;
 }
 
 #info-section .guidelines-file-content {
     padding: 6px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--surface-hover);
     max-height: 75vh;
     overflow-y: auto;
 }
@@ -98,18 +96,18 @@
 
 #info-section .guidelines-loading {
     font-size: 0.7rem;
-    color: #94a3b8;
+    color: var(--muted);
 }
 
 #info-section .guidelines-status.guidelines-loading {
     display: inline-block;
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--muted);
     padding: 10px;
 }
 
 #info-section .guidelines-error {
-    color: #ef4444;
+    color: var(--danger);
     font-size: 0.7rem;
 }
 
@@ -119,57 +117,42 @@
     font-size: 0.75rem;
 }
 
-:root {
-    --clinic-hours: #FFF2CC;
-    --clinic-secondary: #CCF2FF;
-    --internal-med: #00C5CD;
-    --walk-in: #00B050;
-    --er-follow: #FFC000;
-    --cpe-infant: #FF0000;
-    --procedure: #ED7D31;
-    --lunch: #D9D9D9;
-    --peds-imms: #7030A0;
-    --ob-prenatal: #E2EFDA;
-    --text-dark: #2D3748;
-    --border-color: #E2E8F0;
-}
-
 /* Contenedor Principal y Encapsulamiento de Etiquetas */
 .guide-container {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-family-base);
     line-height: 1.3;
-    color: var(--text-dark);
+    color: var(--text-clinic);
     font-size: 11px;
 }
 
-.guide-container h1 { 
-    margin: 0; 
-    color: #1A365D; 
-    font-size: 12px; 
-    font-weight: bold; 
+.guide-container h1 {
+    margin: 0;
+    color: var(--guide-navy);
+    font-size: 12px;
+    font-weight: bold;
 }
 
-.guide-container h2 { 
-    margin: 1px 0 0 0; 
-    color: #4A5568; 
-    font-size: 9px; 
-    font-weight: normal; 
+.guide-container h2 {
+    margin: 1px 0 0 0;
+    color: var(--guide-heading);
+    font-size: 9px;
+    font-weight: normal;
 }
 
-.guide-container h3 { 
-    color: #2D3748; 
-    font-size: 10px; 
-    margin: 8px 0 4px 0; 
-    border-left: 3px solid #1A365D; 
-    padding-left: 4px; 
-    font-weight: 600; 
+.guide-container h3 {
+    color: var(--text-clinic);
+    font-size: 10px;
+    margin: 8px 0 4px 0;
+    border-left: 3px solid var(--guide-navy);
+    padding-left: 4px;
+    font-weight: 600;
 }
 
 .guide-container table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 15px;
-    font-family: Arial, sans-serif;
+    font-family: var(--font-family-base);
     font-size: 13px;
 }
 
@@ -186,9 +169,9 @@
     margin-bottom: 8px;
 }
 
-.guide-title-block h1 { margin: 0; color: #1A365D; font-size: 12px; font-weight: bold; }
-.guide-title-block h2 { margin: 1px 0 0 0; color: #4A5568; font-size: 9px; font-weight: normal; }
-.guide-container h3 { color: #2D3748; font-size: 10px; margin: 8px 0 4px 0; border-left: 3px solid #1A365D; padding-left: 4px; font-weight: 600; }
+.guide-title-block h1 { margin: 0; color: var(--guide-navy); font-size: 12px; font-weight: bold; }
+.guide-title-block h2 { margin: 1px 0 0 0; color: var(--guide-heading); font-size: 9px; font-weight: normal; }
+.guide-container h3 { color: var(--text-clinic); font-size: 10px; margin: 8px 0 4px 0; border-left: 3px solid var(--guide-navy); padding-left: 4px; font-weight: 600; }
 
 /* Grid de Quick Reference */
 .guide-grid {
@@ -202,7 +185,7 @@
     border: 1px solid var(--border-color);
     border-radius: 4px;
     padding: 4px;
-    background: #F8FAFC;
+    background: var(--bg);
 }
 
 .card-header {
@@ -212,7 +195,7 @@
     margin-bottom: 3px;
     text-align: center;
     font-size: 9px;
-    color: #1A365D;
+    color: var(--guide-navy);
 }
 
 .guide-card ul {
@@ -235,14 +218,14 @@
     border: 1px solid var(--border-color);
     border-radius: 3px;
     overflow: hidden;
-    background: #FFFFFF;
+    background: var(--panel);
     min-height: 20px;
 }
 
 .time-label {
     width: 52px;
     padding: 2px;
-    background: #F1F5F9;
+    background: var(--surface-hover);
     font-weight: bold;
     font-size: 9px;
     display: flex;
@@ -266,7 +249,7 @@
     display: flex;
     align-items: center;
     border-right: 1px solid rgba(0,0,0,0.04);
-    color: #1A365D;
+    color: var(--guide-navy);
 }
 
 .slot:last-child { border-right: none; }
@@ -274,15 +257,15 @@
 /* Clases de Fondos Mapeadas */
 .bg-clinic { background-color: var(--clinic-hours); }
 .bg-secondary { background-color: var(--clinic-secondary); }
-.bg-internal { background-color: var(--internal-med); color: #FFF; }
-.bg-walkin { background-color: var(--walk-in); color: #FFF; }
+.bg-internal { background-color: var(--internal-med); color: var(--text-on-dark); }
+.bg-walkin { background-color: var(--walk-in); color: var(--text-on-dark); }
 .bg-er { background-color: var(--er-follow); }
-.bg-cpe { background-color: var(--cpe-infant); color: #FFF; }
-.bg-procedure { background-color: var(--procedure); color: #FFF; }
-.bg-lunch { background-color: var(--lunch); color: #64748B; font-style: italic; }
-.bg-imms { background-color: var(--peds-imms); color: #FFF; }
+.bg-cpe { background-color: var(--cpe-infant); color: var(--text-on-dark); }
+.bg-procedure { background-color: var(--procedure); color: var(--text-on-dark); }
+.bg-lunch { background-color: var(--lunch); color: var(--muted); font-style: italic; }
+.bg-imms { background-color: var(--peds-imms); color: var(--text-on-dark); }
 .bg-prenatal { background-color: var(--ob-prenatal); }
-.bg-empty { background-color: #FFFFFF; }
+.bg-empty { background-color: var(--panel); }
 
 /* Soporte Móvil / Ventanas Pequeñas */
 @media (max-width: 380px) {
@@ -308,16 +291,16 @@
     border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 6px;
-    background: #FFFFFF;
+    background: var(--panel);
     box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     display: flex;
     flex-direction: column;
 }
 
 /* Card Accent Categorization System borders */
-.hq-border { border-top: 3px solid #1A365D; }
-.operational-border { border-top: 3px solid #ED7D31; }
-.clinic-border { border-top: 3px solid #00C5CD; }
+.hq-border { border-top: 3px solid var(--guide-navy); }
+.operational-border { border-top: 3px solid var(--procedure); }
+.clinic-border { border-top: 3px solid var(--internal-med); }
 
 /* Header element rules targeting the corporate phone ledger look */
 .dir-header {
@@ -325,13 +308,13 @@
     font-weight: 700;
     padding: 3px 6px;
     border-radius: 4px;
-    color: #1A365D;
+    color: var(--guide-navy);
     text-align: left;
 }
 
 .dir-meta {
     font-size: 8.5px;
-    color: #718096;
+    color: var(--guide-muted);
     padding: 2px 6px 4px 6px;
     border-bottom: 1px dashed var(--border-color);
     margin-bottom: 4px;
@@ -340,7 +323,7 @@
 /* Internal department tracking structures inside each sheet element */
 .dept-group {
     margin-top: 4px;
-    background: #F8FAFC;
+    background: var(--bg);
     padding: 4px;
     border-radius: 4px;
 }
@@ -348,7 +331,7 @@
 .dept-title {
     font-size: 8.5px;
     font-weight: 700;
-    color: #4A5568;
+    color: var(--guide-heading);
     text-transform: uppercase;
     letter-spacing: 0.3px;
     margin-bottom: 2px;
@@ -378,29 +361,29 @@
 .ext {
     font-family: monospace;
     font-weight: bold;
-    color: #2B6CB0;
+    color: var(--guide-info);
     font-size: 10px;
-    background: #EBF8FF;
+    background: var(--guide-info-surface);
     padding: 1px 4px;
     border-radius: 3px;
 }
 
 .ext.badge {
-    background: #FFF5F5;
-    color: #C53030;
-    border: 1px solid #FEB2B2;
+    background: var(--guide-error-surface);
+    color: var(--guide-danger);
+    border: 1px solid var(--guide-danger-border);
 }
 
 .text-highlight {
-    background: #FFFFAF;
+    background: var(--guide-warning-surface);
     border-radius: 3px;
 }
 
 /* Target Header Custom Utility Background colors */
-.bg-corporate { background-color: #CCF2FF; }
-.bg-is { background-color: #FFF2CC; }
-.bg-ops { background-color: #E2EFDA; }
-.bg-clinic-primary { background-color: #E2E8F0; }
+.bg-corporate { background-color: var(--clinic-secondary); }
+.bg-is { background-color: var(--clinic-hours); }
+.bg-ops { background-color: var(--ob-prenatal); }
+.bg-clinic-primary { background-color: var(--border-color); }
 
 /* --- EXTENSION DIRECTORY MASTER ADDITIONS --- */
 
@@ -417,7 +400,7 @@
     border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 8px;
-    background: #FFFFFF;
+    background: var(--panel);
     box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
@@ -425,15 +408,15 @@
 .card-top-header {
     font-size: 11px;
     font-weight: 700;
-    color: #1A365D;
+    color: var(--guide-navy);
     padding-bottom: 4px;
-    border-bottom: 2px solid #1A365D;
+    border-bottom: 2px solid var(--guide-navy);
     margin-bottom: 6px;
 }
 
 .card-top-subtext {
     font-size: 8.5px;
-    color: #4A5568;
+    color: var(--guide-heading);
     margin-top: -4px;
     margin-bottom: 6px;
     font-style: italic;
@@ -441,7 +424,7 @@
 
 /* Inner departmental breakdowns */
 .dir-dept-block {
-    background: #F8FAFC;
+    background: var(--bg);
     padding: 6px;
     border-radius: 4px;
     margin-bottom: 6px;
@@ -454,7 +437,7 @@
 .dir-dept-title {
     font-size: 9px;
     font-weight: 700;
-    color: #4A5568;
+    color: var(--guide-heading);
     text-transform: uppercase;
     letter-spacing: 0.2px;
     margin-bottom: 4px;
@@ -480,21 +463,21 @@
 .num-badge {
     font-family: monospace;
     font-weight: bold;
-    color: #2B6CB0;
-    background: #EBF8FF;
+    color: var(--guide-info);
+    background: var(--guide-info-surface);
     padding: 1px 4px;
     border-radius: 3px;
     font-size: 9.5px;
 }
 
 .num-badge.alert-line {
-    background: #FFF5F5;
-    color: #C53030;
+    background: var(--guide-error-surface);
+    color: var(--guide-danger);
 }
 
 /* Espaciado y padding mejorados para los elementos acordeón */
 details {
-    background: #ffffff;
+    background: var(--panel);
     border: 1px solid var(--border-color);
     border-radius: 4px;
     margin-bottom: 6px; /* Mayor separación entre cada elemento */
@@ -508,7 +491,7 @@ details summary {
 }
 
 details[open] summary {
-    border-bottom: 1px solid #f1f5f9; /* Separa visualmente el título del contenido desplegado */
+    border-bottom: 1px solid var(--surface-hover); /* Separa visualmente el título del contenido desplegado */
 }
 
 /* Contenedor interno al abrir el acordeón */

@@ -21,10 +21,10 @@
 /* Contenedor principal de secciones */
 .section-container {
     margin-bottom: 14px;
-    background: #ffffff;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    background: var(--panel);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-section);
     overflow: hidden;
     transition: all 0.2s ease;
 }
@@ -35,13 +35,13 @@
 
 /* Cabecera de cada sección */
 .section-header {
-    background: linear-gradient(135deg, #1e40af, #2563eb);
-    color: #ffffff;
+    background: linear-gradient(135deg, var(--primary-deep), var(--primary));
+    color: var(--text-on-dark);
     padding: 10px 14px;
     font-weight: 600;
     font-size: 0.95em;
     letter-spacing: 0.3px;
-    border-bottom: 1px solid #1d4ed8;
+    border-bottom: 1px solid var(--primary-hover);
 }
 
 /* Estilos de la tabla interna */
@@ -52,21 +52,21 @@
 }
 
 .section-container th {
-    background-color: #f8fafc;
-    color: #475569;
+    background-color: var(--bg);
+    color: var(--muted);
     font-weight: 600;
     font-size: 0.75em;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: 8px 12px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .section-container td {
     padding: 10px 12px;
     font-size: 0.85em;
-    color: #334155;
-    border-bottom: 1px solid #f1f5f9;
+    color: var(--text-dark);
+    border-bottom: 1px solid var(--surface-hover);
 }
 
 /* Fila interactiva al hacer hover */
@@ -75,7 +75,7 @@
 }
 
 .section-container tbody tr:hover {
-    background-color: #f0fdf4 !important; /* Toque verde sutil clínico */
+    background-color: var(--success-surface) !important; /* Toque verde sutil clínico */
     cursor: pointer;
 }
 
@@ -94,7 +94,7 @@
 }
 
 #live-search-input:focus {
-    border-color: #2563eb;
+    border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
@@ -104,17 +104,17 @@ div[style*="max-height: 420px"]::-webkit-scrollbar {
 }
 
 div[style*="max-height: 420px"]::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: var(--surface-hover);
     border-radius: 4px;
 }
 
 div[style*="max-height: 420px"]::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--border);
     border-radius: 4px;
 }
 
 div[style*="max-height: 420px"]::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: var(--muted);
 }
 
 /* Estilo para que la cabecera parezca un botón interactivo */

@@ -1,7 +1,7 @@
 .loading-page:not(.loading-placeholder-page) {
-    background-color: #0f172a;
-    color: #f8fafc;
-    font-family: system-ui, sans-serif;
+    background-color: var(--surface-darker);
+    color: var(--text-on-dark);
+    font-family: var(--font-family-base);
     margin: 0;
     padding: 0;
     display: flex;
@@ -17,9 +17,9 @@
     width: 100%;
     max-width: 950px;
     height: 650px;
-    background: #1e293b;
+    background: var(--surface-dark);
     border-radius: 12px;
-    border: 1px solid #334155;
+    border: 1px solid var(--border-dark);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
     overflow: hidden;
     position: relative;
@@ -37,28 +37,28 @@
 .loading-page #app-frame-wrapper .sheet {
     width: 0;
     height: 100%;
-    background: #1e293b;
+    background: var(--surface-dark);
     z-index: 3000;
     overflow: hidden;
     transition: width 0.3s ease;
     display: flex;
     flex-direction: column;
-    border-left: 0 solid #334155;
+    border-left: 0 solid var(--border-dark);
     flex-shrink: 0;
 }
 
 .loading-page #app-frame-wrapper #place-sheet.open {
     width: 340px;
-    border-left: 1px solid #334155;
+    border-left: 1px solid var(--border-dark);
 }
 
 .loading-page #app-frame-wrapper .sheet-hd {
     padding: 15px;
-    border-bottom: 1px solid #334155;
+    border-bottom: 1px solid var(--border-dark);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #1e293b;
+    background: var(--surface-dark);
     white-space: nowrap;
 }
 
@@ -66,7 +66,7 @@
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 1px;
-    color: #94a3b8;
+    color: var(--muted-on-dark);
     text-transform: uppercase;
 }
 
@@ -75,39 +75,39 @@
     border: none;
     font-size: 16px;
     cursor: pointer;
-    color: #94a3b8;
+    color: var(--muted-on-dark);
 }
 
 .loading-page #app-frame-wrapper .sheet-body {
     padding: 15px;
     overflow-y: auto;
     flex: 1;
-    color: #cbd5e1;
+    color: var(--loading-text-muted);
     width: 340px;
     box-sizing: border-box;
 }
 
 .loading-page #sync-footer-panel {
-    background: #1e293b;
+    background: var(--surface-dark);
     padding: 14px 20px;
-    border-top: 1px solid #334155;
+    border-top: 1px solid var(--border-dark);
     z-index: 2000;
 }
 
 .loading-page .bt-progress-container {
     width: 100%;
     height: 8px;
-    background: #0f172a;
+    background: var(--surface-darker);
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 6px;
-    border: 1px solid #334155;
+    border: 1px solid var(--border-dark);
 }
 
 .loading-page .bt-progress-fill {
     width: 0%;
     height: 100%;
-    background: #38bdf8;
+    background: var(--loading-accent);
     border-radius: 3px;
     display: block;
     transition: width 0.3s ease;
@@ -119,8 +119,8 @@
     right: 12px;
     bottom: 70px;
     width: 340px;
-    background: #0f172a;
-    border: 1px solid #334155;
+    background: var(--surface-darker);
+    border: 1px solid var(--border-dark);
     border-radius: 10px;
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
     z-index: 1000;
@@ -146,17 +146,17 @@
 }
 
 .loading-page #clinic-info-body::-webkit-scrollbar-track {
-    background: #0f172a;
+    background: var(--surface-darker);
 }
 
 .loading-page #clinic-info-body::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: var(--border-dark);
     border-radius: 3px;
 }
 
 .loading-page .loading-empty-state {
     text-align: center;
-    color: #64748b;
+    color: var(--muted-on-dark);
     margin-top: 40px;
 }
 
@@ -174,31 +174,31 @@
 
 .loading-page .loading-status-text {
     font-size: 12px;
-    color: #94a3b8;
+    color: var(--muted-on-dark);
     margin: 0;
 }
 
 .loading-page .loading-state-label {
     font-size: 11px;
-    color: #64748b;
+    color: var(--muted-on-dark);
 }
 
 .loading-page .loading-state-value {
-    color: #38bdf8;
+    color: var(--loading-accent);
 }
 
 .loading-page .loading-progress-label {
     display: flex;
     justify-content: flex-end;
     font-size: 10px;
-    color: #38bdf8;
+    color: var(--loading-accent);
 }
 
 .loading-page .sync-enter-button {
     width: 100%;
     padding: 10px;
-    background: #38bdf8;
-    color: #0f172a;
+    background: var(--loading-accent);
+    color: var(--surface-darker);
     border: none;
     border-radius: 6px;
     font-weight: bold;
@@ -212,8 +212,8 @@
 }
 
 body.loading-auth-page {
-    background: #0f172a;
-    color: #94a3b8;
+    background: var(--surface-darker);
+    color: var(--muted-on-dark);
     font-family: system-ui, sans-serif;
     display: flex;
     justify-content: center;
@@ -225,19 +225,19 @@ body.loading-auth-page {
 .loading-auth-page .box {
     text-align: center;
     padding: 2rem;
-    background: #1e293b;
+    background: var(--surface-dark);
     border-radius: 8px;
-    border: 1px solid #334155;
+    border: 1px solid var(--border-dark);
 }
 
 .loading-auth-page h2 {
-    color: #38bdf8;
+    color: var(--loading-accent);
     margin-top: 0;
 }
 
 .loading-auth-page .loading-auth-note {
     font-size: 12px;
-    color: #64748b;
+    color: var(--muted-on-dark);
 }
 
 .loading-auth-overlay {
@@ -251,7 +251,7 @@ body.loading-auth-page {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--text-on-dark);
     font-family: system-ui, sans-serif;
     text-align: center;
     padding: 20px;
@@ -259,21 +259,21 @@ body.loading-auth-page {
 
 .loading-auth-card {
     max-width: 440px;
-    background: #1e293b;
+    background: var(--surface-dark);
     padding: 35px;
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    border: 1px solid #334155;
+    border: 1px solid var(--border-dark);
 }
 
 .loading-auth-title {
     margin-top: 0;
-    color: #f87171;
+    color: var(--loading-danger);
     font-size: 22px;
 }
 
 .loading-auth-status {
-    color: #94a3b8;
+    color: var(--muted-on-dark);
     font-size: 14px;
     line-height: 1.6;
     margin-bottom: 20px;
@@ -284,7 +284,7 @@ body.loading-auth-page {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    color: #38bdf8;
+    color: var(--loading-accent);
     font-size: 13px;
     font-weight: 500;
     margin-bottom: 20px;
@@ -293,7 +293,7 @@ body.loading-auth-page {
 .loading-auth-spinner {
     width: 14px;
     height: 14px;
-    border: 2px solid #38bdf8;
+    border: 2px solid var(--loading-accent);
     border-top-color: transparent;
     border-radius: 50%;
     animation: loading-auth-spin 1s linear infinite;
@@ -306,8 +306,8 @@ body.loading-auth-page {
 }
 
 .loading-auth-offline-button {
-    background: #0284c7;
-    color: #fff;
+    background: var(--loading-accent-hover);
+    color: var(--text-on-dark);
     border: none;
     padding: 10px 16px;
     border-radius: 6px;
@@ -317,8 +317,8 @@ body.loading-auth-page {
 }
 
 .loading-auth-popup-button {
-    background: #334155;
-    color: #cbd5e1;
+    background: var(--border-dark);
+    color: var(--loading-text-muted);
     border: none;
     padding: 8px 14px;
     border-radius: 6px;

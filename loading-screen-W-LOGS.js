@@ -143,21 +143,12 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
 
 // --- 🔴 RED LEADER: COMMAND, ROUTER & LIFECYCLE MANAGEMENT ---
 
-function registerGuidelinesServiceWorker() {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw-guidelines.js')
-        .then(() => console.log("🔴 [Red Leader]: Guidelines Service Worker registered successfully, standing by."))
-        .catch(err => console.error("💥 [Red Leader Down]: Error registering Service Worker:", err));
-    }
-}
-window.registerGuidelinesServiceWorker = registerGuidelinesServiceWorker;
-
 async function red_leader(steps = [0, 1, 2, 3, 4]) {
     console.log("🔴 [Red Leader]: Red Leader, standing by. Flight path requested:", steps);
     try {
         if (steps.includes(0)) {
             console.log("🟡 [Gold Leader]: Engaging security sweep (SharePoint session verification)...");
-            const sessionActive = await verifySharePointSession();
+            const sessionActive = await ensureOnlineSession();
             if (!sessionActive) return false;
         }
 
@@ -206,15 +197,30 @@ function isOfflineMode() {
     return window.LSEngine?.offlineMode === true || sessionStorage.getItem("app_offline_mode") === "true";
 }
 
+let sessionVerified = false;
+let sessionVerificationPromise = null;
+
 async function ensureOnlineSession() {
     if (isOfflineMode()) return false;
-    return verifySharePointSession();
+    if (sessionVerified) return true;
+    if (!sessionVerificationPromise) {
+        sessionVerificationPromise = verifySharePointSession()
+            .then(sessionActive => {
+                sessionVerified = sessionActive;
+                return sessionActive;
+            })
+            .finally(() => {
+                sessionVerificationPromise = null;
+            });
+    }
+    return sessionVerificationPromise;
 }
 
 async function fetchWithSession(url, options) {
     const response = await fetch(url, options);
     if (response.status !== 401 && response.status !== 403) return response;
 
+    sessionVerified = false;
     if (!await ensureOnlineSession()) return null;
 
     if (!options.signal) return fetch(url, options);
@@ -227,52 +233,6 @@ async function fetchWithSession(url, options) {
         clearTimeout(retryTimeout);
     }
 }
-
-async function checkAndSyncData() {
-    if (isOfflineMode()) return;
-
-    const splash = document.getElementById("sync-splash");
-    const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
-    const hasLocalPayload = localStorage.getItem("cache_payload");
-
-    const ONE_HOUR_MS = 60 * 60 * 1000;
-    const now = Date.now();
-
-    const needsLoadingScreen = !lastTimestamp || (now - lastTimestamp >= ONE_HOUR_MS) || !hasLocalPayload;
-
-    if (!needsLoadingScreen) {
-        if (splash) splash.style.display = "none";
-        window.dispatchEvent(new CustomEvent("PayloadReady"));
-        return;
-    }
-
-    const sessionActive = await verifySharePointSession().catch(() => false);
-    
-    if (!sessionActive) {
-        if (splash) splash.style.display = "none";
-        const restored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage();
-        if (restored || hasLocalPayload) {
-            window.dispatchEvent(new CustomEvent("PayloadReady"));
-        } else {
-            updateProgress(100, "Connection Error & No Local Backup", "ERROR");
-        }
-        return;
-    }
-
-    try {
-        const success = await fetchAndProcessData(true);
-        if (!success) {
-            await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage();
-            if (splash) splash.style.display = "none";
-            window.dispatchEvent(new CustomEvent("PayloadReady"));
-        }
-    } catch (error) {
-        await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage();
-        if (splash) splash.style.display = "none";
-        window.dispatchEvent(new CustomEvent("PayloadReady"));
-    }
-}
-window.red_leader.checkAndSyncData = checkAndSyncData;
 
 // --- 🚨 TRIGGER MANUAL SYNC ---
 window.triggerManualSync = async function() {
@@ -344,43 +304,6 @@ function getPowerAutomateUrl() {
 
 window.LSEngine = window.LSEngine || {};
 window.LSEngine.getPowerAutomateUrl = getPowerAutomateUrl;
-
-function initAwaySyncMonitor() {
-    let awayTimer = null;
-    const AWAY_THRESHOLD_MS = 20 * 60 * 1000;
-    const ONE_HOUR_MS = 60 * 60 * 1000;
-
-    document.addEventListener('visibilitychange', async () => {
-        if (document.hidden) {
-            awayTimer = setTimeout(async () => {
-                const lastTimestamp = parseInt(localStorage.getItem("app_last_sync_timestamp") || "0", 10);
-                const elapsed = Date.now() - lastTimestamp;
-                
-                if (elapsed < ONE_HOUR_MS) return;
-
-                const sessionActive = await checkSharePointLogo().catch(() => false);
-                if (sessionActive) {
-                    localStorage.setItem("pending_auto_sync", "true");
-                }
-            }, AWAY_THRESHOLD_MS);
-            
-        } else {
-            if (awayTimer) {
-                clearTimeout(awayTimer);
-                awayTimer = null;
-            }
-
-            if (localStorage.getItem("pending_auto_sync") === "true") {
-                localStorage.removeItem("pending_auto_sync");
-                if (typeof window.triggerManualSync === 'function') {
-                    window.triggerManualSync();
-                }
-            }
-        }
-    });
-}
-window.BlueLeaderMonitor = { initAwaySyncMonitor };
-
 
 // --- 🟡 GOLD LEADER: SECURITY & AUTHENTICATION ---
 function checkSharePointLogo() {
@@ -931,8 +854,6 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
         ]);
 
         for (const item of fileItems) {
-            if (!await ensureOnlineSession()) return;
-
             processedCount++;
             const progressPercent = Math.min(50 + Math.floor((processedCount / totalFiles) * 45), 95);
 

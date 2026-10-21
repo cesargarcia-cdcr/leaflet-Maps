@@ -16,9 +16,9 @@
 } */
 
 /* === Altura completa para el mapa (con soporte seguro para barra de direcciones móvil) === */
-.map-full      { position: fixed; inset: 0; z-index: 1; background:#fff; }
+.map-full      { position: fixed; inset: 0; z-index: 1; background: var(--panel); }
 .map-viewport  { position: absolute; inset: 0; height: 100dvh; }
-#map           { height: 100dvh; min-height: 520px; border-radius: 10px; border: 1px solid var(--border, #e5e7eb); overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+#map           { height: 100dvh; min-height: 520px; border-radius: 10px; border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-map); }
 
 @supports not (height: 100dvh) {
   .map-viewport, #map { height: 100vh; }
@@ -59,15 +59,15 @@ body.fullscreen-map { overflow: hidden; }
 .mc-line{ display:flex; gap:8px; align-items:center; }
 .mc-search{ margin-top: 6px; }
 .mc-select, .mc-input{
-  flex: 1; border: 1px solid var(--border, #e5e7eb); border-radius: 8px; padding: 10px 12px; background: #fff;
+  flex: 1; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; background: var(--panel);
   font-size: .95rem; outline: none;
 }
-.mc-select:focus, .mc-input:focus{ border-color: var(--primary, #1d4ed8); box-shadow: 0 0 0 3px rgba(29,78,216,.1); }
+.mc-select:focus, .mc-input:focus{ border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
 
 .mc-fab-col{ display:flex; gap:8px; align-items:flex-start; pointer-events:auto; }
 .mc-fab{
   width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(0,0,0,.08);
-  background: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.14); cursor: pointer; font-size: 18px;
+  background: var(--panel); box-shadow: var(--shadow); cursor: pointer; font-size: 18px;
 }
 .mc-fab:hover{ transform: translateY(-1px); }
 
@@ -85,7 +85,7 @@ body.fullscreen-map { overflow: hidden; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   backdrop-filter: blur(10px);
   /* Ajusta el último valor (ej. 0.65 o 0.70) para subir o bajar la transparencia */
   background: rgba(255, 255, 255, 0.70); 
@@ -112,7 +112,7 @@ body.fullscreen-map { overflow: hidden; }
 #place-sheet .sheet-title {
   font-size: 0.7rem;
   font-weight: 800;
-  color: #475569;
+  color: var(--muted);
   text-transform: uppercase;
 }
 
@@ -123,9 +123,9 @@ body.fullscreen-map { overflow: hidden; }
 }
 
 .sheet-close {
-  border: 1px solid var(--border, #e5e7eb);
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: var(--radius-md);
   width: 34px;
   height: 34px;
   cursor: pointer;
@@ -133,8 +133,8 @@ body.fullscreen-map { overflow: hidden; }
 
 /* Etiquetas de marcadores en el mapa */
 .leaflet-tooltip.clinic-label{
-  background:#fff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700; font-size:.78rem;
-  padding:2px 7px; border-radius:6px; box-shadow:0 1px 6px rgba(29,78,216,.25)
+  background:var(--panel); color:var(--primary-hover); border:1px solid var(--border); font-weight:700; font-size:.78rem;
+  padding:2px 7px; border-radius:var(--radius-sm); box-shadow:var(--shadow)
 }
 
 /* Responsividad para controles y sheet en pantallas pequeñas */
@@ -156,7 +156,7 @@ body.fullscreen-map { overflow: hidden; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   backdrop-filter: blur(10px);
   background: rgba(255, 255, 255, 0.75);
   border: 1px solid rgba(0, 0, 0, 0.06);
@@ -188,7 +188,7 @@ body.fullscreen-map { overflow: hidden; }
   padding: 8px 12px;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #334155;
+  color: var(--text-dark);
   border-bottom: 1px solid rgba(226, 232, 240, 0.6);
   display: flex;
   align-items: center;
@@ -215,7 +215,7 @@ body.fullscreen-map { overflow: hidden; }
 .modern-ext-title {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -230,19 +230,19 @@ body.fullscreen-map { overflow: hidden; }
 }
 
 .modern-lbl {
-  color: #64748b;
+  color: var(--muted);
   font-weight: 600;
 }
 
 .modern-val {
-  color: #0f172a;
+  color: var(--text);
   font-weight: 500;
   text-align: right;
 }
 
 .provider-badge {
   background: rgba(226, 232, 240, 0.8);
-  color: #334155;
+  color: var(--text-dark);
   font-size: 0.7rem;
   font-weight: 700;
   padding: 2px 6px;
@@ -279,7 +279,7 @@ body.fullscreen-map { overflow: hidden; }
    ========================================================================== */
 
 .modern-stack {
-  background: #ffffff;
+  background: var(--panel);
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 10px;
   margin-bottom: 12px;
@@ -288,12 +288,12 @@ body.fullscreen-map { overflow: hidden; }
 }
 
 .modern-header {
-  background: #f1f5f9;
+  background: var(--surface-hover);
   padding: 8px 12px;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #334155;
-  border-bottom: 1px solid #e2e8f0;
+  color: var(--text-dark);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -308,7 +308,7 @@ body.fullscreen-map { overflow: hidden; }
 
 .modern-ext-group {
   padding-bottom: 8px;
-  border-bottom: 1px dashed #f1f5f9;
+  border-bottom: 1px dashed var(--surface-hover);
 }
 
 .modern-ext-group:last-child {
@@ -319,7 +319,7 @@ body.fullscreen-map { overflow: hidden; }
 .modern-ext-title {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -334,19 +334,19 @@ body.fullscreen-map { overflow: hidden; }
 }
 
 .modern-lbl {
-  color: #64748b;
+  color: var(--muted);
   font-weight: 600;
 }
 
 .modern-val {
-  color: #0f172a;
+  color: var(--text);
   font-weight: 500;
   text-align: right;
 }
 
 .provider-badge {
-  background: #e2e8f0;
-  color: #334155;
+  background: var(--border-color);
+  color: var(--text-dark);
   font-size: 0.7rem;
   font-weight: 700;
   padding: 2px 6px;
@@ -366,7 +366,7 @@ body.fullscreen-map { overflow: hidden; }
 
 .map-page .map-page-controls {
   padding: 10px;
-  background: #fff;
+  background: var(--panel);
   z-index: 1000;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
@@ -377,7 +377,7 @@ body.fullscreen-map { overflow: hidden; }
 .map-page .map-page-back {
   text-decoration: none;
   padding: 6px 12px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 4px;
 }
 
@@ -418,9 +418,9 @@ body.fullscreen-map { overflow: hidden; }
 .app-container #map-section .app-map-clinic-select {
   min-width: 240px;
   padding: 7px 10px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background-color: #fff;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background-color: var(--panel);
 }
 
 .app-container #map-section .app-map-search-actions {
@@ -431,7 +431,7 @@ body.fullscreen-map { overflow: hidden; }
 /* Main map clinic details */
 #place-sheet .clinic-detail-header {
   margin-bottom: 20px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-color);
   padding-bottom: 14px;
 }
 
@@ -445,13 +445,13 @@ body.fullscreen-map { overflow: hidden; }
 #place-sheet .clinic-detail-name {
   font-weight: 800;
   font-size: 1.3rem;
-  color: #0f172a;
+  color: var(--text);
   line-height: 1.2;
 }
 
 #place-sheet .clinic-detail-nickname {
   font-size: 0.75rem;
-  color: #0284c7;
+  color: var(--primary);
   font-weight: 700;
   margin-top: 2px;
 }
@@ -459,8 +459,8 @@ body.fullscreen-map { overflow: hidden; }
 #place-sheet .clinic-detail-distance {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #1d4ed8;
-  background: #dbeafe;
+  color: var(--primary-hover);
+  background: var(--primary-surface);
   padding: 4px 10px;
   border-radius: 20px;
   white-space: nowrap;
@@ -469,7 +469,7 @@ body.fullscreen-map { overflow: hidden; }
 #place-sheet .clinic-detail-address {
   margin-top: 8px;
   font-size: 0.85rem;
-  color: #475569;
+  color: var(--muted);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -480,25 +480,25 @@ body.fullscreen-map { overflow: hidden; }
   flex-wrap: wrap;
   gap: 4px 12px;
   margin-top: 4px;
-  color: #475569;
+  color: var(--muted);
   font-size: 0.75rem;
 }
 
 #place-sheet .clinic-extension-contact-item strong {
-  color: #334155;
+  color: var(--text-dark);
 }
 
 #place-sheet .map-lite-contact {
-  color: #cbd5e1;
+  color: var(--loading-text-muted);
 }
 
 #place-sheet .map-lite-contact .clinic-extension-contact-item strong {
-  color: #f8fafc;
+  color: var(--text-on-dark);
 }
 
 #place-sheet .clinic-provider-row {
   padding: 6px 0;
-  border-bottom: 1px dashed #e2e8f0;
+  border-bottom: 1px dashed var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -512,57 +512,57 @@ body.fullscreen-map { overflow: hidden; }
 }
 
 #place-sheet .clinic-provider-id {
-  color: #475569;
+  color: var(--muted);
   font-family: monospace;
   font-weight: 700;
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 0.75rem;
 }
 
 #place-sheet .clinic-provider-link {
-  color: #4f46e5;
+  color: var(--primary-hover);
   text-decoration: none;
   font-weight: 700;
   cursor: pointer;
 }
 
 #place-sheet .clinic-provider-specialty {
-  color: #64748b;
+  color: var(--muted);
   font-size: 0.75rem;
 }
 
 #place-sheet .clinic-no-providers {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--muted);
   text-align: center;
   padding: 4px 0;
 }
 
 /* Scoped legacy map detail renderer */
 #place-sheet .map-lite-details {
-  color: #cbd5e1;
+  color: var(--loading-text-muted);
 }
 
 #place-sheet .map-lite-clinic-header {
   margin-bottom: 14px;
-  border-bottom: 1px solid #334155;
+  border-bottom: 1px solid var(--border-dark);
   padding-bottom: 10px;
 }
 
 #place-sheet .map-lite-clinic-name {
   font-weight: 700;
   font-size: 1.1rem;
-  color: #38bdf8;
+  color: var(--loading-accent);
   line-height: 1.3;
 }
 
 #place-sheet .map-lite-clinic-address {
   margin-top: 5px;
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--muted-on-dark);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -570,8 +570,8 @@ body.fullscreen-map { overflow: hidden; }
 
 #place-sheet .map-lite-extensions,
 #place-sheet .map-lite-primary-phone {
-  background: #0f172a;
-  border: 1px solid #334155;
+  background: var(--surface-darker);
+  border: 1px solid var(--border-dark);
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 10px;
@@ -580,9 +580,9 @@ body.fullscreen-map { overflow: hidden; }
 #place-sheet .map-lite-extensions-title {
   font-weight: 600;
   font-size: 0.8rem;
-  color: #38bdf8;
+  color: var(--loading-accent);
   margin-bottom: 8px;
-  border-bottom: 1px solid #334155;
+  border-bottom: 1px solid var(--border-dark);
   padding-bottom: 4px;
   letter-spacing: 0.5px;
 }
@@ -597,10 +597,10 @@ body.fullscreen-map { overflow: hidden; }
 }
 
 #place-sheet .map-lite-extension-group {
-  background: #1e293b;
+  background: var(--surface-dark);
   padding: 6px 8px;
   border-radius: 6px;
-  border: 1px solid #334155;
+  border: 1px solid var(--border-dark);
   font-size: 0.75rem;
 }
 
@@ -617,22 +617,22 @@ body.fullscreen-map { overflow: hidden; }
 
 #place-sheet .map-lite-section-name {
   font-weight: 600;
-  color: #f8fafc;
+  color: var(--text-on-dark);
 }
 
 #place-sheet .map-lite-extension-row {
   margin-top: 2px;
-  border-top: 1px dashed #334155;
+  border-top: 1px dashed var(--border-dark);
   padding-top: 2px;
 }
 
 #place-sheet .map-lite-extension-label {
-  color: #94a3b8;
+  color: var(--muted-on-dark);
   font-weight: 500;
 }
 
 #place-sheet .map-lite-extension-value {
-  color: #cbd5e1;
+  color: var(--loading-text-muted);
   text-align: right;
   max-width: 70%;
   word-break: break-word;
@@ -640,12 +640,12 @@ body.fullscreen-map { overflow: hidden; }
 
 #place-sheet .map-lite-primary-phone p {
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: var(--muted-on-dark);
   margin: 0;
 }
 
 #place-sheet .map-lite-primary-phone span {
-  color: #f8fafc;
+  color: var(--text-on-dark);
   font-weight: 600;
 }
 
@@ -669,18 +669,18 @@ body.fullscreen-map { overflow: hidden; }
 #pdir-popover-backdrop #pdir-popover-card {
   width: 440px;
   max-width: 90vw;
-  background: #fff;
+  background: var(--panel);
   padding: 18px;
   border-radius: 8px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-  border: 1px solid #e2e8f0;
-  font-family: system-ui, -apple-system, sans-serif;
+  border: 1px solid var(--border-color);
+  font-family: var(--font-family-base);
 }
 
 #pdir-popover-backdrop .pdir-guidelines-empty {
   margin-top: 10px;
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--muted);
   text-align: center;
   font-style: italic;
 }
@@ -688,20 +688,20 @@ body.fullscreen-map { overflow: hidden; }
 #pdir-popover-backdrop .pdir-guidelines {
   margin-top: 12px;
   padding: 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   font-size: 0.85rem;
   line-height: 1.5;
 }
 
 #pdir-popover-backdrop .pdir-guidelines-dos {
-  color: #16a34a;
+  color: var(--success);
   margin-bottom: 8px;
 }
 
 #pdir-popover-backdrop .pdir-guidelines-donts {
-  color: #dc2626;
+  color: var(--danger);
 }
 
 #pdir-popover-backdrop .pdir-popover-header {
@@ -709,7 +709,7 @@ body.fullscreen-map { overflow: hidden; }
   justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--surface-hover);
   padding-bottom: 12px;
 }
 
@@ -721,12 +721,12 @@ body.fullscreen-map { overflow: hidden; }
   margin: 0;
   font-size: 1.15rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text);
 }
 
 #pdir-popover-backdrop .pdir-popover-meta {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--muted);
   margin-top: 4px;
   display: flex;
   flex-direction: column;
@@ -734,8 +734,8 @@ body.fullscreen-map { overflow: hidden; }
 }
 
 #pdir-popover-backdrop .pdir-popover-specialty {
-  background: #e0e7ff;
-  color: #4338ca;
+  background: var(--accent-secondary-surface);
+  color: var(--accent-secondary-text);
   font-size: 0.7rem;
   font-weight: 700;
   padding: 3px 8px;
@@ -749,9 +749,9 @@ body.fullscreen-map { overflow: hidden; }
 }
 
 #pdir-popover-backdrop .pdir-popover-close {
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  color: #475569;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  color: var(--muted);
   padding: 6px 14px;
   border-radius: 4px;
   font-size: 0.8rem;

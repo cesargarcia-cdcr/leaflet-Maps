@@ -30,10 +30,10 @@
 .pdir-inline-input {
     padding: 8px 12px;
     border-radius: 6px;
-    border: 1px solid #cbd5e1;
-    background-color: #ffffff;
+    border: 1px solid var(--border);
+    background-color: var(--panel);
     font-size: 0.85rem;
-    color: #1e293b;
+    color: var(--text);
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -41,7 +41,7 @@
 #masterProviderSearch:focus,
 .pdir-inline-select:focus,
 .pdir-inline-input:focus {
-    border-color: #3b82f6;
+    border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
@@ -52,9 +52,9 @@
 .pdir-panel-reset {
     padding: 8px 14px;
     border-radius: 6px;
-    border: 1px solid #cbd5e1;
-    background-color: #f8fafc;
-    color: #475569;
+    border: 1px solid var(--border);
+    background-color: var(--bg);
+    color: var(--muted);
     font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
@@ -62,9 +62,9 @@
 }
 
 .pdir-panel-reset:hover {
-    background-color: #f1f5f9;
-    color: #0f172a;
-    border-color: #94a3b8;
+    background-color: var(--surface-hover);
+    color: var(--text);
+    border-color: var(--muted);
 }
 
 /* ======= Autocomplete Suggestions Box Styles ======= */
@@ -77,8 +77,8 @@
     top: 100%;
     left: 0;
     right: 0;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
+    background: var(--panel);
+    border: 1px solid var(--border);
     border-top: none;
     border-radius: 0 0 8px 8px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
@@ -91,8 +91,8 @@
     padding: 10px 14px;
     cursor: pointer;
     font-size: 0.85rem;
-    color: #1e293b;
-    border-bottom: 1px solid #f1f5f9;
+    color: var(--text);
+    border-bottom: 1px solid var(--surface-hover);
     transition: background-color 0.15s ease;
 }
 
@@ -101,12 +101,12 @@
 }
 
 .pdir-auto-item:hover {
-    background-color: #f8fafc;
+    background-color: var(--bg);
 }
 
 .pdir-auto-spec {
     font-size: 11px;
-    color: #64748b;
+    color: var(--muted);
     margin-left: 6px;
 }
 
@@ -121,9 +121,9 @@
     overflow-x: hidden;
     padding: 8px;
     margin-bottom: 16px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    background-color: #f8fafc;
+    background-color: var(--bg);
     align-content: flex-start; /* Evita que los elementos se estiren verticalmente */
 }
 
@@ -132,21 +132,21 @@
     width: 6px;
 }
 #pdirKeywordsCloud::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: var(--surface-hover);
     border-radius: 4px;
 }
 #pdirKeywordsCloud::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--border);
     border-radius: 4px;
 }
 #pdirKeywordsCloud::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: var(--muted);
 }
 
 .pdir-tag-pill {
-    background-color: #ffffff;
-    border: 1px solid #cbd5e1;
-    color: #475569;
+    background-color: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--muted);
     padding: 4px 10px;
     border-radius: 6px;
     font-size: 0.75rem;
@@ -158,23 +158,23 @@
 }
 
 .pdir-tag-pill:hover {
-    background-color: #f1f5f9;
-    color: #0f172a;
-    border-color: #94a3b8;
+    background-color: var(--surface-hover);
+    color: var(--text);
+    border-color: var(--muted);
 }
 
 .pdir-tag-pill.is-active {
-    background-color: #eff6ff;
-    border-color: #3b82f6;
-    color: #1d4ed8;
+    background-color: var(--primary-surface);
+    border-color: var(--primary);
+    color: var(--primary-hover);
     font-weight: 600;
 }
 
 /* ======= Re-engineered Provider Cards ======= */
 .pdir-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
     padding: 20px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     display: flex;
@@ -186,7 +186,7 @@
 .pdir-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
-    border-color: #cbd5e1;
+    border-color: var(--border);
 }
 
 .pdir-card-top {
@@ -206,7 +206,7 @@
 .pdir-doc-name {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text);
     margin: 0;
     line-height: 1.3;
 }
@@ -217,30 +217,30 @@
     flex-direction: column;
     gap: 4px;
     font-size: 0.8rem;
-    color: #64748b;
+    color: var(--muted);
 }
 
 .pdir-ids strong {
-    color: #334155;
+    color: var(--text-dark);
 }
 
 /* Specialty Badges */
 .pdir-badge {
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: var(--primary-surface);
+    color: var(--primary-hover);
     font-size: 0.75rem;
     font-weight: 600;
     padding: 4px 10px;
     border-radius: 9999px;
     white-space: nowrap;
-    border: 1px solid #bfdbfe;
+    border: 1px solid var(--primary-border);
 }
 
 /* ======= Clinical Guidelines UI Box ======= */
 .pdir-guidelines-box {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
     padding: 12px;
     margin-top: 8px;
     font-size: 0.8rem;
@@ -251,28 +251,28 @@
 }
 
 .pdir-guideline-row {
-    color: #334155;
+    color: var(--text-dark);
 }
 
 .pdir-do-line {
-    color: #16a34a;
+    color: var(--success);
 }
 
 .pdir-dont-line {
-    color: #dc2626;
+    color: var(--danger);
 }
 
 /* ======= Calendar Grid & Badges Layout ======= */
 .pdir-schedule-container {
     margin-top: 14px;
     padding-top: 12px;
-    border-top: 1px dashed #e2e8f0;
+    border-top: 1px dashed var(--border-color);
 }
 
 .pdir-schedule-title {
     font-size: 0.75rem;
     font-weight: 700;
-    color: #475569;
+    color: var(--muted);
     margin-bottom: 8px;
     display: flex;
     align-items: center;
@@ -293,26 +293,26 @@
     width: 4px;
 }
 .pdir-schedule-grid::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: var(--surface-hover);
 }
 .pdir-schedule-grid::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--border);
     border-radius: 2px;
 }
 
 .pdir-date-badge {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--bg);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 6px 2px;
     text-align: center;
     font-size: 0.72rem;
-    color: #334155;
+    color: var(--text-dark);
     font-weight: 600;
 }
 
 .pdir-badge-check {
-    color: #16a34a;
+    color: var(--success);
 }
 
 /* ======= Empty States ======= */
@@ -320,10 +320,10 @@
     grid-column: 1 / -1;
     text-align: center;
     padding: 40px 20px;
-    background: #f8fafc;
-    border: 1px dashed #cbd5e1;
+    background: var(--bg);
+    border: 1px dashed var(--border);
     border-radius: 8px;
-    color: #64748b;
+    color: var(--muted);
     font-weight: 500;
     font-size: 0.9rem;
 }
@@ -333,8 +333,8 @@
    ========================================================================== */
 
 .pdir-unified-header-container {
-    background: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border-color);
     padding: 16px 20px;
     border-radius: 12px 12px 0 0;
     display: flex;
@@ -353,7 +353,7 @@
 .pdir-title-text {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text);
     margin: 0;
     letter-spacing: -0.02em;
 }
@@ -371,7 +371,7 @@
     top: 50%;
     transform: translateY(-50%);
     font-size: 0.9rem;
-    color: #94a3b8;
+    color: var(--muted);
     pointer-events: none;
 }
 
@@ -382,7 +382,7 @@
     flex-wrap: wrap;
     gap: 12px;
     padding-top: 12px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--surface-hover);
 }
 
 .pdir-filter-group {
@@ -398,9 +398,9 @@
     padding: 8px 12px;
     font-size: 0.82rem;
     font-weight: 500;
-    color: #475569;
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
+    color: var(--muted);
+    background-color: var(--panel);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     outline: none;
     transition: all 0.15s ease;
@@ -409,14 +409,14 @@
 
 .pdir-inline-select:hover,
 .pdir-inline-input:hover {
-    border-color: #cbd5e1;
-    background-color: #f8fafc;
+    border-color: var(--border);
+    background-color: var(--bg);
 }
 
 .pdir-inline-select:focus,
 .pdir-inline-input:focus {
-    border-color: #3b82f6;
-    background-color: #ffffff;
+    border-color: var(--primary);
+    background-color: var(--panel);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
 }
 
@@ -437,8 +437,8 @@
     padding: 8px 14px;
     font-size: 0.82rem;
     font-weight: 600;
-    color: #64748b;
-    background-color: #f1f5f9;
+    color: var(--muted);
+    background-color: var(--surface-hover);
     border: 1px solid transparent;
     border-radius: 6px;
     cursor: pointer;
@@ -447,8 +447,8 @@
 }
 
 .pdir-panel-reset:hover {
-    background-color: #e2e8f0;
-    color: #0f172a;
+    background-color: var(--border-color);
+    color: var(--text);
 }
 
 .pdir-panel-reset:active {

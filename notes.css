@@ -3,12 +3,12 @@
    ========================================================================== */
 
 #note-section .booking-deadline {
-    color: #c62828;
+    color: var(--danger);
 }
 
 .word-page {
-    background: #ffffff;
-    border-radius: 8px;
+    background: var(--panel);
+    border-radius: var(--radius-md);
     padding: 20px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     box-sizing: border-box;
@@ -17,7 +17,7 @@
 .main-title {
     font-size: 1.4rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text);
     margin-bottom: 15px;
 }
 
@@ -48,9 +48,9 @@
 }
 
 .form-card-box {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
     padding: 15px;
 }
 
@@ -73,22 +73,22 @@
 .form-label {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #334155;
+    color: var(--text-dark);
 }
 
 .form-input, .form-select, .form-textarea, .live-search-input {
     width: 100%;
     padding: 8px 12px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     font-size: 0.85rem;
-    background-color: #fff;
+    background-color: var(--panel);
     box-sizing: border-box;
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus, .live-search-input:focus {
     outline: none;
-    border-color: #2563eb;
+    border-color: var(--primary);
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
 
@@ -101,7 +101,7 @@
 .form-input-custom {
     display: none;
     padding: 8px 12px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border);
     border-radius: 6px;
     font-size: 0.85rem;
 }
@@ -112,22 +112,22 @@
 }
 
 .er-toggle-link {
-    color: #2563eb;
+    color: var(--primary);
     cursor: pointer;
     text-decoration: underline;
 }
 
 /* Result Boxes and Alerts */
 .note-result {
-    background: #f1f5f9;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     padding: 12px;
     font-family: monospace;
     font-size: 0.85rem;
     white-space: pre-wrap;
     min-height: 90px;
-    color: #0f172a;
+    color: var(--text);
 }
 
 .dynamic-conditions-text {
@@ -142,41 +142,41 @@
 }
 
 .status-accepted, .hospital-accepted {
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    color: #166534;
+    background: var(--success-surface);
+    border: 1px solid var(--success-border);
+    color: var(--success-text);
 }
 
 .status-rejected {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
+    background: var(--danger-surface);
+    border: 1px solid var(--danger-border);
+    color: var(--danger-text);
 }
 
 .status-custom, .hospital-custom {
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    color: #b45309;
+    background: var(--warning-surface);
+    border: 1px solid var(--warning-border);
+    color: var(--warning);
 }
 
 .status-placeholder, .hospital-placeholder, .hospital-neutral {
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
-    color: #64748b;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
 }
 
 .epic-guide-scroll-container {
     max-height: 400px;
     overflow-y: auto;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--panel);
 }
 
 .visit-details-panel {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
     padding: 12px;
     font-size: 0.85rem;
 }
@@ -209,7 +209,7 @@
 /* ======= Styles for the Insurance Selector and Inputs ======= */
 .insurance-label {
     font-weight: 600;
-    color: #1e293b;
+    color: var(--text);
 }
 
 .insurance-input-group {
@@ -222,8 +222,8 @@
     flex: 2;
     padding: 7px 10px;
     border-radius: 6px;
-    border: 1px solid #cbd5e1;
-    background-color: #fff;
+    border: 1px solid var(--border);
+    background-color: var(--panel);
     font-size: 0.75rem;
 }
 
@@ -232,8 +232,8 @@
     flex: 1;
     padding: 7px 10px;
     border-radius: 6px;
-    border: 1px solid #cbd5e1;
-    background-color: #fff;
+    border: 1px solid var(--border);
+    background-color: var(--panel);
     font-size: 0.75rem;
 }
 
@@ -245,7 +245,7 @@
 }
 
 .insurance-mode-toggle {
-    color: #2563eb;
+    color: var(--primary);
     cursor: pointer;
     text-decoration: underline;
 }
@@ -253,45 +253,45 @@
 /* ======= Status and Verification Boxes ======= */
 .status-box-accepted {
     padding: 6px;
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
+    background: var(--success-surface);
+    border: 1px solid var(--success-border);
     border-radius: 4px;
 }
 
 .status-box-rejected {
     padding: 6px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: var(--danger-surface);
+    border: 1px solid var(--danger-border);
     border-radius: 4px;
 }
 
 .status-box-custom {
     padding: 6px;
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
+    background: var(--bg);
+    border: 1px solid var(--border);
     border-radius: 4px;
-    color: #64748b;
+    color: var(--muted);
 }
 
 .status-box-placeholder {
     padding: 6px;
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
+    background: var(--bg);
+    border: 1px solid var(--border);
     border-radius: 4px;
-    color: #94a3b8;
+    color: var(--muted);
 }
 
 .status-text-accepted {
-    color: #166534;
+    color: var(--success-text);
 }
 
 .status-text-rejected {
-    color: #b91c1c;
+    color: var(--danger-text);
 }
 
 .special-condition-warn {
     margin-top: 2px;
-    color: #b45309;
+    color: var(--warning);
 }
 
 /* ======= Styles for the Floating Right Column (80% Centered) ======= */
@@ -309,9 +309,9 @@
     width: 80vw !important;
     height: 80vh !important;
     z-index: 9999 !important;
-    background: #ffffff !important;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 12px !important;
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3) !important;
     padding: 30px !important;
     display: flex;
@@ -330,19 +330,19 @@
     position: absolute;
     top: 10px;
     right: 15px;
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
+    background: var(--bg);
+    border: 1px solid var(--border);
     border-radius: 4px;
     padding: 4px 10px;
     font-size: 0.75rem;
     cursor: pointer;
-    color: #334155;
+    color: var(--text-dark);
     transition: background 0.2s;
     z-index: 10;
 }
 
 .expand-floating-btn:hover {
-    background: #e2e8f0;
+    background: var(--border-color);
 }
 
 /* Semi-transparent dark background behind the floating window */
