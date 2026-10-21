@@ -419,7 +419,7 @@ margin-top: 10px;
    SIDEBAR & NAVIGATION (layout.css)
    ========================================================================== */
 
-/* Contenedor principal del menú lateral deslizante */
+/* Main slide-out sidebar container */
 .sidebar {
   position: fixed;
   left: 0;
@@ -438,12 +438,12 @@ margin-top: 10px;
 
 
 
-/* Estado abierto del menú lateral */
+/* Open sidebar state */
 .sidebar.open {
   transform: translateX(0);
 }
 
-/* Capa de fondo oscura (overlay) cuando el menú está activo */
+/* Dark overlay shown while the menu is open */
 .sidebar-overlay {
   position: fixed;
   inset: 0;
@@ -459,7 +459,7 @@ margin-top: 10px;
   pointer-events: all;
 }
 
-/* Contenedor de la navegación interna */
+/* Internal navigation container */
 .sidebar-nav {
   display: flex;
   flex-direction: column;
@@ -467,7 +467,7 @@ margin-top: 10px;
   padding: 10px 0;
 }
 
-/* Elementos individuales del menú */
+/* Individual menu items */
 .nav-item {
   padding: 14px 20px;
   border-bottom: 1px solid var(--border, #e5e7eb);
@@ -492,7 +492,7 @@ margin-top: 10px;
   border-left: 4px solid var(--primary, #2563eb);
 }
 
-/* Atajos de teclado o etiquetas dentro del menú */
+/* Keyboard shortcuts or labels inside the menu */
 .nav-item .shortcut {
   margin-left: auto;
   font-size: 0.75rem;
@@ -503,7 +503,7 @@ margin-top: 10px;
   font-family: monospace;
 }
 
-/* Pie de página del sidebar (acciones de sincronización, separadores, etc.) */
+/* Sidebar footer (sync actions, dividers, and related elements) */
 .sidebar-footer {
   margin-top: auto;
   padding: 16px 20px;
@@ -532,7 +532,7 @@ margin-top: 10px;
   background: var(--primary-surface);
 }
 
-/* Botón flotante de interrogación corregido */
+/* Corrected floating help button */
 .floating-help-btn {
     position: fixed !important;
     bottom: 25px !important;

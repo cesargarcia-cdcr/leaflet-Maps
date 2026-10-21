@@ -5,7 +5,7 @@
 window.LSEngine = window.LSEngine || {};
 window.LSEngine.state = window.LSEngine.state || {};
 
-// Control global para cerrar el panel lateral (sheet)
+// Global control for closing the side panel.
 window.closeSheet = function() {
     const sheet = document.getElementById('place-sheet');
     if (sheet) {
@@ -22,7 +22,7 @@ window.openSheet = function() {
     }
 };
 
-// Función auxiliar para extraer y agrupar extensiones por sección (lógica adaptada de map.js)
+// Extract and group extensions by section, following the map.js data model.
 function getExtensionsForClinic(clinic) {
     const code = String(clinic.code || clinic.Code || clinic.ID || '').trim().toUpperCase();
     const name = String(clinic.name || clinic.Name || clinic.Location || '').trim().toLowerCase();
@@ -52,17 +52,17 @@ function getExtensionsForClinic(clinic) {
     return sectionsMap;
 }
 
-// Renderizado de detalles de la clínica con diseño ordenado y estilos oscuros
+// Render clinic details with an organized layout and dark styling.
 function renderClinicDetails(clinic) {
     const body = document.getElementById('clinic-info-body');
     if (!body) return;
 
     console.log("📍 [Map-Lite Clicked Clinic]:", clinic);
 
-    const name = clinic.name || clinic.Name || clinic.Location || clinic['Clinic Name'] || 'Clínica sin nombre';
-    const address = clinic.address || clinic.Address || clinic.DIRECCION || [clinic.Address, clinic.City, clinic.ZipCode].filter(Boolean).join(', ') || 'Dirección no disponible';
+    const name = clinic.name || clinic.Name || clinic.Location || clinic['Clinic Name'] || 'Unnamed clinic';
+    const address = clinic.address || clinic.Address || clinic.DIRECCION || [clinic.Address, clinic.City, clinic.ZipCode].filter(Boolean).join(', ') || 'Address unavailable';
     
-    // Utilidad idéntica a map.js para formatear barras diagonales en extensiones múltiples
+    // Match the slash formatting used in map.js for multiple extensions.
     const nb = s => String(s || '').replace(/\s*\/\s*/g, '&nbsp;/&nbsp;').replace(/\s{2,}/g, ' ').trim();
     
     const sectionsMap = getExtensionsForClinic(clinic);
@@ -78,7 +78,7 @@ function renderClinicDetails(clinic) {
        </div>`;
 
     if (sections.length > 0) {
-        // Orden preferido de secciones idéntico al de tu aplicación principal
+        // Preferred section order, matching the main application.
         const order = ['Medical', 'Optical', 'Dental', 'MH'];
         const ordered = [...order.filter(s => sections.includes(s)), ...sections.filter(s => !order.includes(s)).sort()];
 
@@ -120,7 +120,7 @@ function renderClinicDetails(clinic) {
         const fax = clinic.fax || clinic.Fax || clinic.FAX;
         html += `
             <div class="map-lite-primary-phone">
-                <p>📞 Teléfono Principal: <span>${phone}</span></p>
+                <p>📞 Main Phone: <span>${phone}</span></p>
                 ${fax ? `<p class="map-lite-primary-fax">Fax: <span>${fax}</span></p>` : ''}
             </div>`;
     }
@@ -130,23 +130,23 @@ function renderClinicDetails(clinic) {
     window.openSheet();
 }
 
-// Inicialización optimizada del mapa interactivo
+// Initialize the interactive map.
 window.LSEngine.initializeMap = function() {
-    console.log("📍 [Map-Lite]: Inicializando instancia del mapa interactivo...");
+    console.log("📍 [Map-Lite]: Initializing the interactive map...");
 
     if (typeof L === 'undefined') {
-        console.error("❌ [Map-Lite]: La librería Leaflet (L) no está cargada.");
+        console.error("❌ [Map-Lite]: The Leaflet library (L) is not loaded.");
         return;
     }
 
     const mapContainer = document.getElementById('map');
     if (!mapContainer) {
-        console.error("❌ [Map-Lite]: No se encontró el contenedor DOM con id 'map'.");
+        console.error("❌ [Map-Lite]: The DOM container with id 'map' was not found.");
         return;
     }
 
     if (window.LSEngine.state.mapInstance) {
-        console.log("🔄 [Map-Lite]: Actualizando dimensiones del mapa existente...");
+        console.log("🔄 [Map-Lite]: Updating the existing map dimensions...");
         window.LSEngine.state.mapInstance.invalidateSize();
         return;
     }
@@ -178,7 +178,7 @@ window.LSEngine.initializeMap = function() {
                     clinics = Array.isArray(parsed) ? parsed : (parsed.clinics || []);
                 }
             } catch (e) {
-                console.warn("⚠️ [Map-Lite]: Error leyendo clínicas de localStorage:", e);
+                console.warn("⚠️ [Map-Lite]: Error reading clinics from localStorage:", e);
             }
         }
 
@@ -201,7 +201,7 @@ window.LSEngine.initializeMap = function() {
 
                 markersGroup.addLayer(marker);
             } else {
-                console.warn(`⚠️ [Map-Lite]: Coordenadas inválidas en índice ${index}:`, clinic);
+                console.warn(`⚠️ [Map-Lite]: Invalid coordinates at index ${index}:`, clinic);
             }
         });
 
@@ -213,11 +213,11 @@ window.LSEngine.initializeMap = function() {
         }
 
         setTimeout(() => map.invalidateSize(), 250);
-        console.log("✅ [Map-Lite]: Mapa inicializado con éxito.");
+        console.log("✅ [Map-Lite]: Map initialized successfully.");
         return true;
 
     } catch (err) {
-        console.error("❌ [Map-Lite]: Error al configurar el mapa:", err);
+        console.error("❌ [Map-Lite]: Error configuring the map:", err);
         return false;
     }
 };

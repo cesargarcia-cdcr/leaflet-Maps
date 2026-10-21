@@ -2,9 +2,9 @@ document.addEventListener("DOMContentLoaded", async function() {
     const infoSectionBody = document.querySelector('#info-section .card-body');
     if (!infoSectionBody) return;
 
-    infoSectionBody.innerHTML = '<span class="guidelines-status guidelines-loading">Escaneando directorios clínicos desde OPFS...</span>';
+    infoSectionBody.innerHTML = '<span class="guidelines-status guidelines-loading">Scanning clinic directories in OPFS...</span>';
 
-    // Función auxiliar para extraer el peso numérico, evaluar la regla de Critical y limpiar el nombre visual
+    // Extract the numeric sort order, apply the Critical rule, and clean up the display name.
     function parseSortingName(rawName) {
         let order = Infinity;
         let remainder = rawName;
@@ -15,18 +15,18 @@ document.addEventListener("DOMContentLoaded", async function() {
             remainder = numMatch[2];
         }
 
-        // Regla de la palabra "Critical"
+        // Handle the "Critical" prefix.
         const criticalRegex = /^critical_(.+)$/i;
         const critMatch = remainder.match(criticalRegex);
 
         let isCritical = false;
         let displayName = remainder.replace(/_/g, ' ');
 
-        // Si es solo "Critical" o empieza con "Critical_", aplicamos el flag crítico
+        // Mark names that are "Critical" or begin with "Critical_".
         if (remainder.toLowerCase() === 'critical' || remainder.toLowerCase().startsWith('critical_')) {
             isCritical = true;
             if (critMatch) {
-                // Si hay texto adicional (ej: 01_Critical_text), ocultamos la numeración y la palabra Critical, mostrando solo el texto restante.
+                // For names such as "01_Critical_text", hide the number and "Critical" prefix.
                 displayName = critMatch[1].replace(/_/g, ' ');
             }
         }
@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", async function() {
         };
     }
 
-    // Función de comparación para el ordenamiento
+    // Compare names by numeric order, then alphabetically.
     function sortItems(a, b) {
         const itemA = parseSortingName(a);
         const itemB = parseSortingName(b);
@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", async function() {
         return itemA.cleanName.localeCompare(itemB.cleanName);
     }
 
-    // Función para leer la estructura de directorios y archivos HTML desde el OPFS
+    // Read the directory structure and HTML files from OPFS.
     async function loadGuidelinesFromOPFS() {
         try {
             const rootDir = await navigator.storage.getDirectory();
@@ -58,12 +58,12 @@ document.addEventListener("DOMContentLoaded", async function() {
             
             const guidelinesData = {};
 
-            // Iterar sobre las carpetas dentro de Guidelines_Info
+            // Iterate through folders in Guidelines_Info.
             for await (const [folderName, folderHandle] of guidelinesDir.entries()) {
                 if (folderHandle.kind === 'directory') {
                     const htmlFiles = [];
                     
-                    // Iterar dentro de cada subcarpeta buscando únicamente archivos .html
+                    // Collect HTML files from each subfolder.
                     for await (const [fileName, fileHandle] of folderHandle.entries()) {
                         if (fileHandle.kind === 'file' && fileName.toLowerCase().endsWith('.html')) {
                             htmlFiles.push(fileName);
@@ -76,12 +76,12 @@ document.addEventListener("DOMContentLoaded", async function() {
 
             return guidelinesData;
         } catch (err) {
-            console.warn("⚠️ No se encontró la carpeta Guidelines_Info en OPFS o está vacía:", err);
+            console.warn("⚠️ Guidelines_Info was not found in OPFS or is empty:", err);
             return null;
         }
     }
 
-    // Función para leer el contenido de un archivo HTML específico desde el OPFS
+    // Read a specific HTML file from OPFS.
     async function fetchHtmlFromOPFS(folderName, fileName) {
         try {
             const rootDir = await navigator.storage.getDirectory();
@@ -91,31 +91,31 @@ document.addEventListener("DOMContentLoaded", async function() {
             const file = await fileHandle.getFile();
             return await file.text();
         } catch (err) {
-            throw new Error(`No se pudo leer el archivo local: ${err.message}`);
+            throw new Error(`Could not read the local file: ${err.message}`);
         }
     }
 
-    // 1. Cargar la estructura directamente desde el OPFS
+    // 1. Load the directory structure from OPFS.
     const guidelines = await loadGuidelinesFromOPFS();
 
     if (!guidelines || Object.keys(guidelines).length === 0) {
-        infoSectionBody.innerHTML = '<div class="guidelines-status guidelines-empty">No se encontraron carpetas o archivos HTML en Guidelines_Info del OPFS.</div>';
+        infoSectionBody.innerHTML = '<div class="guidelines-status guidelines-empty">No folders or HTML files were found in Guidelines_Info on OPFS.</div>';
         return;
     }
 
     infoSectionBody.innerHTML = '';
 
-    // 2. ORDENAR LAS CARPETAS
+    // 2. Sort the folders.
     const sortedFolders = Object.keys(guidelines).sort(sortItems);
 
-    // 3. Iterar sobre las carpetas ordenadas
+    // 3. Iterate through the sorted folders.
     sortedFolders.forEach(folderName => {
         const folderInfo = parseSortingName(folderName);
         
         const infoGroup = document.createElement('div');
         infoGroup.className = 'info-group';
         
-        // DETECCIÓN CRÍTICA: Usamos el flag evaluado en parseSortingName
+        // Use the critical flag returned by parseSortingName.
         const isCritical = folderInfo.isCritical;
         
         infoGroup.classList.toggle('is-critical', isCritical);
@@ -131,19 +131,19 @@ document.addEventListener("DOMContentLoaded", async function() {
         const rawFiles = guidelines[folderName];
 
         if (rawFiles.length === 0) {
-            groupContent.innerHTML = '<div class="guidelines-file-empty">No hay documentos HTML en esta carpeta.</div>';
+            groupContent.innerHTML = '<div class="guidelines-file-empty">No HTML documents in this folder.</div>';
         }
 
-        // 4. ORDENAR LOS ARCHIVOS HTML
+        // 4. Sort the HTML files.
         const sortedFiles = rawFiles.sort(sortItems);
 
-        // 5. Iterar sobre los archivos HTML ordenados
+        // 5. Iterate through the sorted HTML files.
         sortedFiles.forEach(fileName => {
             const nameWithoutExt = fileName.replace('.html', '');
             const fileInfo = parseSortingName(nameWithoutExt);
             
             const details = document.createElement('details');
-            // Agregado de forma segura: Acordeón exclusivo nativo por carpeta
+            // Use native exclusive accordion behavior within each folder.
             details.setAttribute('name', `accordion-${folderName}`);
             details.className = 'guidelines-file-details';
             
@@ -159,20 +159,20 @@ document.addEventListener("DOMContentLoaded", async function() {
                     ${fileIcon} ${fileInfo.displayName}
                 </summary>
                 <div id="${targetId}" class="guidelines-file-content">
-                    <span class="guidelines-loading">Cargando contenido local...</span>
+                    <span class="guidelines-loading">Loading local content...</span>
                 </div>
             `;
             
             groupContent.appendChild(details);
 
-            // 6. Leer el contenido del archivo HTML directamente desde el OPFS de forma asíncrona
+            // 6. Read the HTML file asynchronously from OPFS.
             fetchHtmlFromOPFS(folderName, fileName)
                 .then(htmlContent => {
                     const container = document.getElementById(targetId);
                     if (!container) return;
                     container.innerHTML = htmlContent;
 
-                    // Extraer y re-ejecutar manualmente las etiquetas <script> que vengan dentro del HTML inyectado
+                    // Re-create script elements included in the injected HTML so they execute.
                     const scripts = container.querySelectorAll('script');
                     scripts.forEach(oldScript => {
                         const newScript = document.createElement('script');
@@ -184,7 +184,7 @@ document.addEventListener("DOMContentLoaded", async function() {
                 .catch(err => {
                     const container = document.getElementById(targetId);
                     if (container) {
-                        container.innerHTML = `<span class="guidelines-error">⚠️ Error al cargar desde OPFS: ${err.message}</span>`;
+                        container.innerHTML = `<span class="guidelines-error">⚠️ Error loading from OPFS: ${err.message}</span>`;
                     }
                 });
         });

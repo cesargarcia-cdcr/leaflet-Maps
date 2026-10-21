@@ -116,18 +116,18 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    max-height: 110px; /* Altura suficiente para mostrar 2 o 3 filas */
-    overflow-y: auto;  /* Habilita el scroll vertical explícitamente */
+    max-height: 110px; /* Enough height to show two or three rows. */
+    overflow-y: auto;  /* Explicitly enable vertical scrolling */
     overflow-x: hidden;
     padding: 8px;
     margin-bottom: 16px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background-color: var(--bg);
-    align-content: flex-start; /* Evita que los elementos se estiren verticalmente */
+    align-content: flex-start; /* Prevent items from stretching vertically. */
 }
 
-/* Scrollbar sutil y visible para el contenedor de tags */
+/* Subtle, visible scrollbar for the tags container */
 #pdirKeywordsCloud::-webkit-scrollbar {
     width: 6px;
 }
@@ -154,7 +154,7 @@
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
-    height: fit-content; /* Asegura que cada chip mantenga su propia altura */
+    height: fit-content; /* Keep each chip at its natural height. */
 }
 
 .pdir-tag-pill:hover {

@@ -117,7 +117,7 @@
     font-size: 0.75rem;
 }
 
-/* Contenedor Principal y Encapsulamiento de Etiquetas */
+/* Main container and content typography */
 .guide-container {
     font-family: var(--font-family-base);
     line-height: 1.3;
@@ -173,7 +173,7 @@
 .guide-title-block h2 { margin: 1px 0 0 0; color: var(--guide-heading); font-size: 9px; font-weight: normal; }
 .guide-container h3 { color: var(--text-clinic); font-size: 10px; margin: 8px 0 4px 0; border-left: 3px solid var(--guide-navy); padding-left: 4px; font-weight: 600; }
 
-/* Grid de Quick Reference */
+/* Quick reference grid */
 .guide-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
@@ -205,7 +205,7 @@
     list-style-type: square;
 }
 
-/* Sistema de Bloques Horarios (Timeline) */
+/* Time-block timeline */
 .timeline {
     display: flex;
     flex-direction: column;
@@ -254,7 +254,7 @@
 
 .slot:last-child { border-right: none; }
 
-/* Clases de Fondos Mapeadas */
+/* Mapped background classes */
 .bg-clinic { background-color: var(--clinic-hours); }
 .bg-secondary { background-color: var(--clinic-secondary); }
 .bg-internal { background-color: var(--internal-med); color: var(--text-on-dark); }
@@ -267,7 +267,7 @@
 .bg-prenatal { background-color: var(--ob-prenatal); }
 .bg-empty { background-color: var(--panel); }
 
-/* Soporte Móvil / Ventanas Pequeñas */
+/* Mobile and small-screen support */
 @media (max-width: 380px) {
     .slots-container { flex-direction: column; }
     .slot { border-right: none; border-bottom: 1px solid rgba(0,0,0,0.04); }
@@ -475,28 +475,28 @@
     color: var(--guide-danger);
 }
 
-/* Espaciado y padding mejorados para los elementos acordeón */
+/* Improved spacing and padding for accordion items */
 details {
     background: var(--panel);
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    margin-bottom: 6px; /* Mayor separación entre cada elemento */
+    margin-bottom: 6px; /* Increase spacing between items. */
 }
 
 details summary {
     font-size: 0.75rem;
-    padding: 8px 10px; /* Aumenta el área de clic y el espacio vertical */
+    padding: 8px 10px; /* Increase the click target and vertical spacing. */
     cursor: pointer;
     outline: none;
 }
 
 details[open] summary {
-    border-bottom: 1px solid var(--surface-hover); /* Separa visualmente el título del contenido desplegado */
+    border-bottom: 1px solid var(--surface-hover); /* Visually separate the title from the expanded content. */
 }
 
-/* Contenedor interno al abrir el acordeón */
+/* Inner container when the accordion is expanded */
 details > div {
-    padding: 40px !important; /* Mayor espacio interior para el contenido */
+    padding: 40px !important; /* Add more inner spacing around the content. */
     max-height: 60vh;
     overflow-y: auto;
 }

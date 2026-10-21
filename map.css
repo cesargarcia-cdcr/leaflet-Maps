@@ -1,8 +1,8 @@
 /* ==========================================================================
-   MAP LAYOUT & FULLSCREEN VIEW (Migrado desde app.css)
+   MAP LAYOUT & FULLSCREEN VIEW (migrated from app.css)
    ========================================================================== */
 
-/* Contenedor principal de la aplicación en modo mapa */
+/* Main map-mode application container */
 .app-container{ display:flex; min-height:100vh }
 
 /* .page {
@@ -15,7 +15,7 @@
     .page { max-width: 100%; }
 } */
 
-/* === Altura completa para el mapa (con soporte seguro para barra de direcciones móvil) === */
+/* === Full map height with safe support for the mobile address bar === */
 .map-full      { position: fixed; inset: 0; z-index: 1; background: var(--panel); }
 .map-viewport  { position: absolute; inset: 0; height: 100dvh; }
 #map           { height: 100dvh; min-height: 520px; border-radius: 10px; border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-map); }
@@ -26,15 +26,15 @@
 
 body.fullscreen-map { overflow: hidden; }
 
-/* Contenedor de la retícula del mapa antiguo (por si se usa en tarjeta) */
+/* Legacy map grid container, retained for card layouts */
 .mapwrap{ display:grid; grid-template-columns:1fr 320px; gap:14px; align-items:stretch }
 @media(max-width:1024px){ .mapwrap{ grid-template-columns:1fr 280px; gap:12px } }
 @media(max-width:768px){ .mapwrap{ grid-template-columns:1fr; gap:12px } }
 
-/* Asegurar que Leaflet se mantenga debajo de los controles UI */
+/* Keep Leaflet below the UI controls. */
 .leaflet-container { z-index: 1000; }
 
-/* Controles flotantes tipo "Glass" sobre el mapa */
+/* Glass-style floating map controls */
 .map-controls{ position: absolute; top: 16px; left: 0px; right: 16px; z-index: 1100; pointer-events: none; transition: padding 0.3s ease; }
 
 .mc-row { 
@@ -72,7 +72,7 @@ body.fullscreen-map { overflow: hidden; }
 .mc-fab:hover{ transform: translateY(-1px); }
 
 /* ==========================================================================
-   PANEL LATERAL / PLACE SHEET (Estilo translúcido / Glassmorphism)
+   SLIDE-OUT PANEL / PLACE SHEET (translucent glassmorphism style)
    ========================================================================== */
 
 #place-sheet {
@@ -87,7 +87,7 @@ body.fullscreen-map { overflow: hidden; }
   overflow: hidden;
   border-radius: var(--radius-lg);
   backdrop-filter: blur(10px);
-  /* Ajusta el último valor (ej. 0.65 o 0.70) para subir o bajar la transparencia */
+  /* Adjust the last value (e.g., 0.65 or 0.70) to change transparency. */
   background: rgba(255, 255, 255, 0.70); 
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
@@ -131,13 +131,13 @@ body.fullscreen-map { overflow: hidden; }
   cursor: pointer;
 }
 
-/* Etiquetas de marcadores en el mapa */
+/* Map marker labels */
 .leaflet-tooltip.clinic-label{
   background:var(--panel); color:var(--primary-hover); border:1px solid var(--border); font-weight:700; font-size:.78rem;
   padding:2px 7px; border-radius:var(--radius-sm); box-shadow:var(--shadow)
 }
 
-/* Responsividad para controles y sheet en pantallas pequeñas */
+/* Responsive controls and sheet for small screens */
 @media (max-width: 1024px) {
   #place-sheet { width: 300px; right: 12px; }
 }
@@ -171,7 +171,7 @@ body.fullscreen-map { overflow: hidden; }
 }
 
 /* ==========================================================================
-   BLOQUES INTERNOS DE CLÍNICAS (Adaptados con transparencia)
+   CLINIC CONTENT BLOCKS (translucent styling)
    ========================================================================== */
 
 .modern-stack {
@@ -250,7 +250,7 @@ body.fullscreen-map { overflow: hidden; }
   text-transform: uppercase;
 }
 
-/* Responsividad para pantallas pequeñas */
+/* Responsive layout for small screens */
 @media (max-width: 1024px) {
   #place-sheet { width: 300px; right: 12px; }
 }
@@ -275,7 +275,7 @@ body.fullscreen-map { overflow: hidden; }
 }
 
 /* ==========================================================================
-   ESTILOS RESTAURADOS PARA EL PANEL DE INFORMACIÓN DE CLÍNICas (#place-sheet)
+   RESTORED STYLES FOR THE CLINIC INFORMATION PANEL (#place-sheet)
    ========================================================================== */
 
 .modern-stack {

@@ -1,4 +1,4 @@
-/* Estilos modernos y limpios */
+/* Modern, clean styles */
 .directory-page .directory-footer {
     color: var(--muted);
     font-size: 12px;
@@ -71,7 +71,7 @@ h1 {
     border-bottom: 1px solid var(--surface-hover);
 }
 
-/* La parte de las extensiones: que resalten sin ser demasiado agresivas */
+/* Make extensions stand out without being too prominent. */
 .dir-row td:last-child {
     text-align: right;
     font-family: 'SFMono-Regular', Consolas, monospace;

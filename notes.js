@@ -279,7 +279,7 @@ function updateNote() {
     const symptomsVal = symptomsInput ? symptomsInput.value.trim() : '';
     const insuranceVal = (selectIN && selectIN.style.display !== 'none') ? selectIN.value : (selectCustomIN?.value || '');
     
-    // Definir las banderas antes de usarlas
+    // Define the flags before using them.
     const isErEmpty = !customERVal && !erVal;
     const hasAnyFieldFilled = symptomsVal !== '' || insuranceVal !== '' || memberId !== '' || additionalNotes !== '';
     
@@ -299,7 +299,7 @@ function updateNote() {
     if (insuranceVal) noteParts.push(insuranceVal);
     if (additionalNotes) noteParts.push(additionalNotes);
     
-    // Se agrega "No E/R" si hay campos llenos pero los selectores de E/R están vacíos
+    // Add "No E/R" when fields are populated but the E/R selectors are empty.
     if (hasAnyFieldFilled && isErEmpty) {
         noteParts.push("No E/R");
     }
@@ -471,11 +471,11 @@ function toggleFloatingDirectory() {
 
     if (isExpanded) {
         if (expandBtn) expandBtn.textContent = '✕ Minimizar';
-        // Opcional: Agregar un fondo oscuro detrás (overlay) si se desea
-        document.body.style.overflow = 'hidden'; // Evita el scroll del fondo
+        // Optionally add a dark overlay behind the modal.
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling.
     } else {
-        if (expandBtn) expandBtn.textContent = '⤢ Expandir';
-        document.body.style.overflow = ''; // Restaura el scroll
+        if (expandBtn) expandBtn.textContent = '⤢ Expand';
+        document.body.style.overflow = ''; // Restore scrolling.
     }
 }
 

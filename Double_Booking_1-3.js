@@ -1,65 +1,65 @@
 (function() {
-    function actualizarFlujoFechas() {
-        console.log("[DB-LOG] Iniciando ejecución de actualizarFlujoFechas...");
+    function updateDateFlow() {
+        console.log("[DB-LOG] Starting updateDateFlow...");
         
-        const opciones = { weekday: 'long', day: 'numeric', month: 'long' };
-        const ahora = new Date();
-        const tabla = document.getElementById('tabla-fechas');
+        const dateOptions = { weekday: 'long', day: 'numeric', month: 'long' };
+        const now = new Date();
+        const table = document.getElementById('tabla-fechas');
         
-        if (!tabla) {
-            console.warn("[DB-LOG] Aviso: No se encontró el elemento 'tabla-fechas' todavía.");
+        if (!table) {
+            console.warn("[DB-LOG] The 'tabla-fechas' element was not found yet.");
             return;
         }
         
-        tabla.innerHTML = ''; 
+        table.innerHTML = '';
 
-        const horaActualStr = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-        // Buscamos el encabezado dentro de esta misma vista para evitar conflictos globales
-        const thInicio = document.querySelector('#header-inicio') || document.querySelector('th:first-child');
+        const currentTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        // Find the header within this view to avoid global conflicts.
+        const startHeader = document.querySelector('#header-inicio') || document.querySelector('th:first-child');
         
-        if (thInicio) {
-            thInicio.innerHTML = `Día de la Llamada (Inicio)<br><strong>${ahora.toLocaleDateString('es-ES')} - ${horaActualStr}</strong>`;
-            console.log("[DB-LOG] Encabezado actualizado con hora:", horaActualStr);
+        if (startHeader) {
+            startHeader.innerHTML = `Call Day (Start)<br><strong>${now.toLocaleDateString('en-US')} - ${currentTime}</strong>`;
+            console.log("[DB-LOG] Header updated with time:", currentTime);
         }
 
         for (let i = 0; i < 6; i++) {
-            let fechaOrigen = new Date();
-            fechaOrigen.setDate(ahora.getDate() + i);
+            const sourceDate = new Date();
+            sourceDate.setDate(now.getDate() + i);
 
-            if (fechaOrigen.getDay() === 0) continue;
+            if (sourceDate.getDay() === 0) continue;
 
-            let f24 = new Date(fechaOrigen); f24.setDate(fechaOrigen.getDate() + 1);
-            let f48 = new Date(fechaOrigen); f48.setDate(fechaOrigen.getDate() + 2);
-            let f72 = new Date(fechaOrigen); f72.setDate(fechaOrigen.getDate() + 3);
+            const date24 = new Date(sourceDate); date24.setDate(sourceDate.getDate() + 1);
+            const date48 = new Date(sourceDate); date48.setDate(sourceDate.getDate() + 2);
+            const date72 = new Date(sourceDate); date72.setDate(sourceDate.getDate() + 3);
 
-            let txtOrigen = (i === 0) ? `HOY: ${fechaOrigen.toLocaleDateString('es-ES', opciones)}` : fechaOrigen.toLocaleDateString('es-ES', opciones);
+            const sourceText = (i === 0) ? `TODAY: ${sourceDate.toLocaleDateString('en-US', dateOptions)}` : sourceDate.toLocaleDateString('en-US', dateOptions);
             
-            let txt72 = (f72.getDay() === 0) ? "Domingo (CERRADO)" : 
-                        (i === 0) ? `${f72.toLocaleDateString('es-ES', opciones)} <br><span class="booking-deadline"><strong>Antes de las: ${horaActualStr}</strong></span>` :
-                        f72.toLocaleDateString('es-ES', opciones);
+            const text72 = (date72.getDay() === 0) ? "Sunday (CLOSED)" :
+                        (i === 0) ? `${date72.toLocaleDateString('en-US', dateOptions)} <br><span class="booking-deadline"><strong>Before: ${currentTime}</strong></span>` :
+                        date72.toLocaleDateString('en-US', dateOptions);
 
-            let fila = `<tr>
-                <td>${txtOrigen}</td>
-                <td>${(f24.getDay() === 0) ? "Domingo (CERRADO)" : f24.toLocaleDateString('es-ES', opciones)}</td>
-                <td>${(f48.getDay() === 0) ? "Domingo (CERRADO)" : f48.toLocaleDateString('es-ES', opciones)}</td>
-                <td>${txt72}</td>
+            const row = `<tr>
+                <td>${sourceText}</td>
+                <td>${(date24.getDay() === 0) ? "Sunday (CLOSED)" : date24.toLocaleDateString('en-US', dateOptions)}</td>
+                <td>${(date48.getDay() === 0) ? "Sunday (CLOSED)" : date48.toLocaleDateString('en-US', dateOptions)}</td>
+                <td>${text72}</td>
             </tr>`;
             
-            tabla.innerHTML += fila;
+            table.innerHTML += row;
         }
-        console.log("[DB-LOG] Tabla generada exitosamente.");
+        console.log("[DB-LOG] Table generated successfully.");
     }
 
-    // Ejecución inmediata al inyectar el HTML
+    // Run immediately when the HTML is injected.
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', actualizarFlujoFechas);
+        document.addEventListener('DOMContentLoaded', updateDateFlow);
     } else {
-        actualizarFlujoFechas();
+        updateDateFlow();
     }
 
-    // Intervalo de actualización periódica (cada 30 segundos)
+    // Refresh every 30 seconds.
     if (!window._dbIntervalStarted) {
         window._dbIntervalStarted = true;
-        setInterval(actualizarFlujoFechas, 30000);
+        setInterval(updateDateFlow, 30000);
     }
 })();

@@ -1,4 +1,4 @@
-/* directory.js - HTML Directory con soporte OPFS y carga en vivo */
+/* directory.js - HTML directory with OPFS and live updates */
 
 'use strict';
 
@@ -10,15 +10,15 @@ window.APP_DATA = window.APP_DATA || {};
     let renderedFiles = new Set();
 
     async function loadClinics() {
-        console.log("LOG_DEBUG: Iniciando loadClinics desde OPFS (Directory)...");
+        console.log("LOG_DEBUG: Loading clinic directory from OPFS...");
         const root = document.getElementById("csvdir-root");
         if (!root) {
-            console.error("LOG_DEBUG: No se encontró el elemento #csvdir-root");
+            console.error("LOG_DEBUG: Element #csvdir-root was not found.");
             return;
         }
 
-        // Si está vacío o tiene el texto de carga, lo limpiamos para empezar a pintar
-        if (!root.hasChildNodes() || root.innerHTML.includes("Cargando") || root.innerHTML.includes("No hay")) {
+        // Clear the container if it is empty or still shows a loading/empty message.
+        if (!root.hasChildNodes() || root.innerHTML.includes("Loading") || root.innerHTML.includes("No files")) {
             root.innerHTML = "";
         }
 
@@ -27,17 +27,17 @@ window.APP_DATA = window.APP_DATA || {};
             let dirHandle;
 
             try {
-                // Intentamos abrir la carpeta "Directory" en la raíz del OPFS
+                // Open the "Directory" folder at the OPFS root.
                 dirHandle = await rootDir.getDirectoryHandle("Directory", { create: false });
             } catch (e) {
-                console.warn("⚠️ La carpeta 'Directory' aún no existe en el OPFS.");
-                root.innerHTML = "<div class='directory-status directory-status-pending'>Esperando archivos del directorio...</div>";
+                console.warn("⚠️ The 'Directory' folder does not exist in OPFS yet.");
+                root.innerHTML = "<div class='directory-status directory-status-pending'>Waiting for directory files...</div>";
                 return;
             }
 
             let fileCount = 0;
 
-            // 1. Leer y renderizar lo que ya esté guardado en el OPFS
+            // 1. Read and render files already stored in OPFS.
             for await (const [name, handle] of dirHandle.entries()) {
                 if (handle.kind === 'file' && name.toLowerCase().endsWith('.html') && !renderedFiles.has(name)) {
                     await renderClinicItem(handle, name, root);
@@ -45,18 +45,18 @@ window.APP_DATA = window.APP_DATA || {};
                 }
             }
 
-            if (fileCount === 0 && root.innerHTML.includes("Esperando")) {
-                root.innerHTML = "<div class='directory-status directory-status-pending'>No hay archivos en la carpeta Directory.</div>";
+            if (fileCount === 0 && root.innerHTML.includes("Waiting")) {
+                root.innerHTML = "<div class='directory-status directory-status-pending'>No files in the Directory folder.</div>";
                 return;
             }
 
-            // 2. Escuchar en vivo los archivos que vayan llegando por la sincronización
+            // 2. Listen for files as they arrive during synchronization.
             window.removeEventListener("FileSyncedLive", handleLiveClinicArrival);
             window.addEventListener("FileSyncedLive", handleLiveClinicArrival);
 
         } catch (err) {
-            console.error("Error crítico cargando el directorio desde OPFS:", err);
-            root.innerHTML = "<div class='directory-status directory-status-error'>Error crítico cargando los directorios clínicos.</div>";
+            console.error("Critical error loading the directory from OPFS:", err);
+            root.innerHTML = "<div class='directory-status directory-status-error'>Critical error loading clinic directories.</div>";
         }
     }
 
@@ -64,7 +64,7 @@ window.APP_DATA = window.APP_DATA || {};
         if (e.detail.category === "Directory" && !renderedFiles.has(e.detail.name)) {
             const root = document.getElementById("csvdir-root");
             if (root) {
-                if (root.innerHTML.includes("Cargando") || root.innerHTML.includes("No hay") || root.innerHTML.includes("Esperando")) {
+                if (root.innerHTML.includes("Loading") || root.innerHTML.includes("No files") || root.innerHTML.includes("Waiting")) {
                     root.innerHTML = "";
                 }
                 await renderClinicItem(e.detail.handle, e.detail.name, root);
@@ -85,7 +85,7 @@ window.APP_DATA = window.APP_DATA || {};
             buildClinicMarkup(section);
             rootElement.appendChild(section);
 
-            // Reconstruir índices, selectores y metadatos dinámicamente
+            // Rebuild indexes, selectors, and metadata.
             buildIndex();
             buildClinicSelect();
             updateMeta(DIRECTORY_INDEX.length, DIRECTORY_INDEX.length);
@@ -96,7 +96,7 @@ window.APP_DATA = window.APP_DATA || {};
                 box.addEventListener("input", filterDirectory);
             }
         } catch (err) {
-            console.error(`Error procesando la clínica [${fileName}]:`, err);
+            console.error(`Error processing clinic file [${fileName}]:`, err);
         }
     }
 
@@ -166,7 +166,7 @@ window.APP_DATA = window.APP_DATA || {};
         const sel = document.getElementById("dirClinicSelect");
         if (!sel) return;
 
-        // Mantener opción por defecto y reconstruir
+        // Preserve the current selection while rebuilding the options.
         const currentValue = sel.value;
         sel.innerHTML = '<option value="">All clinics</option>';
 

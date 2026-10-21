@@ -8,7 +8,7 @@
     searchMarker = null,
     searchLine = null,
     markersLayer = null;
-    const clinicMarkers = {}; // Objeto para guardar la referencia de cada pin por su código
+    const clinicMarkers = {}; // Store each marker by clinic code.
 
     /* ---------- Utilities ---------- */
     async function safeJson(url) {
@@ -41,7 +41,7 @@
     async function loadData() {
         console.log("🔍 [MAP DEBUG] Initializing loadData()...");
         
-        let rawLookup = localStorage.getItem("csv_clinicLookup") || (typeof obtenerCsv === 'function' ? obtenerCsv("clinicLookup") : null);
+        let rawLookup = localStorage.getItem("csv_clinicLookup") || (typeof window.getCachedData === 'function' ? window.getCachedData("clinicLookup") : null);
         const nicknameMap = new Map();
         if (rawLookup) {
             let parsedLookup = rawLookup;
@@ -56,7 +56,7 @@
             });
         }
 
-        let rawClinics = localStorage.getItem("csv_clinics") || (typeof obtenerCsv === 'function' ? obtenerCsv("clinics") : null);
+        let rawClinics = localStorage.getItem("csv_clinics") || (typeof window.getCachedData === 'function' ? window.getCachedData("clinics") : null);
         
         if (typeof rawClinics === 'string' && (rawClinics.trim().startsWith('[') || rawClinics.trim().startsWith('{'))) {
             try {
@@ -77,7 +77,7 @@
             CLINICS = mapClinicsCsvToObjects(objectRows, nicknameMap);
         }
 
-        const provTxt = localStorage.getItem("csv_providersSchedCurr") || localStorage.getItem("csv_providersSched") || (typeof obtenerCsv === 'function' ? obtenerCsv("providersSched") : null);
+        const provTxt = localStorage.getItem("csv_providersSchedCurr") || localStorage.getItem("csv_providersSched") || (typeof window.getCachedData === 'function' ? window.getCachedData("providersSched") : null);
         if (provTxt) {
             let provRows = [];
             let parsedProv = provTxt;
@@ -94,7 +94,7 @@
             }, {});
         }
 
-        let extTxt = localStorage.getItem("csv_extensions") || (typeof obtenerCsv === 'function' ? obtenerCsv("extensions") : null);
+        let extTxt = localStorage.getItem("csv_extensions") || (typeof window.getCachedData === 'function' ? window.getCachedData("extensions") : null);
         if (extTxt) {
             let extRows = [];
             let parsedExt = extTxt;
@@ -278,7 +278,7 @@
             markersLayer = null;
         }
         markersLayer = L.layerGroup().addTo(map);
-        Object.keys(clinicMarkers).forEach(k => delete clinicMarkers[k]); // Limpiar diccionario anterior
+        Object.keys(clinicMarkers).forEach(k => delete clinicMarkers[k]); // Clear the previous marker dictionary.
         const bounds = L.latLngBounds();
 
         const clinicIcon = L.icon({
@@ -309,7 +309,7 @@
             }
 
             const m = L.marker([lat, lng], { icon: clinicIcon }).addTo(markersLayer);
-            clinicMarkers[c.code] = m; // Guardar referencia del marcador
+            clinicMarkers[c.code] = m; // Store the marker reference.
 
             m.bindTooltip(c.code, {
                 permanent: true,
@@ -328,7 +328,7 @@
         }
     }
 
-    /* ---------- Smart Centering (Actualizado para recibir distancia opcional) ---------- */
+    /* ---------- Smart centering (supports an optional distance) ---------- */
     function selectClinic(c, distance) {
         renderSelectedClinic(c, distance);
         if (c.lat && c.lng) {
@@ -523,7 +523,7 @@
         if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
 
         // ==========================================
-        // CASO A: Hay una clínica seleccionada en el dropdown
+        // Case A: A clinic is selected in the dropdown.
         // ==========================================
         if (selectedCode) {
             const matchedClinic = getClinicByCode(selectedCode);
@@ -560,7 +560,7 @@
                 }
             }
 
-            // Simular el clic en el pin de forma directa pasando la distancia calculada
+            // Simulate a direct click on the marker and pass the calculated distance.
             selectClinic({ ...matchedClinic, lat: matchedClinic.lat, lng: matchedClinic.lng }, drivingDistMiles);
 
             if (resolvedGeo && routeGeometry) {
@@ -591,7 +591,7 @@
         }
 
         // ==========================================
-        // CASO B: El dropdown está en blanco (buscar la clínica más cercana)
+        // Case B: No clinic is selected; find the nearest clinic.
         // ==========================================
         if (!searchInputQuery) {
             alert('Please enter an address, ZIP code or select a clinic from the dropdown.');

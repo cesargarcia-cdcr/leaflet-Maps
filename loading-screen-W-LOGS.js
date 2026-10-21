@@ -97,17 +97,17 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
         }
     }
 
-    // Exponer la función de forma segura en el espacio global
+    // Safely expose the function in the global namespace.
     window.GreenLeaderStorage = window.GreenLeaderStorage || {};
     window.GreenLeaderStorage.writeLogToOPFS = writeLogToOPFS;
     window.GreenLeaderStorage.clearOPFSLogs = clearOPFSLogs;
 
-    // Buffer de sesión y nombre de archivo único por instancia de carga
+    // Session buffer and unique filename for each page load.
     const sessionTimestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const sessionLogFilename = `flight_deck_log_${sessionTimestamp}.txt`;
     const logBuffer = [];
 
-    // Interceptor inteligente de la consola para respaldar la actividad en tiempo real
+    // Intercept console output and back up activity in real time.
     const originalConsoleLog = console.log;
     const originalConsoleWarn = console.warn;
     const originalConsoleError = console.error;
@@ -397,9 +397,8 @@ function triggerAutomaticLoginFlow() {
         const openPopup = () => {
             console.log("🟡 [Gold Leader]: Opening authentication window in a normal browser session...");
         
-            // Al NO pasar dimensiones (width, height, etc.), Chrome en modo --app
-            // abre el enlace en una ventana normal del navegador, usando el perfil
-            // principal y evitando el aislamiento de cookies.
+            // Without window dimensions, Chrome in --app mode opens a regular browser
+            // window that uses the main profile and avoids cookie isolation.
             loginWindow = window.open(sharePointSiteUrl, "_blank");
 
             if (!loginWindow || loginWindow.closed || typeof loginWindow.closed == 'undefined') {

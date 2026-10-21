@@ -141,7 +141,7 @@
     <link rel="icon" href='data:image/svg+xml,<svg xmlns="https://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="12" font-size="12">🗂️</text></svg>' />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- 🎨 Hojas de Estilo Oficiales -->
+    <!-- 🎨 Main stylesheets -->
     <link rel="stylesheet" href="layout.css"> 
     <link rel="stylesheet" href="notes.css"> 
     <link rel="stylesheet" href="map.css"> 
@@ -204,10 +204,10 @@
                         <button class="btn primary" onclick="copyResult()">📋 Copy Note</button>
                     </div>
 
-                    <!-- Contenedor de 2 Columnas -->
+                    <!-- Two-column layout -->
                     <div class="note-grid-container">
                         
-                        <!-- COLUMNA 1: Constructor de Notas -->
+                        <!-- COLUMN 1: Note builder -->
                         <div class="note-column-left">
                             
                             <!-- Row 2: Symptoms & UC/ER -->
@@ -263,17 +263,17 @@
                             </div>
                         </div>
 
-                        <!-- COLUMNA 2: Visit Type Directory & Filter -->
+                        <!-- COLUMN 2: Visit type directory and filter -->
                         <div class="directory-column-right">
-                            <!-- Botón flotante -->
-                            <button type="button" class="expand-floating-btn" onclick="toggleFloatingDirectory()" id="expandBtn">⤢ Expandir</button>
+                            <!-- Floating expand button -->
+                            <button type="button" class="expand-floating-btn" onclick="toggleFloatingDirectory()" id="expandBtn">⤢ Expand</button>
                             
                             <label class="form-label mb-8">🔍 Visit Type Directory & Filter</label>
                             
-                            <input type="text" id="live-search-input" placeholder="🔍 Filtrar tipos de visita, códigos o guías..." class="live-search-input" oninput="filterEpicGuide(this.value)" />
+                            <input type="text" id="live-search-input" placeholder="🔍 Filter visit types, codes, or guides..." class="live-search-input" oninput="filterEpicGuide(this.value)" />
 
                             <div class="epic-guide-scroll-container">
-                                <div id="content-area" class="msg-box info-msg min-width-content">Cargando y sincronizando datos dinámicamente...</div>
+                                <div id="content-area" class="msg-box info-msg min-width-content">Loading and syncing data...</div>
                             </div>
 
                             <select id="visit-type-select" class="display-none"></select>
@@ -332,7 +332,7 @@
 
             <section class="card is-hidden" id="directory-section">
                 <div class="card-hd dir-sticky-hd" id="dirStickyHd">
-                    <h3>📘 Directory (CSV)</h3>
+                    <h3>📘 Clinic Directory</h3>
                     <div class="actions">
                         <div class="search-wrapper directory-search-wrapper">
                             <select id="dirClinicSelect" class="dir-select" title="Filter by clinic">
@@ -396,23 +396,23 @@
             </section>
         </div>
         <!-- 💡 Floating Help Button & Modal -->
-        <button class="floating-help-btn" onclick="toggleHelpModal()" title="Ayuda y Atajos">?</button>
+        <button class="floating-help-btn" onclick="toggleHelpModal()" title="Help and Shortcuts">?</button>
 
         <div id="help-modal-overlay" class="help-modal-overlay" onclick="toggleHelpModal()"></div>
         <div id="help-modal-container" class="help-modal-box">
             <div class="help-modal-header">
-                <h3>⌨️ Atajos de Teclado y Ayuda</h3>
+                <h3>⌨️ Keyboard Shortcuts and Help</h3>
                 <button class="help-modal-close" onclick="toggleHelpModal()">✕</button>
             </div>
             <div class="help-modal-body">
-                <p class="help-intro">Usa estos atajos rápidos para navegar eficientemente por la aplicación:</p>
+                <p class="help-intro">Use these shortcuts to navigate the app efficiently:</p>
                 <ul class="help-shortcuts-list">
                     <li><span>Note-builder</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>1</kbd></li>
                     <li><span>Map</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>2</kbd></li>
                     <li><span>Clinic Directory</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>3</kbd></li>
                     <li><span>Provider Directory</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>4</kbd></li>
                     <li><span>Guidelines & Info</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>5</kbd></li>
-                    <li><span>Copiar Nota (en sección Note)</span> <kbd>Ctrl</kbd> + <kbd>C</kbd></li>
+                    <li><span>Copy Note (in the Note section)</span> <kbd>Ctrl</kbd> + <kbd>C</kbd></li>
                 </ul>
             </div>
         </div>
@@ -451,7 +451,7 @@
             
             if (typeof window.initManualMap === 'function') {
                 window.initManualMap();
-            } else if (typeof window.obtenerCsv === 'function' || localStorage.getItem("cache_payload")) {
+            } else if (typeof window.getCachedData === 'function' || localStorage.getItem("cache_payload")) {
                 setTimeout(() => {
                     window.dispatchEvent(new Event('AppDataLoaded'));
                 }, 100);
@@ -595,36 +595,35 @@ window.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('DOMContentLoaded', () => {
     let isNoteSectionVisible = false;
 
-    // 1. Observador para detectar si la sección de notas está visible en el viewport
+    // 1. Observe when the notes section is visible in the viewport.
     const noteSection = document.getElementById('note-section');
     if (noteSection) {
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 isNoteSectionVisible = entry.isIntersecting;
             });
-        }, { threshold: 0.2 }); // Se activa cuando al menos el 20% de la sección es visible
+        }, { threshold: 0.2 }); // Trigger when at least 20% of the section is visible.
 
         observer.observe(noteSection);
     }
 
-    // 2. Listener global para la combinación Ctrl + C
+    // 2. Global listener for the Ctrl+C shortcut.
     document.addEventListener('keydown', (e) => {
-        // Verifica si presionaron Ctrl (o Cmd en Mac) + la tecla 'C' (o 'c')
+        // Check whether Ctrl (or Cmd on Mac) and the C key were pressed.
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
             
-            // Si la sección de notas está visible
+            // Only handle the shortcut while the notes section is visible.
             if (isNoteSectionVisible) {
                 
-                // Opcional: Si el usuario tiene seleccionado texto de manera nativa (ej. en un textarea o input),
-                // es mejor dejar que el navegador haga el copiado normal. Pero si NO hay texto seleccionado,
-                // forzamos tu función personalizada 'copyResult()'.
+                // Let the browser handle copying when text is selected in an input or textarea.
+                // Otherwise, call the custom copyResult() function.
                 const selectedText = window.getSelection().toString();
                 
                 if (!selectedText) {
-                    e.preventDefault(); // Evita el comportamiento por defecto si es necesario
+                    e.preventDefault(); // Prevent the default behavior when needed.
                     if (typeof copyResult === 'function') {
                         copyResult();
-                        console.log("📋 'Ctrl + C' detectado: Ejecutando copyResult() automáticamente.");
+                        console.log("📋 Ctrl+C detected: running copyResult() automatically.");
                     }
                 }
             }

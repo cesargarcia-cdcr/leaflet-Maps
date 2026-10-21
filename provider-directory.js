@@ -86,13 +86,13 @@
         const keywordsSet = new Set();
         
         try {
-            // Intentar obtener y parsear csv_Procedures desde localStorage
+            // Try to retrieve and parse csv_Procedures from localStorage.
             const rawProcedures = localStorage.getItem('csv_Procedures');
             if (rawProcedures) {
                 const proceduresArray = JSON.parse(rawProcedures);
                 if (Array.isArray(proceduresArray)) {
                     proceduresArray.forEach(item => {
-                        // Extraer el campo exacto "Filter Tag"
+                        // Extract the exact "Filter Tag" field.
                         const tag = item["Filter Tag"] || item["filter tag"] || "";
                         const cleanTag = String(tag).trim();
                         if (cleanTag) {
@@ -105,7 +105,7 @@
             console.error("❌ [PROVIDER_LOG] Error parsing csv_Procedures from localStorage:", e);
         }
 
-        // Si por alguna razón el localStorage estuviera vacío, respaldamos con el comportamiento anterior de los Do's
+        // If localStorage is empty, fall back to the previous "Do's" behavior.
         /* if (keywordsSet.size === 0) {
             masterList.forEach(doc => {
                 const rawDos = doc["Do's ✔"] || doc["Dos"] || doc["Do's"] || "";
@@ -166,7 +166,7 @@
             ensureFiltersDOM();
             let rawProviders = localStorage.getItem('csv_mainProviders') ||
                 localStorage.getItem('masterProviders') ||
-                (typeof obtenerCsv === 'function' ? obtenerCsv("mainProviders") : null);
+                (typeof window.getCachedData === 'function' ? window.getCachedData("mainProviders") : null);
 
             if (!rawProviders && window.APP_DATA && window.APP_DATA.mainProviders) {
                 rawProviders = window.APP_DATA.mainProviders;

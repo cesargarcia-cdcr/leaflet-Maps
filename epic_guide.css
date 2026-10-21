@@ -1,4 +1,4 @@
-/* --- Estilos Mejorados para la Guía de Visitas y Tablas Dinámicas --- */
+/* --- Enhanced visit guide and dynamic table styles --- */
 
 .epic-guide-page #content-area .epic-guide-table,
 .app-container #content-area .epic-guide-table {
@@ -18,7 +18,7 @@
 .epic-guide-page #content-area .epic-guide-table th:nth-child(6),
 .app-container #content-area .epic-guide-table th:nth-child(6) { width: 9%; }
 
-/* Contenedor principal de secciones */
+/* Main section container */
 .section-container {
     margin-bottom: 14px;
     background: var(--panel);
@@ -33,7 +33,7 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-/* Cabecera de cada sección */
+/* Section header */
 .section-header {
     background: linear-gradient(135deg, var(--primary-deep), var(--primary));
     color: var(--text-on-dark);
@@ -44,7 +44,7 @@
     border-bottom: 1px solid var(--primary-hover);
 }
 
-/* Estilos de la tabla interna */
+/* Inner table styles */
 .section-container table {
     width: 100%;
     border-collapse: collapse;
@@ -69,13 +69,13 @@
     border-bottom: 1px solid var(--surface-hover);
 }
 
-/* Fila interactiva al hacer hover */
+/* Interactive row hover state */
 .section-container tbody tr {
     transition: background-color 0.15s ease;
 }
 
 .section-container tbody tr:hover {
-    background-color: var(--success-surface) !important; /* Toque verde sutil clínico */
+    background-color: var(--success-surface) !important; /* Subtle clinical green accent */
     cursor: pointer;
 }
 
@@ -83,7 +83,7 @@
     border-bottom: none;
 }
 
-/* Caja de búsqueda mejorada */
+/* Enhanced search box */
 #live-search-input {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'%3E%3C/path%3E%3C/svg%3E");
     background-repeat: no-repeat;
@@ -98,7 +98,7 @@
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-/* Scrollbar fina para el contenedor de la tabla */
+/* Thin scrollbar for the table container */
 div[style*="max-height: 420px"]::-webkit-scrollbar {
     width: 6px;
 }
@@ -117,7 +117,7 @@ div[style*="max-height: 420px"]::-webkit-scrollbar-thumb:hover {
     background: var(--muted);
 }
 
-/* Estilo para que la cabecera parezca un botón interactivo */
+/* Style the header as an interactive button */
 .section-header {
     cursor: pointer;
     user-select: none;
@@ -126,14 +126,14 @@ div[style*="max-height: 420px"]::-webkit-scrollbar-thumb:hover {
     align-items: center;
 }
 
-/* Indicador de flecha en la cabecera */
+/* Header arrow indicator */
 .section-header::after {
     content: "▼";
     font-size: 0.75em;
     transition: transform 0.2s ease;
 }
 
-/* Cuando la sección está colapsada, rotamos la flecha y ocultamos la tabla */
+/* Rotate the arrow and hide the table when the section is collapsed. */
 .section-container.collapsed .section-header::after {
     transform: rotate(-90deg);
 }

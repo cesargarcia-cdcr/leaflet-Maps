@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <!-- Estilos de la app -->
+    <!-- App styles -->
     <link rel="stylesheet" href="layout.css"> 
     <link rel="stylesheet" href="notes.css"> 
     <link rel="stylesheet" href="map.css">
@@ -21,9 +21,9 @@
 </head>
 <body class="map-page">
 
-    <!-- Controles superiores del mapa (Buscador y botón de regreso opcional) -->
+    <!-- Map controls (search and optional back button) -->
     <div class="map-controls map-page-controls">
-        <a href="index.html" class="btn ghost map-page-back">⬅️ Volver</a>
+        <a href="index.html" class="btn ghost map-page-back">⬅️ Back</a>
         <div class="mc-search map-page-search">
             <input id="searchInput" class="mc-input map-page-search-input" list="clinicNameList" placeholder="Address, ZIP, code, nickname, or clinic name" />
             <datalist id="clinicNameList"></datalist>
@@ -32,10 +32,10 @@
         </div>
     </div>
 
-    <!-- Contenedor del Mapa -->
+    <!-- Map container -->
     <div id="map" class="map-viewport map-page-viewport"></div>
 
-    <!-- Panel lateral deslizante de la clínica -->
+    <!-- Clinic slide-out panel -->
     <aside id="place-sheet" class="sheet" aria-hidden="true">
         <div class="sheet-hd">
             <div class="sheet-title">Selected Clinic</div>
@@ -48,24 +48,24 @@
         </div>
     </aside>
 
-    <!-- Script puente para obtener los CSVs desde localStorage si la app usa un cargador central -->
+    <!-- Bridge script for retrieving cached data from localStorage. -->
     <script>
-        // Función auxiliar para recuperar los CSVs que la app guarda en localStorage
-        function obtenerCsv(nombreKey) {
+        // Retrieve cached data stored in localStorage.
+        window.getCachedData = function(key) {
             try {
-                // Intenta buscar el payload general de caché o claves individuales
+                // Check the full cached payload first, then individual keys.
                 const payload = JSON.parse(localStorage.getItem("cache_payload") || "{}");
-                if (payload[nombreKey]) return payload[nombreKey];
+                if (payload[key]) return payload[key];
                 
-                // Si se guardan de forma independiente
-                return localStorage.getItem(nombreKey) || "";
+                // Fall back to individually stored data.
+                return localStorage.getItem(key) || "";
             } catch (e) {
-                console.error("Error al leer CSV de localStorage:", e);
+                console.error("Error reading cached data from localStorage:", e);
                 return "";
             }
         }
 
-        // Simula el evento de carga para que map.js dispare su lógica al arrancar
+        // Dispatch the load event so map.js can initialize.
         window.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 const event = new Event('AppDataLoaded');
@@ -74,7 +74,7 @@
         });
     </script>
 
-    <!-- Script principal del mapa -->
+    <!-- Main map script -->
     <script src="map.js"></script>
 </body>
 </html>

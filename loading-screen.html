@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,18 +12,18 @@
     <head>
     <meta charset="UTF-8" />
     
-    <!-- 🛡️ BLOQUEADOR CRÍTICO DE SESIÓN (Debe ir al inicio absoluto del <head>) -->
+    <!-- 🛡️ CRITICAL SESSION GUARD (must be at the very start of <head>) -->
     <script>
         (function() {
             try {
-                // Evalúa tus condiciones de bloqueo (bandera global, parámetros de URL o estado de sesión)
+                // Check the lock conditions (global flag, URL parameters, or session state).
                 const sessionLocked = 
                     (window.LSEngine && window.LSEngine.isLocked) || 
                     window.location.search.includes('login_required') ||
                     localStorage.getItem("session_expired") === "true";
 
                 if (sessionLocked) {
-                    // Opción A: Vaciar el HTML y mostrar una pantalla limpia de bloqueo
+                    // Option A: Replace the page with a clean authentication screen.
                     document.documentElement.innerHTML = `
                         <head>
                             <title>Authentication Required</title>
@@ -32,39 +32,39 @@
                         </head>
                         <body class="loading-auth-page">
                             <div class="box">
-                                <h2>🔒 Sesión Requerida</h2>
-                                <p>No hay una sesión activa o la autenticación ha expirado.</p>
-                                <p class="loading-auth-note">Por favor, complete el inicio de sesión para continuar.</p>
+                                <h2>🔒 Authentication Required</h2>
+                                <p>No active session was found, or authentication has expired.</p>
+                                <p class="loading-auth-note">Please sign in to continue.</p>
                             </div>
                         </body>
                     `;
                     
-                    // Detiene por completo la ejecución del resto del script de la página
-                    throw new Error("Acceso denegado: Se requiere sesión activa.");
+                    // Stop the remaining page scripts from running.
+                    throw new Error("Access denied: An active session is required.");
                 }
             } catch (e) {
-                // Silencia el error intencional de interrupción para que no ensucie la consola de forma crítica
-                if (e.message !== "Acceso denegado: Se requiere sesión activa.") {
-                    console.error("Error en bloqueo de seguridad:", e);
+                // Ignore the intentional interruption error.
+                if (e.message !== "Access denied: An active session is required.") {
+                    console.error("Error in the security guard:", e);
                 }
             }
         })();
     </script>
 
-    <!-- El resto de tus meta tags, hojas de estilo (leaflet, app.css, etc.) van aquí abajo... -->
+    <!-- Add the remaining metadata and stylesheets (Leaflet, app styles, etc.) below. -->
     <script>
-        // Forzar recarga completa desde el servidor (equivalente a recarga dura)
+        // Force a full reload from the server.
     function hardReloadApp() {
-        // Si agregas un parámetro aleatorio, forzarás al navegador a buscar el HTML fresco
+        // Add a random parameter to force the browser to fetch fresh HTML.
         const currentUrl = window.location.href.split('?')[0];
         const searchParams = window.location.search;
         
-        // Añade o actualiza un timestamp de versión para romper la caché del navegador
+        // Add or update a version timestamp to bypass the browser cache.
         const cacheBuster = `_cb=${Date.now()}`;
         
         let newUrl = currentUrl;
         if (searchParams) {
-            // Reemplaza o añade el parámetro de control
+            // Replace or add the cache-busting parameter.
             if (searchParams.includes('_cb=')) {
                 newUrl += searchParams.replace(/_cb=\d+/, cacheBuster);
             } else {
@@ -120,10 +120,10 @@
         </div>
     </div>
 
-    <!-- Carga de la librería del mapa -->
+    <!-- Load the map library -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Scripts independientes listos para ser controlados -->
+    <!-- Independent scripts, ready to be orchestrated -->
     <script src="loading-screen-W-LOGS.js"></script>
     <script src="map-lite.js"></script>
     <script src="block-F12.js"></script>
@@ -131,12 +131,12 @@
     <script>
     document.addEventListener('DOMContentLoaded', async () => {
     try {
-        console.log("🚀 [LSEngine] Iniciando secuencia de carga...");
+        console.log("🚀 [LSEngine] Starting the loading sequence...");
         
         const urlParams = new URLSearchParams(window.location.search);
         const isFastMode = urlParams.get('fast') === '1' || localStorage.getItem("lite_payload_cache");
 
-        // 1. Esperamos la decisión de sesión: online o modo offline explícito.
+        // 1. Wait for the session decision: online or explicitly offline.
         let sessionActive = true;
         if (typeof red_leader === 'function') {
             sessionActive = await red_leader([0]);
@@ -153,33 +153,33 @@
         }
         if (!sessionActive) return;
 
-        // 2. Condicional limpio según el modo rápido
+        // 2. Choose the data-loading path based on fast mode.
         if (isFastMode) {
-            console.log("⚡ [LSEngine] Modo rápido (?fast=1) activado: Saltando fetch lite y cargando desde OPFS...");
+            console.log("⚡ [LSEngine] Fast mode (?fast=1) is enabled. Skipping the lite fetch and loading from OPFS...");
             if (typeof red_leader === 'function') {
                 await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
             }
         } else {
-            console.log("🌐 [LSEngine] Ejecutando petición de datos principales (Lite Payload)...");
+            console.log("🌐 [LSEngine] Fetching the main data payload (lite)...");
             await window.LSEngine.taskFetchMainDataLite();
             await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
         }
 
-        // 3. Pintar el mapa de inmediato
+        // 3. Render the map immediately.
         const mapLoaded = window.LSEngine.initializeMap();
 
         if (mapLoaded) {
-            console.log("📍 Mapa operativo. Procediendo con la sincronización y descarga en segundo plano...");
+            console.log("📍 Map is ready. Starting background synchronization and downloads...");
             
-            // 4. Ejecutamos el resto de los procesos pesados usando red_leader (Pasos 2 y 4)
+            // 4. Run the remaining heavy tasks through red_leader (steps 2 and 4).
             if (typeof red_leader === 'function') {
                 await red_leader([2, 4]);
-                await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage(); // 👈 Asegura el mapeo a localStorage y estado global al terminar
+                await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage(); // Ensure localStorage and global state are updated.
             }
         }
     } catch (err) {
-        console.error("❌ Error en el flujo principal de LSEngine:", err);
-        window.LSEngine.setProgress(100, "Error crítico en el sistema", "ERROR");
+        console.error("❌ Error in the main LSEngine flow:", err);
+        window.LSEngine.setProgress(100, "Critical system error", "ERROR");
     }
 });
 </script>

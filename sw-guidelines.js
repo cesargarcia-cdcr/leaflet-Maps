@@ -4,16 +4,16 @@ self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim(
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Solo interceptar peticiones a la carpeta Guidelines_Info
+  // Intercept requests to the Guidelines_Info folder only.
   if (url.pathname.includes('/Guidelines_Info/')) {
     event.respondWith(
       (async () => {
         const rutaVirtual = url.pathname.substring(url.pathname.indexOf('Guidelines_Info/'));
-        const contenido = await leerDesdeOPFS(rutaVirtual);
+        const content = await readFromOPFS(virtualPath);
 
-        if (contenido !== null) {
-          const contentType = obtenerMimeType(rutaVirtual);
-          return new Response(contenido, {
+        if (content !== null) {
+          const contentType = getMimeType(virtualPath);
+          return new Response(content, {
             status: 200,
             headers: { 
               'Content-Type': contentType,
@@ -27,18 +27,18 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-async function leerDesdeOPFS(ruta) {
+async function readFromOPFS(path) {
   try {
     const root = await navigator.storage.getDirectory();
-    const partes = ruta.split('/').filter(Boolean);
-    const nombreArchivo = partes.pop();
+    const parts = path.split('/').filter(Boolean);
+    const fileName = parts.pop();
 
-    let carpeta = root;
-    for (const sub of partes) {
-      carpeta = await carpeta.getDirectoryHandle(sub);
+    let directory = root;
+    for (const subdirectory of parts) {
+      directory = await directory.getDirectoryHandle(subdirectory);
     }
 
-    const handle = await carpeta.getFileHandle(nombreArchivo);
+    const handle = await directory.getFileHandle(fileName);
     const file = await handle.getFile();
     return await file.text();
   } catch (e) {
@@ -46,10 +46,10 @@ async function leerDesdeOPFS(ruta) {
   }
 }
 
-function obtenerMimeType(ruta) {
-  if (ruta.endsWith('.html')) return 'text/html; charset=utf-8';
-  if (ruta.endsWith('.css')) return 'text/css';
-  if (ruta.endsWith('.js')) return 'application/javascript';
-  if (ruta.endsWith('.json')) return 'application/json';
+function getMimeType(path) {
+  if (path.endsWith('.html')) return 'text/html; charset=utf-8';
+  if (path.endsWith('.css')) return 'text/css';
+  if (path.endsWith('.js')) return 'application/javascript';
+  if (path.endsWith('.json')) return 'application/json';
   return 'text/plain';
 }

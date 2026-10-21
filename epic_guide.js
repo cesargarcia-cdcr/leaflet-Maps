@@ -154,7 +154,7 @@ function loadAndRenderData() {
     container.innerHTML = '';
 
     Object.keys(sectionsMap).forEach(sectionName => {
-        // Se utiliza puramente la clase de CSS definida en epic_guide.css (incluyendo 'collapsed' por defecto)
+        // Use only the CSS class defined in epic_guide.css (including the default 'collapsed' state).
         let sectionDiv = document.createElement('div');
         sectionDiv.className = 'section-container collapsed';
 
@@ -162,7 +162,7 @@ function loadAndRenderData() {
         headerDiv.className = 'section-header';
         headerDiv.textContent = sectionName;
         
-        // Evento para colapsar / expandir mediante clases CSS
+        // Use CSS classes to collapse or expand the section.
         headerDiv.onclick = () => {
             sectionDiv.classList.toggle('collapsed');
         };
