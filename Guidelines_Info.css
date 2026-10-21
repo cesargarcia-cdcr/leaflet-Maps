@@ -205,6 +205,72 @@
     list-style-type: square;
 }
 
+.abbreviations-guide .guide-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 8px;
+}
+
+.abbreviations-guide .guide-card {
+    padding: 6px;
+}
+
+.abbreviations-guide .guide-card-header {
+    padding: 6px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.abbreviations-guide .guide-card ul {
+    margin: 4px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 10px;
+}
+
+.abbreviations-guide .guide-card li {
+    padding: 3px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.abbreviations-guide .guide-card li:last-child {
+    border-bottom: 0;
+}
+
+.abbreviations-guide .guide-card li strong {
+    color: var(--guide-navy);
+}
+
+.abbreviation-general {
+    background: #e0f7fa;
+    color: #006064;
+}
+
+.abbreviation-medical {
+    background: #e8f5e9;
+    color: #1b5e20;
+}
+
+.abbreviation-womens-health {
+    background: #fce4ec;
+    color: #880e4f;
+}
+
+.abbreviation-optometry {
+    background: #fff9c4;
+    color: #f57f17;
+}
+
+.abbreviation-dental {
+    background: #f3e5f5;
+    color: #4a148c;
+}
+
+.abbreviation-operations {
+    background: #e3f2fd;
+    color: #0d47a1;
+}
+
 /* Time-block timeline */
 .timeline {
     display: flex;
