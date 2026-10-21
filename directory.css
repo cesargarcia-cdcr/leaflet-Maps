@@ -57,6 +57,10 @@ h1 {
     margin-bottom: 10px;
 }
 
+.directory-section > h2 {
+    color: #005D60;
+}
+
 .directory-table {
     width: 100%;
     margin-bottom: 10px;
@@ -68,7 +72,7 @@ h1 {
 
 .dir-row td {
     padding: 12px 8px;
-    border-bottom: 1px solid var(--surface-hover);
+    border-bottom: 1px solid #D6EDF1;
 }
 
 /* Make extensions stand out without being too prominent. */
