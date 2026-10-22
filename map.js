@@ -553,11 +553,27 @@
         const cards = track.querySelectorAll('.clinic-carousel-card');
         const cardList = [...cards];
         const selectedIndex = cardList.findIndex(card => card.dataset.code === String(code));
+        const centerIndex = selectedIndex >= 0 ? selectedIndex : 0;
+
         cardList.forEach((card, index) => {
-            const isSelected = card.dataset.code === code;
+            let offset = index - centerIndex;
+            if (cardList.length > 1) {
+                const half = Math.floor(cardList.length / 2);
+                if (offset > half) offset -= cardList.length;
+                if (offset < -half) offset += cardList.length;
+            }
+
+            const distanceFromCenter = Math.abs(offset);
+            const isSelected = selectedIndex >= 0 && index === selectedIndex;
             card.classList.toggle('is-selected', isSelected);
-            card.classList.toggle('is-prev', selectedIndex > 0 && index === selectedIndex - 1);
-            card.classList.toggle('is-next', selectedIndex >= 0 && index === selectedIndex + 1);
+            card.classList.toggle('is-center', index === centerIndex);
+            card.classList.toggle('is-prev', offset < 0);
+            card.classList.toggle('is-next', offset > 0);
+            card.classList.toggle('is-hidden-stack-card', distanceFromCenter > 5);
+            card.style.setProperty('--card-offset-x', `${offset === 0 ? 0 : Math.sign(offset) * (104 + (distanceFromCenter - 1) * 25)}px`);
+            card.style.setProperty('--card-offset-y', `${Math.min(distanceFromCenter * 3, 15)}px`);
+            card.style.setProperty('--card-scale', `${Math.max(0.78, 1 - distanceFromCenter * 0.045)}`);
+            card.style.setProperty('--card-depth', String(20 - distanceFromCenter));
             card.setAttribute('aria-pressed', String(isSelected));
             const distanceLabel = card.querySelector('.clinic-carousel-card-distance');
             if (distanceLabel) {
@@ -567,23 +583,6 @@
                     : '';
             }
         });
-
-        if (code) {
-            const selectedCard = cardList[selectedIndex];
-            if (selectedCard) {
-                const sidePadding = Math.max(0, (track.clientWidth - selectedCard.offsetWidth) / 2);
-                track.style.paddingLeft = `${sidePadding}px`;
-                track.style.paddingRight = `${sidePadding}px`;
-                const trackBounds = track.getBoundingClientRect();
-                const cardBounds = selectedCard.getBoundingClientRect();
-                const centerOffset = cardBounds.left + cardBounds.width / 2
-                    - (trackBounds.left + track.clientLeft + track.clientWidth / 2);
-                track.scrollTo({
-                    left: track.scrollLeft + centerOffset,
-                    behavior: 'smooth'
-                });
-            }
-        }
     }
 
     async function findNearest() {
