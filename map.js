@@ -348,7 +348,65 @@
                 animate: true,
                 duration: 0.5
             });
+            centerClinicInVisibleMap();
         }
+    }
+
+    function centerClinicInVisibleMap() {
+        if (!map) return;
+
+        let centered = false;
+        const centerAfterMove = () => {
+            if (centered || !map) return;
+            centered = true;
+            map.off('moveend', centerAfterMove);
+
+            const mapRect = map.getContainer().getBoundingClientRect();
+            const size = map.getSize();
+            let left = 0;
+            let right = size.x;
+            let top = 0;
+            let bottom = size.y;
+
+            const controls = document.querySelector('#map-section .map-controls');
+            if (controls) {
+                const rect = controls.getBoundingClientRect();
+                if (rect.bottom > mapRect.top && rect.top < mapRect.bottom) {
+                    top = Math.max(top, Math.min(size.y, rect.bottom - mapRect.top));
+                }
+            }
+
+            const sheet = document.getElementById('place-sheet');
+            if (sheet?.classList.contains('open')) {
+                const rect = sheet.getBoundingClientRect();
+                const narrowLayout = window.matchMedia('(max-width: 768px)').matches;
+                if (narrowLayout) {
+                    if (rect.bottom > mapRect.top && rect.top < mapRect.bottom) {
+                        top = Math.max(top, Math.min(size.y, rect.bottom - mapRect.top));
+                    }
+                } else if (rect.left > mapRect.left && rect.left < mapRect.right) {
+                    right = Math.min(right, rect.left - mapRect.left);
+                }
+            }
+
+            const carousel = document.getElementById('clinic-carousel');
+            if (carousel) {
+                const rect = carousel.getBoundingClientRect();
+                if (rect.top > mapRect.top && rect.top < mapRect.bottom) {
+                    bottom = Math.min(bottom, rect.top - mapRect.top);
+                }
+            }
+
+            const targetX = Math.max(24, Math.min(size.x - 24, (left + right) / 2));
+            const targetY = Math.max(24, Math.min(size.y - 24, (top + bottom) / 2));
+            const offset = L.point(size.x / 2 - targetX, size.y / 2 - targetY);
+            if (Math.abs(offset.x) > 1 || Math.abs(offset.y) > 1) {
+                map.panBy(offset, { animate: true, duration: 0.35 });
+            }
+        };
+
+        map.once('moveend', centerAfterMove);
+        window.setTimeout(centerAfterMove, 650);
     }
 
     /* ---------- Sheet Render ---------- */
