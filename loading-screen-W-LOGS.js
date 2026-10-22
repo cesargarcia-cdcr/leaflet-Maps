@@ -889,11 +889,17 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                 }
 
                 const fileName = pathParts[pathParts.length - 1];
-                const fileHandle = await currentDirHandle.getFileHandle(fileName, { create: true });
-
+                let fileHandle;
+                let existingFile;
                 try {
-                    const existingFile = await fileHandle.getFile();
-                    
+                    fileHandle = await currentDirHandle.getFileHandle(fileName);
+                    existingFile = await fileHandle.getFile();
+                } catch (err) {
+                    if (err.name !== "NotFoundError") throw err;
+                    console.log(`[OPFS] ⚠️ File does not exist locally yet: ${item.name}`);
+                }
+
+                if (existingFile) {
                     const serverLastModified = item.lastModified ? new Date(item.lastModified).getTime() : 0;
                     const localLastModified = existingFile.lastModified || 0;
 
@@ -913,10 +919,8 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                         }
                         continue; 
                     } else {
-                        console.log(`[OPFS] 📥 Downloading required for: ${item.name} (Newer version detected on SharePoint).`);
+                        console.log(`[OPFS] 📥 Downloading required for: ${item.name}.`);
                     }
-                } catch (e) {
-                    console.log(`[OPFS] ⚠️ File does not exist locally yet for: ${item.name}`);
                 }
 
                 if (typeof window.LSEngine.setProgress === 'function') {
@@ -927,12 +931,18 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     cache: "no-store",
-                    body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: item.downloadUrl || cleanFilePath })
+                    body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: cleanFilePath })
                 });
 
                 if (!downloadRes) throw new Error(`Download request for '${item.name}' could not be completed after session verification.`);
-                if (!downloadRes.ok) throw new Error(`Asset download failed (HTTP ${downloadRes.status})`);
+                if (!downloadRes.ok) {
+                    const errorDetails = (await downloadRes.text()).slice(0, 500);
+                    throw new Error(`Asset download failed (HTTP ${downloadRes.status}): ${errorDetails}`);
+                }
                 const fileContent = await downloadRes.blob();
+                if (!fileHandle) {
+                    fileHandle = await currentDirHandle.getFileHandle(fileName, { create: true });
+                }
                 const writable = await fileHandle.createWritable();
                 await writable.write(fileContent);
                 await writable.close();
