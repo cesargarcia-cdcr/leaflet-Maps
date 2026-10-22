@@ -819,13 +819,14 @@ body.fullscreen-map { overflow: hidden; }
   right: 20px;
   bottom: auto;
   width: min(390px, calc(100vw - 40px));
-  max-height: min(42vh, 400px);
+  max-height: none;
   border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 18px;
   background: rgba(246, 250, 252, 0.74);
   box-shadow: 0 14px 38px rgba(28, 48, 65, 0.2), inset 0 1px rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(20px) saturate(140%);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
+  overflow: visible;
   transform: translateX(calc(100% + 32px));
 }
 
@@ -841,22 +842,79 @@ body.fullscreen-map { overflow: hidden; }
 
 .app-container #map-section #place-sheet .sheet-body {
   min-height: 0;
+  overflow: visible;
+  padding: 10px 12px 12px;
   background: transparent;
 }
 
+.app-container #map-section #place-sheet .sheet-hd {
+  padding: 6px 10px;
+}
+
+.app-container #map-section #place-sheet .sheet-title {
+  font-size: 0.62rem;
+}
+
+.app-container #map-section #place-sheet .sheet-close {
+  width: 28px;
+  height: 28px;
+}
+
 .app-container #map-section #place-sheet .clinic-detail-header {
-  margin-bottom: 12px;
-  padding-bottom: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
 }
 
 .app-container #map-section #place-sheet .clinic-detail-name {
-  font-size: clamp(1rem, 1.4vw, 1.2rem);
+  font-size: clamp(0.95rem, 1.25vw, 1.1rem);
   line-height: 1.25;
 }
 
 .app-container #map-section #place-sheet .clinic-detail-address {
   overflow-wrap: anywhere;
   line-height: 1.4;
+}
+
+.app-container #map-section #place-sheet .extensions-panel {
+  margin-bottom: 0;
+}
+
+.app-container #map-section #place-sheet .extensions-panel .modern-header {
+  padding: 6px 9px;
+  font-size: 0.72rem;
+}
+
+.app-container #map-section #place-sheet .extensions-panel .modern-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 7px 8px;
+}
+
+.app-container #map-section #place-sheet .modern-ext-group {
+  min-width: 0;
+  padding: 0 0 5px;
+}
+
+.app-container #map-section #place-sheet .modern-ext-title {
+  margin-bottom: 2px;
+  font-size: 0.74rem;
+}
+
+.app-container #map-section #place-sheet .clinic-extension-contact {
+  gap: 2px 7px;
+  overflow-wrap: anywhere;
+  font-size: 0.68rem;
+}
+
+.app-container #map-section #place-sheet .modern-grid-row {
+  gap: 6px;
+  font-size: 0.7rem;
+}
+
+.app-container #map-section #place-sheet .modern-val {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .clinic-carousel {
@@ -1016,7 +1074,7 @@ body.fullscreen-map { overflow: hidden; }
     top: 170px;
     right: 12px;
     width: min(370px, calc(100vw - 24px));
-    max-height: min(30vh, 260px);
+    max-height: none;
   }
 
   .clinic-carousel {
@@ -1060,7 +1118,7 @@ body.fullscreen-map { overflow: hidden; }
     right: 10px;
     top: 205px;
     width: calc(100vw - 20px);
-    max-height: min(28vh, 220px);
+    max-height: none;
   }
 
   .clinic-carousel {
