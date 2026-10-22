@@ -523,13 +523,13 @@ body {
 
 :root[data-theme="dark"] .clinic-carousel-card {
     border-color: rgba(148, 163, 184, 0.32);
-    background: rgba(30, 41, 59, 0.8);
+    background: #1e293b;
     color: var(--text);
 }
 
 :root[data-theme="dark"] .clinic-carousel-card.is-selected {
     border-color: var(--primary);
-    background: rgba(12, 74, 110, 0.72);
+    background: #0c4a6e;
 }
 
 :root[data-theme="dark"] .app-container #map-section .app-map-search-input,
