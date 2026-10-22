@@ -581,8 +581,12 @@
             card.dataset.code = clinic.code;
             card.setAttribute('aria-pressed', 'false');
 
-            const imageUrl = clinicImages.get(normalizeImageName(clinic.code)) ||
-                clinicImages.get(normalizeImageName(clinic.name));
+            const clinicImageNames = [
+                clinic.code,
+                clinic.name,
+                ...String(clinic.nicknames || '').split(/[;,|]/)
+            ].map(normalizeImageName).filter(Boolean);
+            const imageUrl = clinicImageNames.map(name => clinicImages.get(name)).find(Boolean);
             if (imageUrl) {
                 const image = document.createElement('img');
                 image.className = 'clinic-carousel-card-image';
@@ -592,7 +596,9 @@
                 image.addEventListener('error', () => {
                     console.warn(`Could not display carousel image for clinic ${clinic.code}.`);
                     image.remove();
+                    card.classList.remove('has-clinic-image');
                 }, { once: true });
+                card.classList.add('has-clinic-image');
                 card.appendChild(image);
             }
 
