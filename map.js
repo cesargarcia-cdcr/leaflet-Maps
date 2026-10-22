@@ -7,7 +7,8 @@
     let map,
     searchMarker = null,
     searchLine = null,
-    markersLayer = null;
+    markersLayer = null,
+    clinicBounds = null;
     const clinicMarkers = {}; // Store each marker by clinic code.
 
     /* ---------- Utilities ---------- */
@@ -323,19 +324,21 @@
         }
 
         if (bounds.isValid()) {
+            clinicBounds = bounds;
             map.fitBounds(bounds, { padding: [40, 40] });
             if (map.getZoom() > 11) { map.setZoom(11); }
+        } else {
+            clinicBounds = null;
         }
     }
 
     /* ---------- Smart centering (supports an optional distance) ---------- */
     function selectClinic(c, distance) {
+        const clinicSelect = document.getElementById('clinicSelect');
+        if (clinicSelect && c.code) clinicSelect.value = c.code;
         renderSelectedClinic(c, distance);
-        if (c.lat && c.lng) {
-            map.fitBounds(L.latLngBounds([[c.lat, c.lng]]), {
-                paddingTopLeft: [0, 0],
-                paddingBottomRight: [380, 0],
-                maxZoom: 12,
+        if (Number.isFinite(c.lat) && Number.isFinite(c.lng)) {
+            map.setView([c.lat, c.lng], Math.min(12, Math.max(map.getZoom(), 10)), {
                 animate: true,
                 duration: 0.5
             });
@@ -508,6 +511,11 @@
 
         if (!clinicSelect.__wired) {
             clinicSelect.addEventListener('change', () => {
+                const searchInput = document.getElementById('searchInput');
+                if (!clinicSelect.value && !searchInput?.value.trim()) {
+                    clearSearch();
+                    return;
+                }
                 findNearest();
             });
             clinicSelect.__wired = true;
@@ -516,7 +524,7 @@
 
     async function findNearest() {
         const clinicSelect = document.getElementById('clinicSelect');
-        const selectedCode = clinicSelect?.selectedOptions?.[0]?.dataset?.code ?? '';
+        const selectedCode = clinicSelect?.value ?? '';
         const searchInputQuery = (document.getElementById('searchInput')?.value ?? '').trim();
 
         if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
@@ -527,7 +535,11 @@
         // ==========================================
         if (selectedCode) {
             const matchedClinic = getClinicByCode(selectedCode);
-            if (!matchedClinic || !matchedClinic.lat || !matchedClinic.lng) return;
+            if (!matchedClinic) return;
+            selectClinic(matchedClinic);
+            if (!Number.isFinite(matchedClinic.lat) || !Number.isFinite(matchedClinic.lng)) {
+                return;
+            }
 
             let drivingDistMiles = undefined;
             let routeGeometry = null;
@@ -560,8 +572,9 @@
                 }
             }
 
-            // Simulate a direct click on the marker and pass the calculated distance.
-            selectClinic({ ...matchedClinic, lat: matchedClinic.lat, lng: matchedClinic.lng }, drivingDistMiles);
+            if (drivingDistMiles !== undefined) {
+                renderSelectedClinic(matchedClinic, drivingDistMiles);
+            }
 
             if (resolvedGeo && routeGeometry) {
                 const coordinates = routeGeometry.coordinates.map(coord => [coord[1], coord[0]]);
@@ -705,6 +718,17 @@
         closeSheet();
         if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
         if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
+        recenter();
+    }
+
+    function recenter() {
+        if (!map) return;
+        map.invalidateSize();
+        if (clinicBounds?.isValid()) {
+            map.fitBounds(clinicBounds, { padding: [40, 40], maxZoom: 11 });
+        } else {
+            map.setView([34.25, -119.10], 10);
+        }
     }
 
     function buildBaseLayers() {
@@ -795,7 +819,9 @@
     window.findNearest = findNearest;
     window.clearSearch = clearSearch;
     window.AppMap = {
-        invalidate() { try { map?.invalidateSize() } catch (_) {} },
+        invalidate() { map?.invalidateSize(); },
+        invalidateSize() { map?.invalidateSize(); },
+        recenter,
         toggleFullscreen,
         geolocate
     };
