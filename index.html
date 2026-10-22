@@ -293,31 +293,22 @@
                 <div class="map-controls">
                     <div class="mc-row">
                         <div class="mc-card">
-                            <div class="app-map-toolbar-heading">
-                                <div>
-                                    <span class="app-map-eyebrow">CLINIC LOCATOR</span>
-                                    <h2>Find a clinic</h2>
-                                </div>
-                                <p>Search an address to find the nearest clinic, or choose a clinic to view its details.</p>
-                            </div>
                             <div class="mc-line mc-search app-map-search">
-                                <label class="app-map-visually-hidden" for="searchInput">Address, ZIP code, or clinic code</label>
-                                <input id="searchInput" class="mc-input app-map-search-input" placeholder="Address, ZIP code, or clinic code" />
+                                <input id="searchInput" class="mc-input app-map-search-input" placeholder="Enter address, ZIP, or code..." />
 
-                                <label class="app-map-visually-hidden" for="clinicSelect">Select a clinic</label>
-                                <select id="clinicSelect" class="mc-select app-map-clinic-select" aria-label="Select a clinic">
+                                <select id="clinicSelect" class="mc-select app-map-clinic-select">
                                     <option value="">-- Select Clinic (Optional) --</option>
                                 </select>
 
                                 <div class="app-map-search-actions">
-                                    <button type="button" class="btn primary" onclick="findNearest()">🔎 Search</button>
-                                    <button type="button" class="btn ghost" onclick="clearSearch()">✕ Clear</button>
+                                    <button class="btn primary" onclick="findNearest()">🔎 Search</button>
+                                    <button class="btn ghost" onclick="clearSearch()">✕ Clear</button>
                                 </div>
 
                             </div>
                         </div>
                         <div class="mc-fab-col">
-                            <button type="button" class="mc-fab" aria-label="Recenter map to all clinics" title="Show all clinics" onclick="window.AppMap?.recenter()">⌖</button>
+                            <button class="mc-fab" title="Recenter" onclick="window.AppMap?.recenter()">⤢</button>
                         </div>
                     </div>
                 </div>
