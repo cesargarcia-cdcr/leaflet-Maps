@@ -551,15 +551,11 @@
             name.className = 'clinic-carousel-card-name';
             name.textContent = clinic.name || clinic.code;
 
-            const address = document.createElement('span');
-            address.className = 'clinic-carousel-card-address';
-            address.textContent = clinic.address || 'Address not available';
-
             const distance = document.createElement('span');
             distance.className = 'clinic-carousel-card-distance';
             distance.hidden = true;
 
-            card.append(code, name, address, distance);
+            card.append(code, name, distance);
             card.addEventListener('click', () => selectClinic(clinic));
             track.appendChild(card);
         });
@@ -626,8 +622,15 @@
         if (code) {
             const selectedCard = [...cards].find(card => card.dataset.code === String(code));
             if (selectedCard) {
+                const sidePadding = Math.max(0, (track.clientWidth - selectedCard.offsetWidth) / 2);
+                track.style.paddingLeft = `${sidePadding}px`;
+                track.style.paddingRight = `${sidePadding}px`;
+                const trackBounds = track.getBoundingClientRect();
+                const cardBounds = selectedCard.getBoundingClientRect();
+                const centerOffset = cardBounds.left + cardBounds.width / 2
+                    - (trackBounds.left + track.clientLeft + track.clientWidth / 2);
                 track.scrollTo({
-                    left: selectedCard.offsetLeft + selectedCard.offsetWidth / 2 - track.clientWidth / 2,
+                    left: track.scrollLeft + centerOffset,
                     behavior: 'smooth'
                 });
             }

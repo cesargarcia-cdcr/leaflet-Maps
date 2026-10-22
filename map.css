@@ -847,17 +847,16 @@ body.fullscreen-map { overflow: hidden; }
 .clinic-carousel {
   position: absolute;
   z-index: 1100;
-  left: 50%;
+  left: 20px;
   bottom: 20px;
-  width: min(1050px, calc(100vw - 36px));
-  padding: 14px 16px 16px;
+  width: min(540px, calc(100vw - 80px));
+  padding: 10px 11px 9px;
   border: 1px solid rgba(255, 255, 255, 0.84);
-  border-radius: 22px;
+  border-radius: 18px;
   background: rgba(246, 250, 252, 0.72);
-  box-shadow: 0 16px 42px rgba(28, 48, 65, 0.2), inset 0 1px rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(22px) saturate(140%);
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
-  transform: translateX(-50%);
+  box-shadow: 0 12px 32px rgba(28, 48, 65, 0.18), inset 0 1px rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
 }
 
 .clinic-carousel-heading {
@@ -865,7 +864,7 @@ body.fullscreen-map { overflow: hidden; }
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 0 5px 11px;
+  padding: 0 4px 7px;
 }
 
 .clinic-carousel-eyebrow {
@@ -880,17 +879,17 @@ body.fullscreen-map { overflow: hidden; }
 .clinic-carousel-count,
 .clinic-carousel-hint {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.68rem;
 }
 
 .clinic-carousel-track {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(100, 116, 139, 0.42) transparent;
-  padding: 1px 2px 9px;
+  padding: 1px 2px 5px;
   outline: none;
 }
 
@@ -902,15 +901,15 @@ body.fullscreen-map { overflow: hidden; }
 .clinic-carousel-card {
   position: relative;
   display: flex;
-  flex: 0 0 255px;
+  flex: 0 0 128px;
   flex-direction: column;
   align-items: flex-start;
-  gap: 5px;
-  min-height: 130px;
-  padding: 15px 16px;
+  gap: 4px;
+  min-height: 92px;
+  padding: 10px 11px;
   overflow: hidden;
   border: 1px solid rgba(198, 210, 220, 0.78);
-  border-radius: 15px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.72);
   color: var(--text);
   font: inherit;
@@ -925,7 +924,7 @@ body.fullscreen-map { overflow: hidden; }
 }
 
 .clinic-carousel-card.is-selected {
-  flex-basis: 360px;
+  flex-basis: 220px;
   border-color: rgba(59, 130, 246, 0.62);
   background: rgba(231, 243, 251, 0.86);
   box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12), 0 5px 16px rgba(37, 99, 235, 0.1);
@@ -950,17 +949,6 @@ body.fullscreen-map { overflow: hidden; }
   font-weight: 750;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.clinic-carousel-card-address {
-  display: -webkit-box;
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.35;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .clinic-carousel-card-distance {
@@ -996,20 +984,19 @@ body.fullscreen-map { overflow: hidden; }
   .clinic-carousel {
     bottom: 12px;
     left: 10px;
-    width: calc(100vw - 80px);
-    padding: 11px 11px 10px;
-    border-radius: 18px;
-    transform: none;
+    width: min(540px, calc(100vw - 80px));
+    padding: 9px 9px 7px;
+    border-radius: 15px;
   }
 
   .clinic-carousel-card {
-    flex-basis: 220px;
-    min-height: 112px;
-    padding: 12px;
+    flex-basis: 112px;
+    min-height: 82px;
+    padding: 9px;
   }
 
   .clinic-carousel-card.is-selected {
-    flex-basis: 275px;
+    flex-basis: 190px;
   }
 }
 
