@@ -357,36 +357,6 @@
         const panel = document.getElementById('clinic-info-body');
         if (!panel) return;
         const nb = s => String(s || '').replace(/\s*\/\s*/g, '&nbsp;/&nbsp;').replace(/\s{2,}/g, ' ').trim();
-
-        const now = new Date();
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        
-        const dayName = days[now.getDay()];
-        const monthName = months[now.getMonth()];
-        const dayNum = now.getDate();
-        const dayNumPadded = String(dayNum).padStart(2, '0');
-
-        const possibleDateKeys = [
-            `${dayName} ${monthName} ${dayNum}`,
-            `${dayName} ${monthName} ${dayNumPadded}`,
-            `${monthName} ${dayNum}`,
-            `${now.getMonth() + 1}/${dayNum}/${now.getFullYear()}`
-        ];
-
-        const clinicCode = String(c?.code || '').trim().toUpperCase();
-        const rawProviders = window.APP_DATA?.providersByCode?.[clinicCode] || [];
-
-        const linkedProviders = rawProviders.filter(p => {
-            const matchedKey = possibleDateKeys.find(k => p[k] !== undefined && String(p[k]).trim() !== '');
-            if (matchedKey) { p._matchedDateKey = matchedKey; return true; }
-            return false;
-        }).map(p => ({
-            ...p,
-            todayShift: String(p[p._matchedDateKey] || '').trim()
-        }));
-
-        const todayDisplayStr = `${dayName} ${monthName} ${dayNum}`;
         let html = '';
 
         const nicknameDisplay = c.nicknames ? `<div class="clinic-detail-nickname">Alias: ${c.nicknames}</div>` : '';
@@ -407,8 +377,8 @@
 
         const sections = EXT_BY_CODE[c.code] ? Object.keys(EXT_BY_CODE[c.code]) : [];
 
-        if (!sections.length && linkedProviders.length === 0) {
-            panel.innerHTML = html + `<div class='empty-state'>ℹ️ No extensions or schedule available</div>`;
+      if (!sections.length) {
+          panel.innerHTML = html + `<div class='empty-state'>ℹ️ No extension information available</div>`;
             openSheet();
             return;
         }
@@ -449,31 +419,6 @@
             });
             html += `</div></div>`;
         }
-
-        html += `<div class="modern-stack providers-panel">
-              <div class="modern-header">🧑‍⚕️ On Duty Today (${todayDisplayStr})</div>
-              <div class="modern-body">`;
-
-        if (linkedProviders.length > 0) {
-            html += linkedProviders.map(p => `
-        <div class="provider-row clinic-provider-row">
-            <div class="clinic-provider-details">
-                <span class="clinic-provider-id">
-                    🆔 ${p['Provider ID'] || 'N/A'}
-                </span>
-                <a href="#" class="clinic-provider-link" onclick="event.preventDefault(); window.showProviderPopover?.('${p['Provider ID'] || ''}')">
-                   ${p['Employee Name']}
-                </a>
-                <span class="clinic-provider-specialty">${p.Specialty ? `[${p.Specialty}]` : ''}</span>
-            </div>
-            <span class="provider-badge">${p['JOB NAME'] ?? 'MD'}</span>
-        </div>
-    `).join('');
-        } else {
-            html += `<div class="clinic-no-providers">📅 No providers scheduled for today.</div>`;
-        }
-
-        html += `</div></div>`;
         panel.innerHTML = html;
         openSheet();
         setTimeout(() => AppMap?.invalidate?.(), 100);
@@ -606,9 +551,13 @@
 
         const code = clinic?.code ?? selectedClinicCode;
         const cards = track.querySelectorAll('.clinic-carousel-card');
-        cards.forEach(card => {
+        const cardList = [...cards];
+        const selectedIndex = cardList.findIndex(card => card.dataset.code === String(code));
+        cardList.forEach((card, index) => {
             const isSelected = card.dataset.code === code;
             card.classList.toggle('is-selected', isSelected);
+            card.classList.toggle('is-prev', selectedIndex > 0 && index === selectedIndex - 1);
+            card.classList.toggle('is-next', selectedIndex >= 0 && index === selectedIndex + 1);
             card.setAttribute('aria-pressed', String(isSelected));
             const distanceLabel = card.querySelector('.clinic-carousel-card-distance');
             if (distanceLabel) {
@@ -620,7 +569,7 @@
         });
 
         if (code) {
-            const selectedCard = [...cards].find(card => card.dataset.code === String(code));
+            const selectedCard = cardList[selectedIndex];
             if (selectedCard) {
                 const sidePadding = Math.max(0, (track.clientWidth - selectedCard.offsetWidth) / 2);
                 track.style.paddingLeft = `${sidePadding}px`;

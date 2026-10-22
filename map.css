@@ -819,7 +819,7 @@ body.fullscreen-map { overflow: hidden; }
   right: 20px;
   bottom: auto;
   width: min(390px, calc(100vw - 40px));
-  max-height: min(38vh, 360px);
+  max-height: min(42vh, 400px);
   border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 18px;
   background: rgba(246, 250, 252, 0.74);
@@ -842,6 +842,21 @@ body.fullscreen-map { overflow: hidden; }
 .app-container #map-section #place-sheet .sheet-body {
   min-height: 0;
   background: transparent;
+}
+
+.app-container #map-section #place-sheet .clinic-detail-header {
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+}
+
+.app-container #map-section #place-sheet .clinic-detail-name {
+  font-size: clamp(1rem, 1.4vw, 1.2rem);
+  line-height: 1.25;
+}
+
+.app-container #map-section #place-sheet .clinic-detail-address {
+  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 
 .clinic-carousel {
@@ -884,12 +899,12 @@ body.fullscreen-map { overflow: hidden; }
 
 .clinic-carousel-track {
   display: flex;
-  gap: 8px;
+  gap: 0;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(100, 116, 139, 0.42) transparent;
-  padding: 1px 2px 5px;
+  padding: 12px 2px 8px;
   outline: none;
 }
 
@@ -901,12 +916,13 @@ body.fullscreen-map { overflow: hidden; }
 .clinic-carousel-card {
   position: relative;
   display: flex;
-  flex: 0 0 128px;
+  flex: 0 0 150px;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  min-height: 92px;
+  min-height: 82px;
   padding: 10px 11px;
+  margin-left: -92px;
   overflow: hidden;
   border: 1px solid rgba(198, 210, 220, 0.78);
   border-radius: 12px;
@@ -915,19 +931,43 @@ body.fullscreen-map { overflow: hidden; }
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: flex-basis 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  transform: scale(0.9) translateY(4px);
+  transform-origin: center bottom;
+  transition: flex-basis 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease, opacity 180ms ease;
+  z-index: 1;
+  opacity: 0.82;
 }
 
 .clinic-carousel-card:hover {
-  transform: translateY(-2px);
+  transform: scale(0.94) translateY(1px);
   border-color: rgba(59, 130, 246, 0.48);
+  z-index: 4;
+  opacity: 1;
 }
 
 .clinic-carousel-card.is-selected {
   flex-basis: 220px;
+  min-height: 122px;
   border-color: rgba(59, 130, 246, 0.62);
   background: rgba(231, 243, 251, 0.86);
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12), 0 5px 16px rgba(37, 99, 235, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12), 0 9px 22px rgba(37, 99, 235, 0.2);
+  transform: scale(1) translateY(0);
+  z-index: 5;
+  opacity: 1;
+}
+
+.clinic-carousel-card.is-prev {
+  transform: perspective(520px) rotateY(15deg) scale(0.94) translateY(4px);
+  transform-origin: right center;
+  z-index: 3;
+  opacity: 0.96;
+}
+
+.clinic-carousel-card.is-next {
+  transform: perspective(520px) rotateY(-15deg) scale(0.94) translateY(4px);
+  transform-origin: left center;
+  z-index: 3;
+  opacity: 0.96;
 }
 
 .clinic-carousel-card:focus-visible {
@@ -947,8 +987,12 @@ body.fullscreen-map { overflow: hidden; }
   overflow: hidden;
   font-size: 0.98rem;
   font-weight: 750;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .clinic-carousel-card-distance {
@@ -976,9 +1020,9 @@ body.fullscreen-map { overflow: hidden; }
   .app-container #map-section #place-sheet {
     top: auto;
     right: 12px;
-    bottom: 230px;
+    bottom: clamp(118px, 19vh, 190px);
     width: min(370px, calc(100vw - 24px));
-    max-height: 30vh;
+    max-height: min(34vh, 300px);
   }
 
   .clinic-carousel {
@@ -990,13 +1034,15 @@ body.fullscreen-map { overflow: hidden; }
   }
 
   .clinic-carousel-card {
-    flex-basis: 112px;
-    min-height: 82px;
+    flex-basis: 132px;
+    min-height: 72px;
     padding: 9px;
+    margin-left: -84px;
   }
 
   .clinic-carousel-card.is-selected {
     flex-basis: 190px;
+    min-height: 108px;
   }
 }
 
@@ -1017,5 +1063,16 @@ body.fullscreen-map { overflow: hidden; }
 
   .app-container #map-section .app-map-search-actions .btn {
     flex: 1;
+  }
+
+  .app-container #map-section #place-sheet {
+    right: 10px;
+    bottom: clamp(112px, 17vh, 158px);
+    width: calc(100vw - 20px);
+    max-height: min(32vh, 250px);
+  }
+
+  .clinic-carousel-card.is-selected {
+    flex-basis: 155px;
   }
 }
