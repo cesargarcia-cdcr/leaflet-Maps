@@ -758,3 +758,277 @@ body.fullscreen-map { overflow: hidden; }
   font-weight: 600;
   cursor: pointer;
 }
+
+/* Frosted clinic locator and bottom carousel */
+.app-container #map-section .map-controls {
+  top: 18px;
+  left: 50%;
+  right: auto;
+  width: min(900px, calc(100vw - 36px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.app-container #map-section .mc-row {
+  display: flex;
+  justify-content: center;
+  padding: 0;
+}
+
+.app-container #map-section .mc-card {
+  flex: 1 1 auto;
+  max-width: 900px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 17px;
+  background: rgba(246, 250, 252, 0.72);
+  box-shadow: 0 12px 36px rgba(28, 48, 65, 0.17), inset 0 1px rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+}
+
+.app-container #map-section .app-map-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.app-container #map-section .app-map-search-input,
+.app-container #map-section .app-map-clinic-select {
+  min-width: 180px;
+  min-height: 42px;
+  border-color: rgba(173, 190, 204, 0.58);
+  background: rgba(255, 255, 255, 0.77);
+  font-size: 0.9rem;
+}
+
+.app-container #map-section .app-map-search-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.app-container #map-section .app-map-search-actions .btn {
+  min-height: 42px;
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+
+.app-container #map-section #place-sheet {
+  top: 84px;
+  right: 20px;
+  bottom: auto;
+  width: min(390px, calc(100vw - 40px));
+  max-height: min(38vh, 360px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 18px;
+  background: rgba(246, 250, 252, 0.74);
+  box-shadow: 0 14px 38px rgba(28, 48, 65, 0.2), inset 0 1px rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  transform: translateX(calc(100% + 32px));
+}
+
+.app-container #map-section #place-sheet.open {
+  transform: translateX(0);
+}
+
+.app-container #map-section #place-sheet .sheet-hd {
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.34);
+  border-bottom-color: rgba(255, 255, 255, 0.72);
+}
+
+.app-container #map-section #place-sheet .sheet-body {
+  min-height: 0;
+  background: transparent;
+}
+
+.clinic-carousel {
+  position: absolute;
+  z-index: 1100;
+  left: 50%;
+  bottom: 20px;
+  width: min(1050px, calc(100vw - 36px));
+  padding: 14px 16px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.84);
+  border-radius: 22px;
+  background: rgba(246, 250, 252, 0.72);
+  box-shadow: 0 16px 42px rgba(28, 48, 65, 0.2), inset 0 1px rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  transform: translateX(-50%);
+}
+
+.clinic-carousel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 0 5px 11px;
+}
+
+.clinic-carousel-eyebrow {
+  display: block;
+  margin-bottom: 1px;
+  color: var(--primary);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.clinic-carousel-count,
+.clinic-carousel-hint {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.clinic-carousel-track {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.42) transparent;
+  padding: 1px 2px 9px;
+  outline: none;
+}
+
+.clinic-carousel-track:focus-visible {
+  border-radius: 12px;
+  outline: 3px solid var(--focus-ring);
+}
+
+.clinic-carousel-card {
+  position: relative;
+  display: flex;
+  flex: 0 0 255px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-height: 130px;
+  padding: 15px 16px;
+  overflow: hidden;
+  border: 1px solid rgba(198, 210, 220, 0.78);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: flex-basis 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.clinic-carousel-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(59, 130, 246, 0.48);
+}
+
+.clinic-carousel-card.is-selected {
+  flex-basis: 360px;
+  border-color: rgba(59, 130, 246, 0.62);
+  background: rgba(231, 243, 251, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12), 0 5px 16px rgba(37, 99, 235, 0.1);
+}
+
+.clinic-carousel-card:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.clinic-carousel-card-code {
+  color: var(--primary);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.clinic-carousel-card-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.98rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinic-carousel-card-address {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.clinic-carousel-card-distance {
+  margin-top: auto;
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.clinic-carousel-card-distance[hidden] {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-container #map-section .map-controls {
+    top: 12px;
+    width: calc(100vw - 24px);
+  }
+
+  .app-container #map-section .app-map-search-input,
+  .app-container #map-section .app-map-clinic-select {
+    min-width: min(100%, 220px);
+  }
+
+  .app-container #map-section #place-sheet {
+    top: auto;
+    right: 12px;
+    bottom: 230px;
+    width: min(370px, calc(100vw - 24px));
+    max-height: 30vh;
+  }
+
+  .clinic-carousel {
+    bottom: 12px;
+    left: 10px;
+    width: calc(100vw - 80px);
+    padding: 11px 11px 10px;
+    border-radius: 18px;
+    transform: none;
+  }
+
+  .clinic-carousel-card {
+    flex-basis: 220px;
+    min-height: 112px;
+    padding: 12px;
+  }
+
+  .clinic-carousel-card.is-selected {
+    flex-basis: 275px;
+  }
+}
+
+@media (max-width: 480px) {
+  .clinic-carousel-hint {
+    max-width: 130px;
+    text-align: right;
+  }
+
+  .app-container #map-section .app-map-search-input,
+  .app-container #map-section .app-map-clinic-select {
+    min-width: 100%;
+  }
+
+  .app-container #map-section .app-map-search-actions {
+    width: 100%;
+  }
+
+  .app-container #map-section .app-map-search-actions .btn {
+    flex: 1;
+  }
+}

@@ -8,6 +8,9 @@
     searchMarker = null,
     searchLine = null,
     markersLayer = null,
+    baseLayers = {},
+    selectedClinicCode = '',
+    carouselWheelDelta = 0,
     clinicBounds = null;
     const clinicMarkers = {}; // Store each marker by clinic code.
 
@@ -334,8 +337,11 @@
 
     /* ---------- Smart centering (supports an optional distance) ---------- */
     function selectClinic(c, distance) {
+        if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+        if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
         const clinicSelect = document.getElementById('clinicSelect');
         if (clinicSelect && c.code) clinicSelect.value = c.code;
+        selectedClinicCode = String(c.code || '');
         renderSelectedClinic(c, distance);
         if (Number.isFinite(c.lat) && Number.isFinite(c.lng)) {
             map.setView([c.lat, c.lng], Math.min(12, Math.max(map.getZoom(), 10)), {
@@ -347,6 +353,7 @@
 
     /* ---------- Sheet Render ---------- */
     function renderSelectedClinic(c, distance) {
+        updateClinicCarouselSelection(c, distance);
         const panel = document.getElementById('clinic-info-body');
         if (!panel) return;
         const nb = s => String(s || '').replace(/\s*\/\s*/g, '&nbsp;/&nbsp;').replace(/\s{2,}/g, ' ').trim();
@@ -519,6 +526,111 @@
                 findNearest();
             });
             clinicSelect.__wired = true;
+        }
+    }
+
+    function populateClinicCarousel() {
+        const track = document.getElementById('clinic-carousel-track');
+        if (!track) return;
+
+        const orderedClinics = [...CLINICS].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        track.replaceChildren();
+
+        orderedClinics.forEach(clinic => {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'clinic-carousel-card';
+            card.dataset.code = clinic.code;
+            card.setAttribute('aria-pressed', 'false');
+
+            const code = document.createElement('span');
+            code.className = 'clinic-carousel-card-code';
+            code.textContent = clinic.code || 'CLINIC';
+
+            const name = document.createElement('span');
+            name.className = 'clinic-carousel-card-name';
+            name.textContent = clinic.name || clinic.code;
+
+            const address = document.createElement('span');
+            address.className = 'clinic-carousel-card-address';
+            address.textContent = clinic.address || 'Address not available';
+
+            const distance = document.createElement('span');
+            distance.className = 'clinic-carousel-card-distance';
+            distance.hidden = true;
+
+            card.append(code, name, address, distance);
+            card.addEventListener('click', () => selectClinic(clinic));
+            track.appendChild(card);
+        });
+
+        const count = document.getElementById('clinic-carousel-count');
+        if (count) count.textContent = orderedClinics.length
+            ? `${orderedClinics.length} ${orderedClinics.length === 1 ? 'location' : 'locations'}`
+            : 'No clinics available';
+
+        if (!track.__wired) {
+            track.addEventListener('wheel', event => {
+                if (!track.children.length) return;
+                event.preventDefault();
+                carouselWheelDelta += Math.abs(event.deltaY) >= Math.abs(event.deltaX)
+                    ? event.deltaY
+                    : event.deltaX;
+                if (Math.abs(carouselWheelDelta) < 45) return;
+
+                const direction = carouselWheelDelta > 0 ? 1 : -1;
+                carouselWheelDelta = 0;
+                stepClinicCarousel(direction);
+            }, { passive: false });
+            track.addEventListener('keydown', event => {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                event.preventDefault();
+                stepClinicCarousel(event.key === 'ArrowRight' ? 1 : -1);
+            });
+            track.__wired = true;
+        }
+        updateClinicCarouselSelection();
+    }
+
+    function stepClinicCarousel(direction) {
+        const track = document.getElementById('clinic-carousel-track');
+        const codes = [...(track?.children ?? [])].map(card => card.dataset.code);
+        if (!codes.length) return;
+        const currentIndex = codes.indexOf(selectedClinicCode);
+        const nextIndex = currentIndex < 0
+            ? (direction > 0 ? 0 : codes.length - 1)
+            : (currentIndex + direction + codes.length) % codes.length;
+        const clinic = getClinicByCode(codes[nextIndex]);
+        if (clinic) selectClinic(clinic);
+    }
+
+    function updateClinicCarouselSelection(clinic, distance) {
+        const track = document.getElementById('clinic-carousel-track');
+        if (!track) return;
+
+        const code = clinic?.code ?? selectedClinicCode;
+        const cards = track.querySelectorAll('.clinic-carousel-card');
+        cards.forEach(card => {
+            const isSelected = card.dataset.code === code;
+            card.classList.toggle('is-selected', isSelected);
+            card.setAttribute('aria-pressed', String(isSelected));
+            const distanceLabel = card.querySelector('.clinic-carousel-card-distance');
+            if (distanceLabel) {
+                distanceLabel.hidden = !isSelected || !Number.isFinite(distance);
+                distanceLabel.textContent = isSelected && Number.isFinite(distance)
+                    ? `${distance.toFixed(1)} mi away`
+                    : '';
+            }
+        });
+
+        if (code) {
+            const selectedCard = [...cards].find(card => card.dataset.code === String(code));
+            if (selectedCard) {
+                track.scrollTo({
+                    left: selectedCard.offsetLeft + selectedCard.offsetWidth / 2 - track.clientWidth / 2,
+                    behavior: 'smooth'
+                });
+            }
         }
     }
 
@@ -715,6 +827,8 @@
         if (panel) {
             panel.innerHTML = `<div class="empty-state">Select a clinic or search by address/ZIP.</div>`;
         }
+        selectedClinicCode = '';
+        updateClinicCarouselSelection();
         closeSheet();
         if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
         if (searchLine) { map.removeLayer(searchLine); searchLine = null; }
@@ -741,13 +855,25 @@
         const baseImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { ...tileOptions, attribution: imageryAttribution });
         const layers = { '🗺️ Standard': baseStreet, '⛰️ Topographic': baseTopo, '🛰️ Satellite': baseImagery };
         const pref = store.get('map:base', '🗺️ Standard');
-        const chosen = layers[pref] || baseStreet;
+        const chosenName = layers[pref] ? pref : '🗺️ Standard';
+        baseLayers = layers;
+        const chosen = layers[chosenName];
         chosen.addTo(map);
-        L.control.layers(layers, {}, { position: 'topright', collapsed: true }).addTo(map);
-        map.on('baselayerchange', e => {
-            const key = Object.keys(layers).find(k => layers[k] === e.layer) || '🗺️ Standard';
-            store.set('map:base', key);
+        store.set('map:base', chosenName);
+        window.dispatchEvent(new CustomEvent('appmapbaselayerchange', { detail: { layer: chosenName } }));
+    }
+
+    function setBaseLayer(name) {
+        const nextLayer = baseLayers[name];
+        if (!map || !nextLayer) return false;
+
+        Object.values(baseLayers).forEach(layer => {
+            if (map.hasLayer(layer)) map.removeLayer(layer);
         });
+        nextLayer.addTo(map);
+        store.set('map:base', name);
+        window.dispatchEvent(new CustomEvent('appmapbaselayerchange', { detail: { layer: name } }));
+        return true;
     }
 
     function toggleFullscreen() {
@@ -810,6 +936,7 @@
             }
             await addMarkers();
             populateClinicPickers();
+            populateClinicCarousel();
             setTimeout(() => map.invalidateSize(), 200);
         } catch (e) {
             console.error('bootstrap', e);
@@ -822,6 +949,7 @@
         invalidate() { map?.invalidateSize(); },
         invalidateSize() { map?.invalidateSize(); },
         recenter,
+        setBaseLayer,
         toggleFullscreen,
         geolocate
     };

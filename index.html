@@ -307,9 +307,6 @@
 
                             </div>
                         </div>
-                        <div class="mc-fab-col">
-                            <button class="mc-fab" title="Recenter" onclick="window.AppMap?.recenter()">⤢</button>
-                        </div>
                     </div>
                 </div>
                 <aside id="place-sheet" class="sheet" aria-hidden="true">
@@ -327,6 +324,16 @@
                         </div>
                     </div>
                 </aside>
+                <section id="clinic-carousel" class="clinic-carousel" aria-label="Nearby clinics">
+                    <div class="clinic-carousel-heading">
+                        <div>
+                            <span class="clinic-carousel-eyebrow">CLINICS</span>
+                            <span id="clinic-carousel-count" class="clinic-carousel-count">Choose a clinic</span>
+                        </div>
+                        <span class="clinic-carousel-hint">Hover here and scroll to browse</span>
+                    </div>
+                    <div id="clinic-carousel-track" class="clinic-carousel-track" tabindex="0" aria-label="Clinic carousel. Use the mouse wheel or arrow keys to browse."></div>
+                </section>
             </section>
 
             <section class="card is-hidden" id="directory-section">

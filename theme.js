@@ -43,7 +43,7 @@
         const panel = document.createElement('div');
         panel.className = 'settings-panel';
         panel.hidden = true;
-        panel.setAttribute('aria-label', 'Appearance and help');
+        panel.setAttribute('aria-label', 'Appearance and map controls');
 
         const heading = document.createElement('span');
         heading.className = 'settings-heading';
@@ -67,6 +67,55 @@
                 closeMenu();
             });
             panel.appendChild(option);
+        }
+
+        if (document.getElementById('map')) {
+            const mapHeading = document.createElement('span');
+            mapHeading.className = 'settings-heading settings-map-heading';
+            mapHeading.textContent = 'Map style';
+            panel.appendChild(mapHeading);
+
+            const mapLayers = [
+                ['🗺️ Standard', 'Standard'],
+                ['⛰️ Topographic', 'Topographic'],
+                ['🛰️ Satellite', 'Satellite']
+            ];
+            let activeMapLayer = '🗺️ Standard';
+            try {
+                activeMapLayer = localStorage.getItem('map:base') || activeMapLayer;
+            } catch (error) {
+                console.error('[Map]: Could not read the saved map style.', error);
+            }
+            mapLayers.forEach(([layer, label]) => {
+                const option = document.createElement('button');
+                option.type = 'button';
+                option.className = 'settings-option settings-map-layer';
+                option.dataset.mapLayer = layer;
+                const selected = layer === activeMapLayer;
+                option.setAttribute('aria-pressed', String(selected));
+                option.classList.toggle('is-active', selected);
+                option.textContent = label;
+                option.addEventListener('click', () => {
+                    if (!window.AppMap?.setBaseLayer?.(layer)) {
+                        console.error(`[Map]: Could not switch to the ${label.toLowerCase()} map layer.`);
+                    }
+                });
+                panel.appendChild(option);
+            });
+
+            const recenter = document.createElement('button');
+            recenter.type = 'button';
+            recenter.className = 'settings-option settings-map-recenter';
+            recenter.textContent = '⌖  Recenter on clinics';
+            recenter.addEventListener('click', () => {
+                if (typeof window.AppMap?.recenter !== 'function') {
+                    console.error('[Map]: Recenter is unavailable.');
+                    return;
+                }
+                window.AppMap.recenter();
+                closeMenu();
+            });
+            panel.appendChild(recenter);
         }
 
         if (document.getElementById('help-modal-container') && typeof window.toggleHelpModal === 'function') {
@@ -104,6 +153,14 @@
                 closeMenu();
                 trigger.focus();
             }
+        });
+
+        window.addEventListener('appmapbaselayerchange', event => {
+            panel.querySelectorAll('[data-map-layer]').forEach(option => {
+                const selected = option.dataset.mapLayer === event.detail?.layer;
+                option.setAttribute('aria-pressed', String(selected));
+                option.classList.toggle('is-active', selected);
+            });
         });
     }
 
