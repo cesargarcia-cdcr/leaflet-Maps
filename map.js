@@ -532,10 +532,45 @@
         }
     }
 
-    function populateClinicCarousel() {
+    async function loadClinicImagesFromOPFS() {
+        const imageUrls = new Map();
+        const normalizeImageName = name => name.replace(/[^a-z0-9]/gi, '').toUpperCase();
+
+        try {
+            const rootDir = await navigator.storage.getDirectory();
+            const cdcrDir = await rootDir.getDirectoryHandle('CDCR', { create: false });
+            const entries = [];
+            for await (const [fileName, fileHandle] of cdcrDir.entries()) {
+                if (fileHandle.kind === 'file' && /\.(jpe?g|png)$/i.test(fileName)) {
+                    entries.push([fileName, fileHandle]);
+                }
+            }
+
+            entries.sort(([nameA], [nameB]) => {
+                const extensionRank = name => /\.jpe?g$/i.test(name) ? 0 : 1;
+                return extensionRank(nameA) - extensionRank(nameB) || nameA.localeCompare(nameB);
+            });
+
+            for (const [fileName, fileHandle] of entries) {
+                const baseName = fileName.replace(/\.(jpe?g|png)$/i, '');
+                const key = normalizeImageName(baseName);
+                if (!key || imageUrls.has(key)) continue;
+                imageUrls.set(key, URL.createObjectURL(await fileHandle.getFile()));
+            }
+        } catch (error) {
+            if (error.name !== 'NotFoundError') {
+                console.warn('Could not load clinic carousel images from OPFS CDCR folder:', error);
+            }
+        }
+
+        return imageUrls;
+    }
+
+    function populateClinicCarousel(clinicImages = new Map()) {
         const track = document.getElementById('clinic-carousel-track');
         if (!track) return;
 
+        const normalizeImageName = name => String(name || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
         const orderedClinics = [...CLINICS].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         track.replaceChildren();
 
@@ -545,6 +580,21 @@
             card.className = 'clinic-carousel-card';
             card.dataset.code = clinic.code;
             card.setAttribute('aria-pressed', 'false');
+
+            const imageUrl = clinicImages.get(normalizeImageName(clinic.code)) ||
+                clinicImages.get(normalizeImageName(clinic.name));
+            if (imageUrl) {
+                const image = document.createElement('img');
+                image.className = 'clinic-carousel-card-image';
+                image.src = imageUrl;
+                image.alt = `${clinic.name || clinic.code} clinic`;
+                image.loading = 'lazy';
+                image.addEventListener('error', () => {
+                    console.warn(`Could not display carousel image for clinic ${clinic.code}.`);
+                    image.remove();
+                }, { once: true });
+                card.appendChild(image);
+            }
 
             const code = document.createElement('span');
             code.className = 'clinic-carousel-card-code';
@@ -945,7 +995,7 @@
             }
             await addMarkers();
             populateClinicPickers();
-            populateClinicCarousel();
+            populateClinicCarousel(await loadClinicImagesFromOPFS());
             setTimeout(() => map.invalidateSize(), 200);
         } catch (e) {
             console.error('bootstrap', e);

@@ -705,12 +705,18 @@ async function fetchAndProcessData(isManual = false) {
 
 window.GreenLeaderStorage.getSyncedAssetPath = function(item) {
     let rawPath = item.path || "";
+    if (!rawPath && item.downloadUrl) {
+        const separatorIndex = item.downloadUrl.lastIndexOf("//");
+        rawPath = separatorIndex >= 0
+            ? `${item.downloadUrl.slice(0, separatorIndex)}/${item.downloadUrl.slice(separatorIndex + 2)}`
+            : item.downloadUrl;
+    }
     if (rawPath.endsWith("/") && item.name) {
         rawPath += item.name;
     } else if (!rawPath.endsWith("/") && !rawPath.endsWith(item.name)) {
         rawPath = rawPath + "/" + item.name;
     }
-    return rawPath.replace(/([^:]\/)\/+/g, "$1");
+    return rawPath.replace(/\\/g, "/").replace(/([^:]\/)\/+/g, "$1");
 };
 
 window.GreenLeaderStorage.removeStaleSyncedFiles = async function(directoryHandle, expectedFiles, parentPath = "") {
@@ -748,13 +754,13 @@ window.GreenLeaderStorage.loadSyncedAssetInventory = async function(rootDir) {
         const appDataDir = await rootDir.getDirectoryHandle("App_Data");
         const inventoryHandle = await appDataDir.getFileHandle("asset_sync_inventory.json");
         const inventory = JSON.parse(await (await inventoryHandle.getFile()).text());
-        if (!Array.isArray(inventory.Guidelines_Info) || !Array.isArray(inventory.Directory)) {
+        if (!inventory || typeof inventory !== "object" || Array.isArray(inventory) ||
+            Object.values(inventory).some(files => !Array.isArray(files))) {
             throw new Error("Asset sync inventory has an invalid format.");
         }
-        return {
-            Guidelines_Info: new Set(inventory.Guidelines_Info),
-            Directory: new Set(inventory.Directory)
-        };
+        return Object.fromEntries(
+            Object.entries(inventory).map(([directoryName, files]) => [directoryName, new Set(files)])
+        );
     } catch (err) {
         if (err.name !== "NotFoundError") {
             console.warn("⚠️ [OPFS Sync]: Could not read the cached asset inventory; rebuilding it after this sync.", err);
@@ -767,10 +773,9 @@ window.GreenLeaderStorage.saveSyncedAssetInventory = async function(rootDir, inv
     const appDataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
     const inventoryHandle = await appDataDir.getFileHandle("asset_sync_inventory.json", { create: true });
     const writable = await inventoryHandle.createWritable();
-    await writable.write(JSON.stringify({
-        Guidelines_Info: [...inventory.get("Guidelines_Info")],
-        Directory: [...inventory.get("Directory")]
-    }));
+    await writable.write(JSON.stringify(
+        Object.fromEntries([...inventory].map(([directoryName, files]) => [directoryName, [...files]]))
+    ));
     await writable.close();
 };
 
@@ -825,32 +830,39 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
             body: JSON.stringify({ action: "READ_MANIFEST" })
         });
 
-        if (!response) return;
-        if (!response.ok) return;
+        if (!response) throw new Error("Manifest request could not be completed after session verification.");
+        if (!response.ok) throw new Error(`Manifest request failed (HTTP ${response.status}).`);
 
         const payload = await response.json();
-        if (!Array.isArray(payload.guidelines) || !Array.isArray(payload.directory)) {
-            console.warn("⚠️ [OPFS Sync]: Manifest is missing its guidelines or directory file list; leaving local files unchanged.");
-            return;
+        const responseStatus = Number(payload.statusCode);
+        if (Number.isFinite(responseStatus) && (responseStatus < 200 || responseStatus >= 300)) {
+            throw new Error(`Manifest action failed (status ${responseStatus}).`);
         }
 
-        const allItems = [
-            ...(payload.guidelines || []),
-            ...(payload.directory || [])
-        ];
+        let manifest = payload.body ?? payload;
+        if (typeof manifest === "string") manifest = JSON.parse(manifest);
+        if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+            throw new Error("Manifest response body has an invalid format.");
+        }
 
-        const fileItems = allItems.filter(item => {
+        const manifestSections = Object.entries(manifest).filter(([, items]) => Array.isArray(items));
+        if (manifestSections.length === 0) {
+            throw new Error("Manifest response body does not contain any folder file lists.");
+        }
+
+        const fileItems = manifestSections.flatMap(([, items]) => items).filter(item => {
+            if (!item || typeof item !== "object" || !item.name || (!item.path && !item.downloadUrl)) return false;
             const type = (item.type || "").toLowerCase();
             return type !== "directory" && type !== "folder" && item.name;
         });
+        if (fileItems.length === 0) {
+            throw new Error("Manifest response body does not contain any downloadable files.");
+        }
 
         const totalFiles = fileItems.length;
         let processedCount = 0;
         let syncFailed = false;
-        const expectedFilesByDirectory = new Map([
-            ["Guidelines_Info", new Set()],
-            ["Directory", new Set()]
-        ]);
+        const expectedFilesByDirectory = new Map();
 
         for (const item of fileItems) {
             processedCount++;
@@ -858,37 +870,26 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
 
             try {
                 const cleanFilePath = window.GreenLeaderStorage.getSyncedAssetPath(item);
-
-                const targetBaseDir = cleanFilePath.includes("Guidelines_Info") 
-                    ? await rootDir.getDirectoryHandle("Guidelines_Info", { create: true })
-                    : rootDir;
-
-                let relativeSubFolder = "";
-                if (cleanFilePath.includes("Guidelines_Info/")) {
-                    const parts = cleanFilePath.split("Guidelines_Info/")[1].split("/");
-                    if (parts.length > 1) relativeSubFolder = parts[0];
-                } else if (cleanFilePath.includes("Directory/")) {
-                    relativeSubFolder = "Directory";
+                const pathParts = cleanFilePath.split("/").filter(Boolean);
+                if (pathParts[0]?.toLowerCase() === "shared documents") pathParts.shift();
+                if (pathParts.length < 2 || pathParts.some(part => part === "." || part === "..")) {
+                    throw new Error(`Invalid manifest file path '${cleanFilePath}'.`);
                 }
 
-                let managedDirectory = null;
-                let expectedRelativePath = item.name;
-                if (cleanFilePath.includes("Guidelines_Info")) {
-                    managedDirectory = "Guidelines_Info";
-                    if (relativeSubFolder) expectedRelativePath = `${relativeSubFolder}/${item.name}`;
-                } else if (cleanFilePath.includes("Directory/")) {
-                    managedDirectory = "Directory";
+                const managedDirectory = pathParts.shift();
+                const expectedRelativePath = pathParts.join("/");
+                if (!expectedFilesByDirectory.has(managedDirectory)) {
+                    expectedFilesByDirectory.set(managedDirectory, new Set());
                 }
-                if (managedDirectory) {
-                    expectedFilesByDirectory.get(managedDirectory).add(expectedRelativePath);
+                expectedFilesByDirectory.get(managedDirectory).add(expectedRelativePath);
+
+                let currentDirHandle = await rootDir.getDirectoryHandle(managedDirectory, { create: true });
+                for (const folderName of pathParts.slice(0, -1)) {
+                    currentDirHandle = await currentDirHandle.getDirectoryHandle(folderName, { create: true });
                 }
 
-                let currentDirHandle = targetBaseDir;
-                if (relativeSubFolder) {
-                    currentDirHandle = await targetBaseDir.getDirectoryHandle(relativeSubFolder, { create: true });
-                }
-
-                const fileHandle = await currentDirHandle.getFileHandle(item.name, { create: true });
+                const fileName = pathParts[pathParts.length - 1];
+                const fileHandle = await currentDirHandle.getFileHandle(fileName, { create: true });
 
                 try {
                     const existingFile = await fileHandle.getFile();
@@ -926,12 +927,12 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     cache: "no-store",
-                    body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: cleanFilePath })
+                    body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: item.downloadUrl || cleanFilePath })
                 });
 
-                if (!downloadRes) return;
+                if (!downloadRes) throw new Error(`Download request for '${item.name}' could not be completed after session verification.`);
                 if (!downloadRes.ok) throw new Error(`Asset download failed (HTTP ${downloadRes.status})`);
-                const fileContent = await downloadRes.text();
+                const fileContent = await downloadRes.blob();
                 const writable = await fileHandle.createWritable();
                 await writable.write(fileContent);
                 await writable.close();
@@ -948,7 +949,7 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
             for (const [directoryName, expectedFiles] of expectedFilesByDirectory) {
                 let removedCount = 0;
                 if (previousInventory) {
-                    const previousFiles = previousInventory[directoryName];
+                    const previousFiles = previousInventory[directoryName] || new Set();
                     for (const stalePath of previousFiles) {
                         if (!expectedFiles.has(stalePath)) {
                             if (await window.GreenLeaderStorage.removeTrackedAsset(rootDir, directoryName, stalePath)) removedCount++;

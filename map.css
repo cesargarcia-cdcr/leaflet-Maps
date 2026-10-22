@@ -1010,6 +1010,18 @@ body.fullscreen-map { overflow: hidden; }
   opacity: 1;
 }
 
+.clinic-carousel-card-image {
+  display: none;
+  width: 100%;
+  height: 92px;
+  border-radius: 7px;
+  object-fit: contain;
+}
+
+.clinic-carousel-card.is-selected .clinic-carousel-card-image {
+  display: block;
+}
+
 .clinic-carousel-card.is-prev {
   --card-rotation: 8deg;
 }
