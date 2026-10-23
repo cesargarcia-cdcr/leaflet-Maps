@@ -132,13 +132,15 @@ function runTerminalSequence() {
     const alertBtn = document.getElementById('systemAlertButton');
     const foreWindow = document.querySelector('.foreground-window');
 
+    const terminalHeader = "CDCR, System Security Interface\nVersion 4.0.5, Alpha E\nReady...\n";
     const sequence = [
-        { type: "CDCR, System Security Interface\nVersion 4.0.5, Alpha E\nReady...\n> access security", reply: "\naccess: PERMISSION DENIED." },
+        { type: "> access security", reply: "\naccess: PERMISSION DENIED." },
         { type: "\n> access security grid", reply: "\naccess: PERMISSION DENIED." },
         { type: "\n> access main security grid", reply: "\naccess: PERMISSION DENIED.\n...and..." }
     ];
 
     let currentStep = 0;
+    log.textContent = terminalHeader;
 
     function getTypingDelay(character) {
         const variation = Math.random() * 60;
