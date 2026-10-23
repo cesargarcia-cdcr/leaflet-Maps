@@ -148,7 +148,7 @@
             const city = properCase(String(cleanObj["city"] || "").trim());
             const zip = String(cleanObj["zipcode"] || cleanObj["zip"] || "").trim();
             
-            const fullAddress = [address, city, zip].filter(Boolean).join(", ");
+            const fullAddress = [address, zip].filter(Boolean).join(", ");
             
             const rawLat = cleanObj["lat"] ?? cleanObj["latitude"] ?? "";
             const rawLng = cleanObj["lng"] ?? cleanObj["longitude"] ?? "";
