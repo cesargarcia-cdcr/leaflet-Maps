@@ -20,6 +20,42 @@
     gap: 6px;
 }
 
+#info-section .guidelines-search-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--guide-heading);
+}
+
+#info-section .guidelines-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--panel);
+    color: var(--text-clinic);
+    font: inherit;
+}
+
+#info-section .guidelines-search:focus {
+    outline: 2px solid var(--guide-navy);
+    outline-offset: 1px;
+}
+
+#info-section .guidelines-status.guidelines-index-ready {
+    padding: 2px 4px;
+    color: var(--muted);
+    font-size: 0.7rem;
+}
+
+#info-section .guidelines-search-snippet {
+    margin: 0;
+    padding: 0 6px 6px;
+    color: var(--muted);
+    font-size: 0.7rem;
+    line-height: 1.4;
+}
+
 #info-section .info-group {
     border: 1px solid var(--border);
     border-radius: 4px;

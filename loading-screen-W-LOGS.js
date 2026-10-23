@@ -971,6 +971,7 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                 console.log(`🧹 [OPFS Sync]: Removed ${removedCount} stale file(s) from ${directoryName}.`);
             }
             await window.GreenLeaderStorage.saveSyncedAssetInventory(rootDir, expectedFilesByDirectory);
+            window.dispatchEvent(new CustomEvent("GuidelinesAssetsSynced"));
         }
 
         if (typeof window.LSEngine.setProgress === 'function') {
