@@ -104,9 +104,9 @@ async function triggerMacAutomatedTerminal() {
         </div>
     </div>
 
-    <audio id="nedry-beep-audio" src="${basePath}resources/beep.mp3"></audio>
-    <audio id="nedry-lockdown-audio" src="${basePath}resources/lockDown.mp3"></audio>
-    <audio id="nedry-loop-audio" src="${basePath}resources/ahahah.mp3" loop></audio>
+    <audio id="nedry-beep-audio" src="${basePath}resources/beep.mp3" preload="auto"></audio>
+    <audio id="nedry-lockdown-audio" src="${basePath}resources/lockDown.mp3" preload="auto"></audio>
+    <audio id="nedry-loop-audio" src="${basePath}resources/ahahah.mp3" preload="auto" loop></audio>
     `;
 
     const overlay = document.createElement('div');
@@ -114,7 +114,40 @@ async function triggerMacAutomatedTerminal() {
     overlay.innerHTML = htmlContent;
     document.body.appendChild(overlay);
 
+    unlockAudioFromUserGesture(overlay.querySelectorAll('audio'));
     runTerminalSequence();
+}
+
+function unlockAudioFromUserGesture(audioElements) {
+    audioElements.forEach(audio => {
+        audio.muted = true;
+        audio.addEventListener('error', () => {
+            console.error(`Sound effect failed to load: ${audio.currentSrc}`, audio.error);
+        }, { once: true });
+
+        const unlockAttempt = audio.play();
+        if (!unlockAttempt) {
+            audio.muted = false;
+            return;
+        }
+
+        unlockAttempt.then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = false;
+        }).catch(error => {
+            audio.muted = false;
+            console.warn(`Could not unlock sound effect ${audio.currentSrc}:`, error);
+        });
+    });
+}
+
+function playSoundEffect(audio, label) {
+    if (!audio) return;
+    const playback = audio.play();
+    if (playback) {
+        playback.catch(error => console.warn(`Could not play ${label}:`, error));
+    }
 }
 
 // ==========================================
@@ -171,7 +204,7 @@ function runTerminalSequence() {
                     
                     if (beepAudio) {
                         beepAudio.currentTime = 0;
-                        beepAudio.play().catch(() => {});
+                        playSoundEffect(beepAudio, 'terminal beep');
                     }
                     
                     if (currentStep < sequence.length) {
@@ -210,7 +243,7 @@ function runTerminalSequence() {
             } else {
                 // Once the screen is full, trigger the lockdown audio and Nedry's image.
                 setTimeout(() => {
-                    if (lockdownAudio) lockdownAudio.play().catch(() => {});
+                    playSoundEffect(lockdownAudio, 'lockdown sound');
                     triggerTrapMatrix();
                 }, 600);
             }
@@ -223,12 +256,12 @@ function runTerminalSequence() {
         if (memeGraphic) memeGraphic.classList.remove('hidden');
         if (foreWindow) foreWindow.classList.add('window-flash-alert');
 
-        if (loopAudio) loopAudio.play().catch(err => console.log("Audio pipeline error:", err));
+        playSoundEffect(loopAudio, 'loop sound');
     }
 
     if (alertBtn) {
         alertBtn.addEventListener('click', () => {
-            if (loopAudio) loopAudio.play().catch(() => {});
+            playSoundEffect(loopAudio, 'loop sound');
         });
     }
 }
