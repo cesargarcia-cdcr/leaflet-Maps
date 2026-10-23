@@ -140,6 +140,13 @@ function runTerminalSequence() {
 
     let currentStep = 0;
 
+    function getTypingDelay(character) {
+        const variation = Math.random() * 60;
+        if (character === '\n') return 260 + variation;
+        if (/[.,!?]/.test(character)) return 180 + variation;
+        return 90 + variation;
+    }
+
     function typeCommand(lineObj) {
         if (!document.getElementById('mac-terminal-log')) return;
 
@@ -150,9 +157,10 @@ function runTerminalSequence() {
             if (!document.getElementById('mac-terminal-log')) return;
 
             if (index < textToType.length) {
-                log.innerHTML += textToType[index];
+                const character = textToType[index];
+                log.innerHTML += character;
                 index++;
-                setTimeout(typeChar, 35);
+                setTimeout(typeChar, getTypingDelay(character));
             } else {
                 setTimeout(() => {
                     if (!document.getElementById('mac-terminal-log')) return;
@@ -165,20 +173,20 @@ function runTerminalSequence() {
                     }
                     
                     if (currentStep < sequence.length) {
-                        setTimeout(() => typeCommand(sequence[currentStep]), 600);
+                        setTimeout(() => typeCommand(sequence[currentStep]), 900);
                     } else {
                         // Play the infinite loop of "YOU DIDN'T SAY THE MAGIC WORD!"
                         setTimeout(() => {
                             startMagicWordFlood();
-                        }, 800);
+                        }, 1000);
                     }
-                }, 250);
+                }, 700);
             }
         }
         typeChar();
     }
 
-    setTimeout(() => typeCommand(sequence[0]), 300);
+    setTimeout(() => typeCommand(sequence[0]), 500);
 
     // Function to flood the screen with the classic phrase before the trap
     function startMagicWordFlood() {
