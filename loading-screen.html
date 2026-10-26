@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="loading-screen.css">
+    <link rel="stylesheet" href="theme.css">
+    <head>
+    <meta charset="UTF-8" />
+    
+    <!-- 🛡️ CRITICAL SESSION GUARD (must be at the very start of <head>) -->
+    <script>
+        (function() {
+            try {
+                // Check the lock conditions (global flag, URL parameters, or session state).
+                const sessionLocked = 
+                    (window.LSEngine && window.LSEngine.isLocked) || 
+                    window.location.search.includes('login_required') ||
+                    localStorage.getItem("session_expired") === "true";
+
+                if (sessionLocked) {
+                    // Option A: Replace the page with a clean authentication screen.
+                    document.documentElement.innerHTML = `
+                        <head>
+                            <title>Authentication Required</title>
+                            <link rel="stylesheet" href="loading-screen.css">
+                            <link rel="stylesheet" href="theme.css">
+                        </head>
+                        <body class="loading-auth-page">
+                            <div class="box">
+                                <h2>🔒 Authentication Required</h2>
+                                <p>No active session was found, or authentication has expired.</p>
+                                <p class="loading-auth-note">Please sign in to continue.</p>
+                            </div>
+                        </body>
+                    `;
+                    
+                    // Stop the remaining page scripts from running.
+                    throw new Error("Access denied: An active session is required.");
+                }
+            } catch (e) {
+                // Ignore the intentional interruption error.
+                if (e.message !== "Access denied: An active session is required.") {
+                    console.error("Error in the security guard:", e);
+                }
+            }
+        })();
+    </script>
+
+    <!-- Add the remaining metadata and stylesheets (Leaflet, app styles, etc.) below. -->
+    <script>
+        // Force a full reload from the server.
+    function hardReloadApp() {
+        // Add a random parameter to force the browser to fetch fresh HTML.
+        const currentUrl = window.location.href.split('?')[0];
+        const searchParams = window.location.search;
+        
+        // Add or update a version timestamp to bypass the browser cache.
+        const cacheBuster = `_cb=${Date.now()}`;
+        
+        let newUrl = currentUrl;
+        if (searchParams) {
+            // Replace or add the cache-busting parameter.
+            if (searchParams.includes('_cb=')) {
+                newUrl += searchParams.replace(/_cb=\d+/, cacheBuster);
+            } else {
+                newUrl += `${searchParams}&${cacheBuster}`;
+            }
+        } else {
+            newUrl += `?${cacheBuster}`;
+        }
+        
+        window.location.replace(newUrl);
+    }
+    </script>
+    <title>System Loading - Interactive Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="notes.css">
+    <link rel="stylesheet" href="map.css">
+    <link rel="stylesheet" href="block-F12.css">
+</head>
+<body class="loading-page">
+
+    <div id="app-frame-wrapper">
+        <div id="map-area">
+            <div id="map"></div>
+
+            <aside id="place-sheet" class="sheet" aria-hidden="true">
+                <div class="sheet-hd">
+                    <div class="sheet-title">Selected Clinic</div>
+                    <button class="sheet-close" title="Close" onclick="closeSheet()">✕</button>
+                </div>
+                <div class="sheet-body" id="clinic-info-body">
+                    <div class="loading-empty-state">
+                        <svg class="loading-empty-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <div>Click on a map marker or select a clinic from the map dropdown menu.</div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <div id="sync-footer-panel">
+            <div class="loading-status-row">
+                <p id="sync-status" class="loading-status-text">Waiting to orchestrate sync...</p>
+                <span class="loading-state-label">STATUS: <span id="bt-state-text" class="loading-state-value">IDLE</span></span>
+            </div>
+            <div class="bt-progress-container">
+                <div id="bt-progress-bar" class="bt-progress-fill"></div>
+            </div>
+            <div class="loading-progress-label">
+                <span id="bt-percentage">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load the map library -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Independent scripts, ready to be orchestrated -->
+    <script src="loading-screen-W-LOGS.js"></script>
+    <script src="map-lite.js"></script>
+    <script src="block-F12.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        console.log("🚀 [LSEngine] Starting the loading sequence...");
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const isFastMode = urlParams.get('fast') === '1' || localStorage.getItem("lite_payload_cache");
+
+        // 1. Wait for the session decision: online or explicitly offline.
+        let sessionActive = true;
+        if (typeof red_leader === 'function') {
+            sessionActive = await red_leader([0]);
+        }
+
+        const offlineMode = window.LSEngine.offlineMode === true
+            || sessionStorage.getItem("app_offline_mode") === "true";
+        if (offlineMode) {
+            console.log("🔓 [LSEngine] Offline mode selected. Loading cached data without contacting Power Automate...");
+            await window.GreenLeaderStorage.restoreOfflineData();
+            window.LSEngine.initializeMap();
+            updateProgress(100, "Offline mode: using locally stored data.", "OFFLINE");
+            return;
+        }
+        if (!sessionActive) return;
+
+        // 2. Choose the data-loading path based on fast mode.
+        if (isFastMode) {
+            console.log("⚡ [LSEngine] Fast mode (?fast=1) is enabled. Skipping the lite fetch and loading from OPFS...");
+            if (typeof red_leader === 'function') {
+                await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+            }
+        } else {
+            console.log("🌐 [LSEngine] Fetching the main data payload (lite)...");
+            await window.LSEngine.taskFetchMainDataLite();
+            await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+        }
+
+        // 3. Render the map immediately.
+        const mapLoaded = window.LSEngine.initializeMap();
+
+        if (mapLoaded) {
+            console.log("📍 Map is ready. Starting background synchronization and downloads...");
+            
+            // 4. Run the remaining heavy tasks through red_leader (steps 2 and 4).
+            if (typeof red_leader === 'function') {
+                await red_leader([2, 4]);
+                await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage(); // Ensure localStorage and global state are updated.
+            }
+        }
+    } catch (err) {
+        console.error("❌ Error in the main LSEngine flow:", err);
+        window.LSEngine.setProgress(100, "Critical system error", "ERROR");
+    }
+});
+</script>
+
+</body>
+</html>

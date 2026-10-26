@@ -1,0 +1,158 @@
+/* Modern, clean styles */
+.directory-page .directory-footer {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    margin: 32px 0 12px;
+}
+
+.app-container #csvdir-root .directory-status {
+    padding: 20px;
+}
+
+.app-container #csvdir-root .directory-status-pending {
+    color: orange;
+}
+
+.app-container #csvdir-root .directory-status-error {
+    color: red;
+}
+
+#directory-section .dir-sticky-hd {
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+#directory-section .dir-sticky-hd > .actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    min-width: 0;
+}
+
+#directory-section .directory-search-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+#directory-section .dir-select {
+    width: 180px;
+    flex: 0 0 180px;
+}
+
+#directory-section #dirSearchCSV {
+    width: 320px;
+    max-width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background-color: var(--panel);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+#directory-section #dirSearchCSV:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    outline: none;
+}
+
+@media (max-width: 760px) {
+    #directory-section .dir-sticky-hd > .actions {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    #directory-section .directory-search-wrapper {
+        flex: 1;
+    }
+
+    #directory-section #dirSearchCSV {
+        width: auto;
+        min-width: 0;
+        flex: 1;
+    }
+}
+
+@media (max-width: 520px) {
+    #directory-section .dir-sticky-hd > .actions {
+        flex-wrap: wrap;
+    }
+
+    #directory-section .directory-search-wrapper {
+        flex: 1 1 100%;
+    }
+
+    #directory-section .dir-select {
+        width: auto;
+        flex: 0 1 40%;
+    }
+}
+
+body.directory-page {
+    background-color: var(--bg);
+    color: var(--text-dark);
+    font-family: var(--font-family-base);
+    line-height: var(--line-height-directory);
+}
+
+.clinic {
+    background: var(--panel);
+    padding: 24px;
+    margin: 20px auto;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    max-width: 900px;
+}
+
+h1 {
+    color: var(--text);
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-top: 0;
+}
+
+.clinic-address {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+    font-style: italic;
+}
+
+.dept-header {
+    color: var(--primary-hover);
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    margin-top: 25px;
+    margin-bottom: 10px;
+}
+
+.directory-section > h2 {
+    color: #005D60;
+}
+
+.directory-table {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.dir-row:hover {
+    background-color: var(--surface-hover);
+}
+
+.dir-row td {
+    padding: 12px 8px;
+    border-bottom: 1px solid #D6EDF1;
+}
+
+/* Make extensions stand out without being too prominent. */
+.dir-row td:last-child {
+    text-align: right;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    color: var(--primary);
+    font-weight: 600;
+}

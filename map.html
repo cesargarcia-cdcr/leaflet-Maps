@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <script src="theme.js"></script>
+    <title>Clinic Map</title>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- App styles -->
+    <link rel="stylesheet" href="layout.css"> 
+    <link rel="stylesheet" href="notes.css"> 
+    <link rel="stylesheet" href="map.css">
+    <link rel="stylesheet" href="theme.css">
+</head>
+<body class="map-page">
+
+    <!-- Map controls (search and optional back button) -->
+    <div class="map-controls map-page-controls">
+        <a href="index.html" class="btn ghost map-page-back">⬅️ Back</a>
+        <div class="mc-search map-page-search">
+            <input id="searchInput" class="mc-input map-page-search-input" list="clinicNameList" placeholder="Address, ZIP, code, nickname, or clinic name" />
+            <datalist id="clinicNameList"></datalist>
+            <button class="btn primary" onclick="findNearest()">🔎 Find</button>
+            <button class="btn ghost" onclick="clearSearch()">✕ Clear</button>
+        </div>
+    </div>
+
+    <!-- Map container -->
+    <div id="map" class="map-viewport map-page-viewport"></div>
+
+    <!-- Clinic slide-out panel -->
+    <aside id="place-sheet" class="sheet" aria-hidden="true">
+        <div class="sheet-hd">
+            <div class="sheet-title">Selected Clinic</div>
+            <button class="sheet-close" title="Close" onclick="window.closePlaceSheet?.()">✕</button>
+        </div>
+        <div class="sheet-body" id="clinic-info-body">
+            <div class="empty-state">
+                <div>Click a clinic marker or use search.</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Bridge script for retrieving cached data from localStorage. -->
+    <script>
+        // Retrieve cached data stored in localStorage.
+        window.getCachedData = function(key) {
+            try {
+                // Check the full cached payload first, then individual keys.
+                const payload = JSON.parse(localStorage.getItem("cache_payload") || "{}");
+                if (payload[key]) return payload[key];
+                
+                // Fall back to individually stored data.
+                return localStorage.getItem(key) || "";
+            } catch (e) {
+                console.error("Error reading cached data from localStorage:", e);
+                return "";
+            }
+        }
+
+        // Dispatch the load event so map.js can initialize.
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const event = new Event('AppDataLoaded');
+                window.dispatchEvent(event);
+            }, 100);
+        });
+    </script>
+
+    <!-- Main map script -->
+    <script src="map.js"></script>
+</body>
+</html>
