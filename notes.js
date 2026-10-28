@@ -355,8 +355,8 @@ function filterEpicGuide(query) {
     });
 }
 
-/* ======= Clipboard Copy Function with Permissions & Fallback ======= */
-async function copyResult() {
+/* ======= Clipboard Copy Function using Parent PostMessage ======= */
+function copyResult() {
     try {
         updateNote();
         const resultText = document.getElementById('result')?.innerText || '';
@@ -366,35 +366,44 @@ async function copyResult() {
             return;
         }
 
-        if (navigator.permissions && navigator.permissions.query) {
-            try {
-                const permissionStatus = await navigator.permissions.query({ name: 'clipboard-write' });
-                if (permissionStatus.state === 'denied') {
-                    alert("⚠️ Clipboard access was denied. Please enable permissions in your browser settings.");
-                    return;
-                }
-            } catch (err) {
-                console.log("Permissions query notice:", err);
-            }
-        }
+        // Detectar si estamos dentro de un iframe o en Teams/SharePoint
+        if (window.self !== window.top) {
+            // Enviar el texto hacia el contenedor padre mediante postMessage
+            window.parent.postMessage({
+                action: "PcfCopyRequested",
+                text: resultText
+            }, "*");
 
-        await navigator.clipboard.writeText(resultText);
-        showToast("✓ Successfully copied to clipboard!");
+            // Opcional: mostrar un toast indicando que se intentó enviar al contenedor
+            showToast("📤 Solicitud de copia enviada al contenedor...");
+        } else {
+            // Si por alguna razón se abre fuera de iframe, usar el método moderno directamente
+            navigator.clipboard.writeText(resultText).then(() => {
+                showToast("✓ Successfully copied to clipboard!");
+            }).catch(() => {
+                fallbackCopyDirect(resultText);
+            });
+        }
 
     } catch (error) {
         console.error("Clipboard copy error:", error);
-        try {
-            const fallbackTextArea = document.createElement('textarea');
-            fallbackTextArea.value = document.getElementById('result')?.innerText || '';
-            document.body.appendChild(fallbackTextArea);
-            fallbackTextArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(fallbackTextArea);
-            showToast("✓ Copied (fallback method)!");
-        } catch (fallbackErr) {
-            alert("❌ Automatic clipboard permission could not be granted. Please check browser settings.");
-        }
+        alert("❌ No se pudo procesar la solicitud de copia.");
     }
+}
+
+// Respaldo por si se ejecuta en una ventana normal fuera de iframe
+function fallbackCopyDirect(text) {
+    const fallbackTextArea = document.createElement('textarea');
+    fallbackTextArea.value = text;
+    document.body.appendChild(fallbackTextArea);
+    fallbackTextArea.select();
+    try {
+        document.execCommand('copy');
+        showToast("✓ Copied (fallback method)!");
+    } catch (fallbackErr) {
+        alert("❌ Automatic clipboard permission could not be granted.");
+    }
+    document.body.removeChild(fallbackTextArea);
 }
 
 /* ======= Toast Notification Helper ======= */
