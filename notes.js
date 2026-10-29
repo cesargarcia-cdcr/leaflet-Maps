@@ -359,9 +359,12 @@ function filterEpicGuide(query) {
 function copyResult() {
     try {
         updateNote();
-        const resultText = document.getElementById('result')?.innerText || '';
+        
+        // Obtenemos el texto exacto del div de resultados que ya construyes
+        const resultDiv = document.getElementById('result');
+        const resultText = resultDiv ? resultDiv.innerText.trim() : '';
 
-        if (!resultText.trim() || resultText.includes('Your generated note will appear here')) {
+        if (!resultText || resultText.includes('Your generated note will appear here')) {
             alert("⚠️ Insufficient information to copy. Please complete at least one field.");
             return;
         }
@@ -374,10 +377,9 @@ function copyResult() {
                 text: resultText
             }, "*");
 
-            // Opcional: mostrar un toast indicando que se intentó enviar al contenedor
             showToast("📤 Solicitud de copia enviada al contenedor...");
         } else {
-            // Si por alguna razón se abre fuera de iframe, usar el método moderno directamente
+            // Si se abre fuera de iframe, usar el método moderno directamente
             navigator.clipboard.writeText(resultText).then(() => {
                 showToast("✓ Successfully copied to clipboard!");
             }).catch(() => {
