@@ -525,3 +525,24 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+/* ======= Selección automática del resultado al presionar Ctrl ======= */
+document.addEventListener('keydown', (e) => {
+    // Detectar cuando se presiona la tecla Ctrl (o Cmd en Mac)
+    if (e.key === 'Control' || e.metaKey || e.ctrlKey) {
+        // Validar si estamos en la sección de notas o si el div existe
+        const resultDiv = document.getElementById('result');
+        if (resultDiv) {
+            const text = resultDiv.innerText.trim();
+            
+            // Solo seleccionar si hay contenido válido generado
+            if (text && !text.includes('Your generated note will appear here')) {
+                const range = document.createRange();
+                range.selectNodeContents(resultDiv);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+    }
+});
