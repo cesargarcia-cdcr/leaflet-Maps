@@ -355,12 +355,12 @@ function filterEpicGuide(query) {
     });
 }
 
-/* ======= Clipboard Copy Function using Parent PostMessage ======= */
+/* ======= 2. Clipboard Copy Function using Simplified PostMessage ======= */
 function copyResult() {
     try {
         updateNote();
         
-        // Obtenemos el texto exacto del div de resultados que ya construyes
+        // Obtenemos el texto exacto del div de resultados
         const resultDiv = document.getElementById('result');
         const resultText = resultDiv ? resultDiv.innerText.trim() : '';
 
@@ -371,11 +371,8 @@ function copyResult() {
 
         // Detectar si estamos dentro de un iframe o en Teams/SharePoint
         if (window.self !== window.top) {
-            // Enviar el texto hacia el contenedor padre mediante postMessage
-            window.parent.postMessage({
-                action: "PcfCopyRequested",
-                text: resultText
-            }, "*");
+            // Enviar únicamente el string directo mediante postMessage al contenedor padre
+            window.parent.postMessage(resultText, '*');
 
             showToast("📤 Solicitud de copia enviada al contenedor...");
         } else {
@@ -393,7 +390,8 @@ function copyResult() {
     }
 }
 
-// Respaldo por si se ejecuta en una ventana normal fuera de iframe
+
+/* ======= 3. Respaldo por si se ejecuta fuera de iframe ======= */
 function fallbackCopyDirect(text) {
     const fallbackTextArea = document.createElement('textarea');
     fallbackTextArea.value = text;
