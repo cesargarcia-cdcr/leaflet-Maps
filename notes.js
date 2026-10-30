@@ -355,38 +355,49 @@ function filterEpicGuide(query) {
     });
 }
 
- /* ======= 1. Global listener for the Ctrl + Shift + C shortcut ======= */
+/* ======= 1. Escuchador avanzado en dos fases (Estricto para PC / Ctrl): Selección con Ctrl+Shift y Envío con C ======= */
 document.addEventListener('keydown', (e) => {
-    // Verificar si se presionó Ctrl (o Cmd en Mac), Shift y la tecla C simultáneamente
-    if ((e.ctrlKey || e.shiftKey) && e.key.toLowerCase() === 'c') {
-        
-        const noteVisible = typeof isNoteSectionVisible !== 'undefined' ? isNoteSectionVisible : true;
-        
-        if (noteVisible) {
-            e.preventDefault(); // Evita el comportamiento por defecto del navegador
-            
-            const resultDiv = document.getElementById('result');
-            if (!resultDiv) return;
+    const isCtrl = e.ctrlKey; 
+    const isShift = e.shiftKey;
+    const key = e.key.toLowerCase();
 
-            // Seleccionar automáticamente el contenido del div de resultados al instante
-            const range = document.createRange();
-            range.selectNodeContents(resultDiv);
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
+    const noteVisible = typeof isNoteSectionVisible !== 'undefined' ? isNoteSectionVisible : true;
+    if (!noteVisible) return;
 
-            // Obtener el texto recién seleccionado (o respaldar con el innerText)
-            const selectedText = selection.toString().trim() || resultDiv.innerText.trim();
+    const resultDiv = document.getElementById('result');
+    if (!resultDiv) return;
 
-            if (!selectedText || selectedText.includes('Your generated note will appear here')) {
-                alert("⚠️ Insufficient information to copy. Please complete at least one field.");
-                return;
-            }
+    // FASE 1: Al presionar Ctrl + Shift (antes de tocar la C), seleccionamos el texto de inmediato
+    if (isCtrl && isShift && key !== 'c' && key !== 'control' && key !== 'shift') {
+        const range = document.createRange();
+        range.selectNodeContents(resultDiv);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
 
-            // Enviar el texto seleccionado mediante la función centralizada de copia
-            executeCopyAction(selectedText);
-            console.log("📋 Ctrl+Shift+C detectado: texto seleccionado y enviado automáticamente.");
+    // FASE 2: Al agregar la tercera tecla ('c' manteniendo Ctrl + Shift), se lanza el postMessage o copia
+    if (isCtrl && isShift && key === 'c') {
+        e.preventDefault(); // Evita el comportamiento por defecto de Power Apps / navegador
+
+        // Aseguramos la selección en ese milisegundo final
+        const range = document.createRange();
+        range.selectNodeContents(resultDiv);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        // Obtenemos el texto seleccionado o respaldamos con el contenido completo
+        const selectedText = selection.toString().trim() || resultDiv.innerText.trim();
+
+        if (!selectedText || selectedText.includes('Your generated note will appear here')) {
+            alert("⚠️ Insufficient information to copy. Please complete at least one field.");
+            return;
         }
+
+        // Ejecutamos el envío mediante la función centralizada
+        executeCopyAction(selectedText);
+        console.log("📋 Secuencia completada: Ctrl+Shift presionado, 'C' agregada -> postMessage enviado.");
     }
 });
 
