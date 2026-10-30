@@ -358,7 +358,7 @@ function filterEpicGuide(query) {
  /* ======= 1. Global listener for the Ctrl + Shift + C shortcut ======= */
 document.addEventListener('keydown', (e) => {
     // Verificar si se presionó Ctrl (o Cmd en Mac), Shift y la tecla C simultáneamente
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
+    if ((e.ctrlKey || e.shiftKey) && e.key.toLowerCase() === 'c') {
         
         const noteVisible = typeof isNoteSectionVisible !== 'undefined' ? isNoteSectionVisible : true;
         
