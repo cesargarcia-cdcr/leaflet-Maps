@@ -506,7 +506,8 @@ function enforceCollapsedSidebar() {
     }
 }
 
-function toggleMenu(force) {
+// ⚠️ AQUÍ ESTÁ EL CAMBIO CLAVE: Asignarlo a window.toggleMenu
+window.toggleMenu = function toggleMenu(force) {
     const burger = document.querySelector('.burger');
     const sidebar = document.querySelector('.sidebar');
     const overlay = document.querySelector('.sidebar-overlay');
@@ -526,7 +527,7 @@ function toggleMenu(force) {
         overlay.classList.remove('show');
         sidebar.style.transform = 'translateX(-100%)';
     }
-}
+};
 
 /* ======= Section Navigation (1 to 5) ======= */
 function navigateTo(s) {
