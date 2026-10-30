@@ -355,49 +355,58 @@ function filterEpicGuide(query) {
     });
 }
 
-/* ======= 1. Escuchador avanzado en dos fases (Estricto para PC / Ctrl): Selección con Ctrl+Shift y Envío con C ======= */
+/* ======= Select result text only when Ctrl + Shift are pressed together ======= */
+let ctrlShiftSelectionActive = false;
+
+function selectResultTextForCopy() {
+    const resultDiv = document.getElementById('result');
+    if (!resultDiv) return;
+
+    const text = resultDiv.innerText.trim();
+    if (!text || text.includes('Your generated note will appear here')) return;
+
+    const range = document.createRange();
+    range.selectNodeContents(resultDiv);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+}
+
 document.addEventListener('keydown', (e) => {
-    const isCtrl = e.ctrlKey; 
-    const isShift = e.shiftKey;
-    const key = e.key.toLowerCase();
+    const isCtrlPressed = e.ctrlKey || e.metaKey;
+    const isShiftPressed = e.shiftKey;
+    const isModifierOnlyKey = ['Control', 'Shift', 'Meta', 'Alt', 'CapsLock', 'Tab', 'Escape'].includes(e.key);
 
     const noteVisible = typeof isNoteSectionVisible !== 'undefined' ? isNoteSectionVisible : true;
     if (!noteVisible) return;
 
-    const resultDiv = document.getElementById('result');
-    if (!resultDiv) return;
-
-    // FASE 1: Al presionar Ctrl + Shift (antes de tocar la C), seleccionamos el texto de inmediato
-    if (isCtrl && isShift && key !== 'c' && key !== 'control' && key !== 'shift') {
-        const range = document.createRange();
-        range.selectNodeContents(resultDiv);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
+    if (isCtrlPressed && isShiftPressed && !isModifierOnlyKey) {
+        ctrlShiftSelectionActive = true;
+        selectResultTextForCopy();
+        return;
     }
 
-    // FASE 2: Al agregar la tercera tecla ('c' manteniendo Ctrl + Shift), se lanza el postMessage o copia
-    if (isCtrl && isShift && key === 'c') {
-        e.preventDefault(); // Evita el comportamiento por defecto de Power Apps / navegador
+    if (ctrlShiftSelectionActive && (e.key.toLowerCase() === 'c')) {
+        e.preventDefault();
 
-        // Aseguramos la selección en ese milisegundo final
-        const range = document.createRange();
-        range.selectNodeContents(resultDiv);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        // Obtenemos el texto seleccionado o respaldamos con el contenido completo
-        const selectedText = selection.toString().trim() || resultDiv.innerText.trim();
-
-        if (!selectedText || selectedText.includes('Your generated note will appear here')) {
+        const selectedText = window.getSelection().toString().trim();
+        if (!selectedText) {
             alert("⚠️ Insufficient information to copy. Please complete at least one field.");
             return;
         }
 
-        // Ejecutamos el envío mediante la función centralizada
         executeCopyAction(selectedText);
-        console.log("📋 Secuencia completada: Ctrl+Shift presionado, 'C' agregada -> postMessage enviado.");
+        console.log("📋 Ctrl+Shift + C detected -> copy action sent.");
+        ctrlShiftSelectionActive = false;
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    const isCtrlPressed = e.ctrlKey || e.metaKey;
+    const isShiftPressed = e.shiftKey;
+
+    if (!isCtrlPressed && !isShiftPressed) {
+        ctrlShiftSelectionActive = false;
     }
 });
 
@@ -552,26 +561,5 @@ window.addEventListener('DOMContentLoaded', () => {
         memberIdInput.addEventListener('input', (e) => {
             autoSelectInsuranceByMemberId(e.target.value);
         });
-    }
-});
-
-/* ======= Selección automática del resultado al presionar Ctrl ======= */
-document.addEventListener('keydown', (e) => {
-    // Detectar cuando se presiona la tecla Ctrl (o Cmd en Mac)
-    if (e.key === 'Control' || e.metaKey || e.ctrlKey) {
-        // Validar si estamos en la sección de notas o si el div existe
-        const resultDiv = document.getElementById('result');
-        if (resultDiv) {
-            const text = resultDiv.innerText.trim();
-            
-            // Solo seleccionar si hay contenido válido generado
-            if (text && !text.includes('Your generated note will appear here')) {
-                const range = document.createRange();
-                range.selectNodeContents(resultDiv);
-                const selection = window.getSelection();
-                selection.removeAllRanges();
-                selection.addRange(range);
-            }
-        }
     }
 });
