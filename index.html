@@ -172,8 +172,8 @@
     </div>
 
     <div class="app-container">
-        <button class="burger" onclick="toggleMenu()"><span></span><span></span><span></span></button>
-        <div class="sidebar-overlay" onclick="toggleMenu()"></div>
+        <button class="burger" onclick="window.toggleMenu()"><span></span><span></span><span></span></button>
+        <div class="sidebar-overlay" onclick="window.toggleMenu(false)"></div>
         
         <aside class="sidebar">
             <nav class="sidebar-nav">
@@ -371,12 +371,12 @@
                         </div>
                     </div>
 
-                    <!-- Replace your secondary row container in index.html with this structured version -->
+                    <!-- Secondary filter row -->
                     <div class="pdir-filter-row" id="pdirInlineFiltersRow">
                         <!-- Dropdown filters will be cleanly placed here by JS -->
                     </div>
 
-                    <!-- Freshly Added Element: Interactive Quick-Filter Tag Cloud Container -->
+                    <!-- Interactive Quick-Filter Tag Cloud Container -->
                     <div id="pdirKeywordsCloud" class="pdir-keywords-cloud is-hidden">
                         <!-- Clickable smart keywords will inject dynamically here -->
                     </div>
@@ -506,7 +506,7 @@ function enforceCollapsedSidebar() {
     }
 }
 
-// ⚠️ AQUÍ ESTÁ EL CAMBIO CLAVE: Asignarlo a window.toggleMenu
+// Global Toggle Menu Definition
 window.toggleMenu = function toggleMenu(force) {
     const burger = document.querySelector('.burger');
     const sidebar = document.querySelector('.sidebar');
@@ -573,7 +573,7 @@ function navigateTo(s) {
         (s === 'info' && i === 4)
     ));
 
-    if (typeof toggleMenu === 'function') toggleMenu(false);
+    if (typeof window.toggleMenu === 'function') window.toggleMenu(false);
 }
 
 /* ======= Shortcuts Alt+Shift+1/2/3/4/5 ======= */
@@ -587,58 +587,52 @@ document.addEventListener('keydown', e => {
     }
 });
 
-/* ======= Bootstrap UI Core ======= */
-window.addEventListener('DOMContentLoaded', () => {
+/* ======= Bootstrap UI Core & Intersection Observer ======= */
+document.addEventListener('DOMContentLoaded', () => {
     try {
         enforceCollapsedSidebar();
         const overlay = document.querySelector('.sidebar-overlay');
-        overlay?.addEventListener('click', () => toggleMenu(false));
+        overlay?.addEventListener('click', () => window.toggleMenu(false));
         navigateTo('map');
     } catch (e) {
         console.error('Error in UI initialization:', e);
     }
-});
 
-document.addEventListener('DOMContentLoaded', () => {
     let isNoteSectionVisible = false;
 
-    // 1. Observe when the notes section is visible in the viewport.
     const noteSection = document.getElementById('note-section');
     if (noteSection) {
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 isNoteSectionVisible = entry.isIntersecting;
             });
-        }, { threshold: 0.2 }); // Trigger when at least 20% of the section is visible.
+        }, { threshold: 0.2 });
 
         observer.observe(noteSection);
     }
+});
 
-/* ======= Expose Global UI Functions & Listeners ======= */
+/* ======= Expose Global UI Functions ======= */
 window.navigateTo = navigateTo;
 window.enforceCollapsedSidebar = enforceCollapsedSidebar;
+</script>
 
-window.toggleMenu = function(force) {
-    const burger = document.querySelector('.burger');
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-    if (!sidebar || !burger || !overlay) return;
-
-    const isOpen = sidebar.classList.contains('open');
-    const willOpen = (force === true) ? true : (force === false) ? false : !isOpen;
-
-    if (willOpen) {
-        burger.classList.add('active');
-        sidebar.classList.add('open');
-        overlay.classList.add('show');
-        sidebar.style.transform = 'translateX(0)';
+<script>
+function toggleHelpModal() {
+    const modal = document.getElementById('help-modal-container');
+    const overlay = document.getElementById('help-modal-overlay');
+    
+    if (!modal || !overlay) return;
+    
+    const isOpen = modal.style.display === 'block';
+    if (isOpen) {
+        modal.style.display = 'none';
+        overlay.style.display = 'none';
     } else {
-        burger.classList.remove('active');
-        sidebar.classList.remove('open');
-        overlay.classList.remove('show');
-        sidebar.style.transform = 'translateX(-100%)';
+        modal.style.display = 'block';
+        overlay.style.display = 'block';
     }
-};
+}
 </script>
 
 </body>
