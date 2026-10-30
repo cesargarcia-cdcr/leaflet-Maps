@@ -614,28 +614,31 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(noteSection);
     }
 
-/* ======= Expose Global UI Functions ======= */
+/* ======= Expose Global UI Functions & Listeners ======= */
 window.navigateTo = navigateTo;
-window.toggleMenu = toggleMenu;
 window.enforceCollapsedSidebar = enforceCollapsedSidebar;
-</script>
 
-<script>
-function toggleHelpModal() {
-    const modal = document.getElementById('help-modal-container');
-    const overlay = document.getElementById('help-modal-overlay');
-    
-    if (!modal || !overlay) return;
-    
-    const isOpen = modal.style.display === 'block';
-    if (isOpen) {
-        modal.style.display = 'none';
-        overlay.style.display = 'none';
+window.toggleMenu = function(force) {
+    const burger = document.querySelector('.burger');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (!sidebar || !burger || !overlay) return;
+
+    const isOpen = sidebar.classList.contains('open');
+    const willOpen = (force === true) ? true : (force === false) ? false : !isOpen;
+
+    if (willOpen) {
+        burger.classList.add('active');
+        sidebar.classList.add('open');
+        overlay.classList.add('show');
+        sidebar.style.transform = 'translateX(0)';
     } else {
-        modal.style.display = 'block';
-        overlay.style.display = 'block';
+        burger.classList.remove('active');
+        sidebar.classList.remove('open');
+        overlay.classList.remove('show');
+        sidebar.style.transform = 'translateX(-100%)';
     }
-}
+};
 </script>
 
 </body>
