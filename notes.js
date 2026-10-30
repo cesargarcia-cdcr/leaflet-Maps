@@ -355,60 +355,41 @@ function filterEpicGuide(query) {
     });
 }
 
-/* ======= Select result text only when Ctrl + Shift are pressed together ======= */
-let ctrlShiftSelectionActive = false;
-
-function selectResultTextForCopy() {
-    const resultDiv = document.getElementById('result');
-    if (!resultDiv) return;
-
-    const text = resultDiv.innerText.trim();
-    if (!text || text.includes('Your generated note will appear here')) return;
-
-    const range = document.createRange();
-    range.selectNodeContents(resultDiv);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-}
-
+/* ======= Select + copy result on Ctrl+C ======= */
 document.addEventListener('keydown', (e) => {
     const isCtrlPressed = e.ctrlKey || e.metaKey;
-    const isShiftPressed = e.shiftKey;
-    const isModifierOnlyKey = ['Control', 'Shift', 'Meta', 'Alt', 'CapsLock', 'Tab', 'Escape'].includes(e.key);
+    const key = e.key.toLowerCase();
 
     const noteVisible = typeof isNoteSectionVisible !== 'undefined' ? isNoteSectionVisible : true;
     if (!noteVisible) return;
 
-    if (isCtrlPressed && isShiftPressed && !isModifierOnlyKey) {
-        ctrlShiftSelectionActive = true;
-        selectResultTextForCopy();
-        return;
-    }
-
-    if (ctrlShiftSelectionActive && (e.key.toLowerCase() === 'c')) {
+    if (isCtrlPressed && key === 'c') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
 
-        const selectedText = window.getSelection().toString().trim();
-        if (!selectedText) {
+        const resultDiv = document.getElementById('result');
+        if (!resultDiv) return;
+
+        const text = resultDiv.innerText.trim();
+        if (!text || text.includes('Your generated note will appear here')) {
             alert("⚠️ Insufficient information to copy. Please complete at least one field.");
             return;
         }
 
-        executeCopyAction(selectedText);
-        console.log("📋 Ctrl+Shift + C detected -> copy action sent.");
-        ctrlShiftSelectionActive = false;
-    }
-});
+        const range = document.createRange();
+        range.selectNodeContents(resultDiv);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
 
-document.addEventListener('keyup', (e) => {
-    const isCtrlPressed = e.ctrlKey || e.metaKey;
-    const isShiftPressed = e.shiftKey;
-
-    if (!isCtrlPressed && !isShiftPressed) {
-        ctrlShiftSelectionActive = false;
+        setTimeout(() => {
+            const selectedText = resultDiv.innerText.trim();
+            if (!selectedText || selectedText.includes('Your generated note will appear here')) return;
+            executeCopyAction(selectedText);
+        }, 0);
     }
-});
+}, true);
 
 /* ======= 2. Clipboard Copy Function (Supports Selection or ID Fallback) ======= */
 function copyResult() {
