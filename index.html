@@ -613,28 +613,28 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(noteSection);
     }
 
-    // 2. Global listener for the Ctrl+C shortcut.
-    document.addEventListener('keydown', (e) => {
-        // Check whether Ctrl (or Cmd on Mac) and the C key were pressed.
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+    /* ======= 1. Global listener for the Ctrl+C shortcut ======= */
+document.addEventListener('keydown', (e) => {
+    // Verificar si se presionó Ctrl (o Cmd en Mac) y la tecla C
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        
+        // Opcional: Asegúrate de que 'isNoteSectionVisible' esté definido en tu script, 
+        // o puedes quitar esta validación si el panel siempre está accesible.
+        const noteVisible = typeof isNoteSectionVisible !== 'undefined' ? isNoteSectionVisible : true;
+        
+        if (noteVisible) {
+            // Si ya hay texto seleccionado por el usuario, dejamos que el navegador copie normal.
+            const selectedText = window.getSelection().toString();
             
-            // Only handle the shortcut while the notes section is visible.
-            if (isNoteSectionVisible) {
-                
-                // Let the browser handle copying when text is selected in an input or textarea.
-                // Otherwise, call the custom copyResult() function.
-                const selectedText = window.getSelection().toString();
-                
-                if (!selectedText) {
-                    e.preventDefault(); // Prevent the default behavior when needed.
-                    if (typeof copyResult === 'function') {
-                        copyResult();
-                        console.log("📋 Ctrl+C detected: running copyResult() automatically.");
-                    }
+            if (!selectedText) {
+                e.preventDefault(); // Evita el comportamiento por defecto
+                if (typeof copyResult === 'function') {
+                    copyResult();
+                    console.log("📋 Ctrl+C detectado: ejecutando copyResult() automáticamente.");
                 }
             }
         }
-    });
+    }
 });
 
 /* ======= Expose Global UI Functions ======= */
