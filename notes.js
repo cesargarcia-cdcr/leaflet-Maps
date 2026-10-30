@@ -355,58 +355,60 @@ function filterEpicGuide(query) {
     });
 }
 
- /* ======= 1. Global listener for the Ctrl+C shortcut ======= */
+ /* ======= 1. Global listener for the Ctrl + Shift + C shortcut ======= */
 document.addEventListener('keydown', (e) => {
-    // Verificar si se presionó Ctrl (o Cmd en Mac) y la tecla C
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+    // Verificar si se presionó Ctrl (o Cmd en Mac), Shift y la tecla C simultáneamente
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
         
-        // Opcional: Asegúrate de que 'isNoteSectionVisible' esté definido en tu script, 
-        // o puedes quitar esta validación si el panel siempre está accesible.
         const noteVisible = typeof isNoteSectionVisible !== 'undefined' ? isNoteSectionVisible : true;
         
         if (noteVisible) {
-            // Si ya hay texto seleccionado por el usuario, dejamos que el navegador copie normal.
-            const selectedText = window.getSelection().toString();
+            e.preventDefault(); // Evita el comportamiento por defecto del navegador
             
-            if (!selectedText) {
-                e.preventDefault(); // Evita el comportamiento por defecto
-                if (typeof copyResult === 'function') {
-                    copyResult();
-                    console.log("📋 Ctrl+C detectado: ejecutando copyResult() automáticamente.");
-                }
+            const resultDiv = document.getElementById('result');
+            if (!resultDiv) return;
+
+            // Seleccionar automáticamente el contenido del div de resultados al instante
+            const range = document.createRange();
+            range.selectNodeContents(resultDiv);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            // Obtener el texto recién seleccionado (o respaldar con el innerText)
+            const selectedText = selection.toString().trim() || resultDiv.innerText.trim();
+
+            if (!selectedText || selectedText.includes('Your generated note will appear here')) {
+                alert("⚠️ Insufficient information to copy. Please complete at least one field.");
+                return;
             }
+
+            // Enviar el texto seleccionado mediante la función centralizada de copia
+            executeCopyAction(selectedText);
+            console.log("📋 Ctrl+Shift+C detectado: texto seleccionado y enviado automáticamente.");
         }
     }
 });
 
-/* ======= 2. Clipboard Copy Function using Simplified PostMessage ======= */
+/* ======= 2. Clipboard Copy Function (Supports Selection or ID Fallback) ======= */
 function copyResult() {
     try {
         updateNote();
         
-        // Obtenemos el texto exacto del div de resultados
-        const resultDiv = document.getElementById('result');
-        const resultText = resultDiv ? resultDiv.innerText.trim() : '';
+        // Priorizar el texto que el usuario tenga seleccionado, o usar el div completo por ID si no hay selección
+        let resultText = window.getSelection().toString().trim();
+        
+        if (!resultText) {
+            const resultDiv = document.getElementById('result');
+            resultText = resultDiv ? resultDiv.innerText.trim() : '';
+        }
 
         if (!resultText || resultText.includes('Your generated note will appear here')) {
             alert("⚠️ Insufficient information to copy. Please complete at least one field.");
             return;
         }
 
-        // Detectar si estamos dentro de un iframe o en Teams/SharePoint
-        if (window.self !== window.top) {
-            // Enviar únicamente el string directo mediante postMessage al contenedor padre
-            window.parent.postMessage(resultText, '*');
-
-            showToast("📤 Solicitud de copia enviada al contenedor...");
-        } else {
-            // Si se abre fuera de iframe, usar el método moderno directamente
-            navigator.clipboard.writeText(resultText).then(() => {
-                showToast("✓ Successfully copied to clipboard!");
-            }).catch(() => {
-                fallbackCopyDirect(resultText);
-            });
-        }
+        executeCopyAction(resultText);
 
     } catch (error) {
         console.error("Clipboard copy error:", error);
@@ -414,8 +416,24 @@ function copyResult() {
     }
 }
 
+/* ======= 3. Core Execution for PostMessage or Direct Copy ======= */
+function executeCopyAction(textToCopy) {
+    // Detectar si estamos dentro de un iframe o en Teams/SharePoint
+    if (window.self !== window.top) {
+        // Enviar únicamente el string directo mediante postMessage al contenedor padre
+        window.parent.postMessage(textToCopy, '*');
+        showToast("📤 Solicitud de copia enviada al contenedor...");
+    } else {
+        // Si se abre fuera de iframe, usar el método moderno directamente
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showToast("✓ Successfully copied to clipboard!");
+        }).catch(() => {
+            fallbackCopyDirect(textToCopy);
+        });
+    }
+}
 
-/* ======= 3. Respaldo por si se ejecuta fuera de iframe ======= */
+/* ======= 4. Respaldo por si se ejecuta fuera de iframe ======= */
 function fallbackCopyDirect(text) {
     const fallbackTextArea = document.createElement('textarea');
     fallbackTextArea.value = text;
