@@ -613,30 +613,6 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(noteSection);
     }
 
-    /* ======= 1. Global listener for the Ctrl+C shortcut ======= */
-document.addEventListener('keydown', (e) => {
-    // Verificar si se presionó Ctrl (o Cmd en Mac) y la tecla C
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-        
-        // Opcional: Asegúrate de que 'isNoteSectionVisible' esté definido en tu script, 
-        // o puedes quitar esta validación si el panel siempre está accesible.
-        const noteVisible = typeof isNoteSectionVisible !== 'undefined' ? isNoteSectionVisible : true;
-        
-        if (noteVisible) {
-            // Si ya hay texto seleccionado por el usuario, dejamos que el navegador copie normal.
-            const selectedText = window.getSelection().toString();
-            
-            if (!selectedText) {
-                e.preventDefault(); // Evita el comportamiento por defecto
-                if (typeof copyResult === 'function') {
-                    copyResult();
-                    console.log("📋 Ctrl+C detectado: ejecutando copyResult() automáticamente.");
-                }
-            }
-        }
-    }
-});
-
 /* ======= Expose Global UI Functions ======= */
 window.navigateTo = navigateTo;
 window.toggleMenu = toggleMenu;
