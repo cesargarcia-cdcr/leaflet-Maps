@@ -279,7 +279,6 @@ function updateNote() {
     const symptomsVal = symptomsInput ? symptomsInput.value.trim() : '';
     const insuranceVal = (selectIN && selectIN.style.display !== 'none') ? selectIN.value : (selectCustomIN?.value || '');
     
-    // Define the flags before using them.
     const isErEmpty = !customERVal && !erVal;
     const hasAnyFieldFilled = symptomsVal !== '' || insuranceVal !== '' || memberId !== '' || additionalNotes !== '';
     
@@ -299,12 +298,68 @@ function updateNote() {
     if (insuranceVal) noteParts.push(insuranceVal);
     if (additionalNotes) noteParts.push(additionalNotes);
     
-    // Add "No E/R" when fields are populated but the E/R selectors are empty.
     if (hasAnyFieldFilled && isErEmpty) {
         noteParts.push("No E/R");
     }
 
     resultDiv.textContent = noteParts.join(' | ');
+    scheduleResultAutoSelect();
+}
+
+/* ======= Auto-select result after inactivity or on hover ======= */
+let resultAutoSelectTimer = null;
+
+function selectResultText() {
+    const resultDiv = document.getElementById('result');
+    if (!resultDiv) return;
+
+    const text = resultDiv.innerText.trim();
+    if (!text || text.includes('Your generated note will appear here')) return;
+
+    const selection = window.getSelection();
+    if (!selection) return;
+    if (selection.toString().trim() !== '') return;
+
+    const range = document.createRange();
+    range.selectNodeContents(resultDiv);
+    selection.removeAllRanges();
+    selection.addRange(range);
+}
+
+function scheduleResultAutoSelect() {
+    clearTimeout(resultAutoSelectTimer);
+
+    const resultDiv = document.getElementById('result');
+    if (!resultDiv) return;
+
+    const text = resultDiv.innerText.trim();
+    if (!text || text.includes('Your generated note will appear here')) return;
+
+    resultAutoSelectTimer = setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.toString().trim() !== '') return;
+        selectResultText();
+    }, 1500);
+}
+
+function bindResultSelectionBehavior() {
+    const resultDiv = document.getElementById('result');
+    if (!resultDiv) return;
+
+    resultDiv.addEventListener('mouseover', () => {
+        clearTimeout(resultAutoSelectTimer);
+        const selection = window.getSelection();
+        if (!selection || selection.toString().trim() === '') {
+            selectResultText();
+        }
+    });
+
+    resultDiv.addEventListener('mouseleave', () => {
+        const selection = window.getSelection();
+        if (!selection || selection.toString().trim() === '') {
+            scheduleResultAutoSelect();
+        }
+    });
 }
 
 /* ======= Reset Form Fields ======= */
@@ -363,6 +418,13 @@ document.addEventListener('keydown', (e) => {
     const noteVisible = typeof isNoteSectionVisible !== 'undefined' ? isNoteSectionVisible : true;
     if (!noteVisible) return;
 
+    const selection = window.getSelection();
+    const hasSelection = selection && selection.toString().trim() !== '';
+
+    if (isCtrlPressed && key === 'c' && hasSelection) {
+        return;
+    }
+
     if (isCtrlPressed && key === 'c') {
         e.preventDefault();
         e.stopPropagation();
@@ -379,9 +441,11 @@ document.addEventListener('keydown', (e) => {
 
         const range = document.createRange();
         range.selectNodeContents(resultDiv);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
+        const selectionToUse = window.getSelection();
+        if (selectionToUse) {
+            selectionToUse.removeAllRanges();
+            selectionToUse.addRange(range);
+        }
 
         setTimeout(() => {
             const selectedText = resultDiv.innerText.trim();
@@ -396,7 +460,6 @@ function copyResult() {
     try {
         updateNote();
         
-        // Priorizar el texto que el usuario tenga seleccionado, o usar el div completo por ID si no hay selección
         let resultText = window.getSelection().toString().trim();
         
         if (!resultText) {
@@ -419,13 +482,10 @@ function copyResult() {
 
 /* ======= 3. Core Execution for PostMessage or Direct Copy ======= */
 function executeCopyAction(textToCopy) {
-    // Detectar si estamos dentro de un iframe o en Teams/SharePoint
     if (window.self !== window.top) {
-        // Enviar únicamente el string directo mediante postMessage al contenedor padre
         window.parent.postMessage(textToCopy, '*');
         showToast("📤 Solicitud de copia enviada al contenedor...");
     } else {
-        // Si se abre fuera de iframe, usar el método moderno directamente
         navigator.clipboard.writeText(textToCopy).then(() => {
             showToast("✓ Successfully copied to clipboard!");
         }).catch(() => {
@@ -523,11 +583,10 @@ function toggleFloatingDirectory() {
 
     if (isExpanded) {
         if (expandBtn) expandBtn.textContent = '✕ Minimizar';
-        // Optionally add a dark overlay behind the modal.
-        document.body.style.overflow = 'hidden'; // Prevent background scrolling.
+        document.body.style.overflow = 'hidden';
     } else {
         if (expandBtn) expandBtn.textContent = '⤢ Expand';
-        document.body.style.overflow = ''; // Restore scrolling.
+        document.body.style.overflow = '';
     }
 }
 
@@ -536,6 +595,7 @@ window.addEventListener('DOMContentLoaded', () => {
     initInsuranceDropdown();
     updateNote();
     checkInsuranceConditions();
+    bindResultSelectionBehavior();
 
     const memberIdInput = document.getElementById('InsuranceID');
     if (memberIdInput) {
