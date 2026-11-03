@@ -1,0 +1,1170 @@
+/* ==========================================================================
+   MAP LAYOUT & FULLSCREEN VIEW (migrated from app.css)
+   ========================================================================== */
+
+/* Main map-mode application container */
+.app-container{ display:flex; min-height:100vh }
+
+/* .page {
+    flex: 1;
+    max-width: min(1800px, 95vw);
+    margin: 0 auto;
+    padding: 20px;
+}
+@media (max-width: 1024px) {
+    .page { max-width: 100%; }
+} */
+
+/* === Full map height with safe support for the mobile address bar === */
+.map-full      { position: fixed; inset: 0; z-index: 1; background: var(--panel); }
+.map-viewport  { position: absolute; inset: 0; height: 100dvh; }
+#map           { height: 100dvh; min-height: 520px; border-radius: 10px; border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-map); }
+
+@supports not (height: 100dvh) {
+  .map-viewport, #map { height: 100vh; }
+}
+
+body.fullscreen-map { overflow: hidden; }
+
+/* Legacy map grid container, retained for card layouts */
+.mapwrap{ display:grid; grid-template-columns:1fr 320px; gap:14px; align-items:stretch }
+@media(max-width:1024px){ .mapwrap{ grid-template-columns:1fr 280px; gap:12px } }
+@media(max-width:768px){ .mapwrap{ grid-template-columns:1fr; gap:12px } }
+
+/* Keep Leaflet below the UI controls. */
+.leaflet-container { z-index: 1000; }
+
+/* Glass-style floating map controls */
+.map-controls{ position: absolute; top: 16px; left: 0px; right: 16px; z-index: 1100; pointer-events: none; transition: padding 0.3s ease; }
+
+.mc-row { 
+    padding-left: 65px;
+    display: flex; 
+    gap: 12px; 
+    align-items: start; 
+    justify-content: space-around;
+    padding-right: 200px;    
+}
+    
+.mc-card{
+  flex: 0 1 650px;
+  pointer-events: auto; 
+  backdrop-filter: blur(10px);
+  background: rgba(255,255,255,.75); 
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 12px; 
+  box-shadow: 0 8px 24px rgba(0,0,0,.12); 
+  padding: 10px;
+}
+.mc-line{ display:flex; gap:8px; align-items:center; }
+.mc-search{ margin-top: 6px; }
+.mc-select, .mc-input{
+  flex: 1; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; background: var(--panel);
+  font-size: .95rem; outline: none;
+}
+.mc-select:focus, .mc-input:focus{ border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+
+.mc-fab-col{ display:flex; gap:8px; align-items:flex-start; pointer-events:auto; }
+.mc-fab{
+  width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(0,0,0,.08);
+  background: var(--panel); box-shadow: var(--shadow); cursor: pointer; font-size: 18px;
+}
+.mc-fab:hover{ transform: translateY(-1px); }
+
+/* ==========================================================================
+   SLIDE-OUT PANEL / PLACE SHEET (translucent glassmorphism style)
+   ========================================================================== */
+
+#place-sheet {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  bottom: auto;
+  width: 340px;
+  max-height: 75vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(10px);
+  /* Adjust the last value (e.g., 0.65 or 0.70) to change transparency. */
+  background: rgba(255, 255, 255, 0.70); 
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  z-index: 1200;
+  transform: translateY(-50%) translateX(120%);
+  transition: transform .25s ease;
+}
+
+#place-sheet.open {
+  transform: translateY(-50%) translateX(0);
+}
+
+#place-sheet .sheet-hd {
+  background: rgba(241, 245, 249, 0.65);
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.6);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#place-sheet .sheet-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+#place-sheet .sheet-body {
+  overflow-y: auto;
+  padding: 12px;
+  background: transparent;
+}
+
+.sheet-close {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: var(--radius-md);
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+}
+
+/* Map marker labels */
+.leaflet-tooltip.clinic-label{
+  background:var(--panel); color:var(--primary-hover); border:1px solid var(--border); font-weight:700; font-size:.78rem;
+  padding:2px 7px; border-radius:var(--radius-sm); box-shadow:var(--shadow)
+}
+
+/* Responsive controls and sheet for small screens */
+@media (max-width: 1024px) {
+  #place-sheet { width: 300px; right: 12px; }
+}
+
+@media (max-width: 768px){
+  .map-controls{ left: 12px; right: 12px; }
+  .mc-row{ grid-template-columns: 1fr; padding-right: 0; padding-left: 0; }
+  
+  #place-sheet {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  bottom: auto;
+  width: 340px;
+  max-height: 75vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 1200;
+  transform: translateY(-50%) translateX(120%);
+  transition: transform .25s ease;
+}
+  #place-sheet.open {
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   CLINIC CONTENT BLOCKS (translucent styling)
+   ========================================================================== */
+
+.modern-stack {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.modern-header {
+  background: rgba(241, 245, 249, 0.6);
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modern-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modern-ext-group {
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(226, 232, 240, 0.8);
+}
+
+.modern-ext-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.modern-ext-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.modern-grid-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  padding: 2px 0;
+}
+
+.modern-lbl {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.modern-val {
+  color: var(--text);
+  font-weight: 500;
+  text-align: right;
+}
+
+.provider-badge {
+  background: rgba(226, 232, 240, 0.8);
+  color: var(--text-dark);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+/* Responsive layout for small screens */
+@media (max-width: 1024px) {
+  #place-sheet { width: 300px; right: 12px; }
+}
+
+@media (max-width: 768px){
+  .map-controls { left: 12px; right: 12px; }
+  .mc-row { grid-template-columns: 1fr; padding-right: 0; padding-left: 0; }
+  
+  #place-sheet {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    top: auto;
+    bottom: 12px;
+    max-height: 60vh;
+    border-radius: 16px 16px 12px 12px;
+    transform: translateY(120%);
+  }
+  #place-sheet.open {
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   RESTORED STYLES FOR THE CLINIC INFORMATION PANEL (#place-sheet)
+   ========================================================================== */
+
+.modern-stack {
+  background: var(--panel);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.modern-header {
+  background: var(--surface-hover);
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modern-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modern-ext-group {
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--surface-hover);
+}
+
+.modern-ext-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.modern-ext-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.modern-grid-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  padding: 2px 0;
+}
+
+.modern-lbl {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.modern-val {
+  color: var(--text);
+  font-weight: 500;
+  text-align: right;
+}
+
+.provider-badge {
+  background: var(--border-color);
+  color: var(--text-dark);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+/* Standalone map page controls */
+.map-page {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-page .map-page-controls {
+  padding: 10px;
+  background: var(--panel);
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.map-page .map-page-back {
+  text-decoration: none;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.map-page .map-page-search {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  max-width: 500px;
+}
+
+.map-page .map-page-search-input {
+  flex: 1;
+  padding: 6px;
+}
+
+.map-page .map-page-viewport {
+  width: 100%;
+  flex: 1;
+}
+
+/* Map search controls embedded in the application */
+.app-container #map-section .app-map-search {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.app-container #map-section .app-map-search-input,
+.app-container #map-section .app-map-clinic-select {
+  flex: 2;
+}
+
+.app-container #map-section .app-map-search-input {
+  min-width: 220px;
+}
+
+.app-container #map-section .app-map-clinic-select {
+  min-width: 240px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background-color: var(--panel);
+}
+
+.app-container #map-section .app-map-search-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Main map clinic details */
+#place-sheet .clinic-detail-header {
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 14px;
+}
+
+#place-sheet .clinic-detail-heading-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+#place-sheet .clinic-detail-name {
+  font-weight: 800;
+  font-size: 1.3rem;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+#place-sheet .clinic-detail-nickname {
+  font-size: 0.75rem;
+  color: var(--primary);
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+#place-sheet .clinic-detail-distance {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary-hover);
+  background: var(--primary-surface);
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+#place-sheet .clinic-detail-address {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#place-sheet .clinic-extension-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+#place-sheet .clinic-extension-contact-item strong {
+  color: var(--text-dark);
+}
+
+#place-sheet .map-lite-contact {
+  color: var(--loading-text-muted);
+}
+
+#place-sheet .map-lite-contact .clinic-extension-contact-item strong {
+  color: var(--text-on-dark);
+}
+
+#place-sheet .clinic-provider-row {
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#place-sheet .clinic-provider-details {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#place-sheet .clinic-provider-id {
+  color: var(--muted);
+  font-family: monospace;
+  font-weight: 700;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+}
+
+#place-sheet .clinic-provider-link {
+  color: var(--primary-hover);
+  text-decoration: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#place-sheet .clinic-provider-specialty {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+#place-sheet .clinic-no-providers {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* Scoped legacy map detail renderer */
+#place-sheet .map-lite-details {
+  color: var(--loading-text-muted);
+}
+
+#place-sheet .map-lite-clinic-header {
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-dark);
+  padding-bottom: 10px;
+}
+
+#place-sheet .map-lite-clinic-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--loading-accent);
+  line-height: 1.3;
+}
+
+#place-sheet .map-lite-clinic-address {
+  margin-top: 5px;
+  font-size: 0.75rem;
+  color: var(--muted-on-dark);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+#place-sheet .map-lite-extensions,
+#place-sheet .map-lite-primary-phone {
+  background: var(--surface-darker);
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+#place-sheet .map-lite-extensions-title {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--loading-accent);
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-dark);
+  padding-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+
+#place-sheet .map-lite-extension-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+#place-sheet .map-lite-extension-group {
+  background: var(--surface-dark);
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-dark);
+  font-size: 0.75rem;
+}
+
+#place-sheet .map-lite-extension-heading,
+#place-sheet .map-lite-extension-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+#place-sheet .map-lite-extension-heading {
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+#place-sheet .map-lite-section-name {
+  font-weight: 600;
+  color: var(--text-on-dark);
+}
+
+#place-sheet .map-lite-extension-row {
+  margin-top: 2px;
+  border-top: 1px dashed var(--border-dark);
+  padding-top: 2px;
+}
+
+#place-sheet .map-lite-extension-label {
+  color: var(--muted-on-dark);
+  font-weight: 500;
+}
+
+#place-sheet .map-lite-extension-value {
+  color: var(--loading-text-muted);
+  text-align: right;
+  max-width: 70%;
+  word-break: break-word;
+}
+
+#place-sheet .map-lite-primary-phone p {
+  font-size: 0.8rem;
+  color: var(--muted-on-dark);
+  margin: 0;
+}
+
+#place-sheet .map-lite-primary-phone span {
+  color: var(--text-on-dark);
+  font-weight: 600;
+}
+
+#place-sheet .map-lite-primary-fax {
+  margin-top: 4px;
+}
+
+/* Provider guideline popover is appended to body, with its own scope. */
+#pdir-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.2);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#pdir-popover-backdrop #pdir-popover-card {
+  width: 440px;
+  max-width: 90vw;
+  background: var(--panel);
+  padding: 18px;
+  border-radius: 8px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  font-family: var(--font-family-base);
+}
+
+#pdir-popover-backdrop .pdir-guidelines-empty {
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+  font-style: italic;
+}
+
+#pdir-popover-backdrop .pdir-guidelines {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+#pdir-popover-backdrop .pdir-guidelines-dos {
+  color: var(--success);
+  margin-bottom: 8px;
+}
+
+#pdir-popover-backdrop .pdir-guidelines-donts {
+  color: var(--danger);
+}
+
+#pdir-popover-backdrop .pdir-popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  border-bottom: 1px solid var(--surface-hover);
+  padding-bottom: 12px;
+}
+
+#pdir-popover-backdrop .pdir-popover-provider {
+  flex: 1;
+}
+
+#pdir-popover-backdrop .pdir-popover-name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+#pdir-popover-backdrop .pdir-popover-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#pdir-popover-backdrop .pdir-popover-specialty {
+  background: var(--accent-secondary-surface);
+  color: var(--accent-secondary-text);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+#pdir-popover-backdrop .pdir-popover-actions {
+  margin-top: 14px;
+  text-align: right;
+}
+
+#pdir-popover-backdrop .pdir-popover-close {
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Frosted clinic locator and bottom carousel */
+.app-container #map-section .map-controls {
+  top: 18px;
+  left: 50%;
+  right: auto;
+  width: min(900px, calc(100vw - 36px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.app-container #map-section .mc-row {
+  display: flex;
+  justify-content: center;
+  padding: 0;
+}
+
+.app-container #map-section .mc-card {
+  flex: 1 1 auto;
+  max-width: 900px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 17px;
+  background: rgba(246, 250, 252, 0.72);
+  box-shadow: 0 12px 36px rgba(28, 48, 65, 0.17), inset 0 1px rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+}
+
+.app-container #map-section .app-map-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.app-container #map-section .app-map-search-input,
+.app-container #map-section .app-map-clinic-select {
+  min-width: 180px;
+  min-height: 42px;
+  border-color: rgba(173, 190, 204, 0.58);
+  background: rgba(255, 255, 255, 0.77);
+  font-size: 0.9rem;
+}
+
+.app-container #map-section .app-map-search-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.app-container #map-section .app-map-search-actions .btn {
+  min-height: 42px;
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+
+.app-container #map-section #place-sheet {
+  top: 112px;
+  right: 20px;
+  bottom: auto;
+  width: min(390px, calc(100vw - 40px));
+  max-height: none;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 18px;
+  background: rgba(246, 250, 252, 0.74);
+  box-shadow: 0 14px 38px rgba(28, 48, 65, 0.2), inset 0 1px rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  overflow: visible;
+  transform: translateX(calc(100% + 32px));
+}
+
+.app-container #map-section #place-sheet.open {
+  transform: translateX(0);
+}
+
+.app-container #map-section #place-sheet .sheet-hd {
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.34);
+  border-bottom-color: rgba(255, 255, 255, 0.72);
+}
+
+.app-container #map-section #place-sheet .sheet-body {
+  min-height: 0;
+  overflow: visible;
+  padding: 10px 12px 12px;
+  background: transparent;
+}
+
+.app-container #map-section #place-sheet .sheet-hd {
+  padding: 6px 10px;
+}
+
+.app-container #map-section #place-sheet .sheet-title {
+  font-size: 0.62rem;
+}
+
+.app-container #map-section #place-sheet .sheet-close {
+  width: 28px;
+  height: 28px;
+}
+
+.app-container #map-section #place-sheet .clinic-detail-header {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+}
+
+.app-container #map-section #place-sheet .clinic-detail-name {
+  font-size: clamp(0.95rem, 1.25vw, 1.1rem);
+  line-height: 1.25;
+}
+
+.app-container #map-section #place-sheet .clinic-detail-address {
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.app-container #map-section #place-sheet .extensions-panel {
+  margin-bottom: 0;
+}
+
+.app-container #map-section #place-sheet .extensions-panel .modern-header {
+  padding: 6px 9px;
+  font-size: 0.72rem;
+}
+
+.app-container #map-section #place-sheet .extensions-panel .modern-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 7px 8px;
+}
+
+.app-container #map-section #place-sheet .modern-ext-group {
+  min-width: 0;
+  padding: 0 0 5px;
+}
+
+.app-container #map-section #place-sheet .modern-ext-title {
+  margin-bottom: 2px;
+  font-size: 0.74rem;
+}
+
+.app-container #map-section #place-sheet .clinic-extension-contact {
+  gap: 2px 7px;
+  overflow-wrap: anywhere;
+  font-size: 0.68rem;
+}
+
+.app-container #map-section #place-sheet .modern-grid-row {
+  gap: 6px;
+  font-size: 0.7rem;
+}
+
+.app-container #map-section #place-sheet .modern-val {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.clinic-carousel {
+  position: absolute;
+  z-index: 1100;
+  left: 20px;
+  bottom: 20px;
+  width: min(540px, calc(100vw - 80px));
+  padding: 10px 11px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.84);
+  border-radius: 18px;
+  background: rgba(246, 250, 252, 0.72);
+  box-shadow: 0 12px 32px rgba(28, 48, 65, 0.18), inset 0 1px rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+.clinic-carousel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px 7px;
+}
+
+.clinic-carousel-eyebrow {
+  display: block;
+  margin-bottom: 1px;
+  color: var(--primary);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.clinic-carousel-count,
+.clinic-carousel-hint {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.clinic-carousel-track {
+  position: relative;
+  height: 144px;
+  overflow: hidden;
+  touch-action: pan-y;
+  outline: none;
+}
+
+.clinic-carousel-track:focus-visible {
+  border-radius: 12px;
+  outline: 3px solid var(--focus-ring);
+}
+
+.clinic-carousel-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: 252px;
+  height: 104px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 11px;
+  overflow: hidden;
+  border: 1px solid rgba(198, 210, 220, 0.78);
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transform: translate(calc(-50% + var(--card-offset-x, 0px)), calc(-50% + var(--card-offset-y, 0px))) perspective(650px) rotateY(var(--card-rotation, 0deg)) scale(var(--card-scale, 1));
+  transform-origin: center center;
+  transition: width 220ms ease, height 220ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 220ms ease, opacity 180ms ease;
+  z-index: var(--card-depth, 1);
+  opacity: 0.93;
+}
+
+.clinic-carousel-card:hover {
+  border-color: rgba(59, 130, 246, 0.48);
+  opacity: 1;
+}
+
+.clinic-carousel-card.is-selected {
+  width: 210px;
+  height: 189px;
+  border-color: rgba(59, 130, 246, 0.62);
+  background: #e7f3fb;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12), 0 9px 22px rgba(37, 99, 235, 0.2);
+  transform: translate(-50%, -50%) perspective(650px) rotateY(0) scale(1);
+  z-index: 30;
+  opacity: 1;
+}
+
+.clinic-carousel-card-image {
+  position: absolute;
+  top: 12px;
+  left: 10px;
+  width: 72px;
+  height: 80px;
+  border-radius: 7px;
+  object-fit: contain;
+}
+
+.clinic-carousel-card.has-clinic-image .clinic-carousel-card-code,
+.clinic-carousel-card.has-clinic-image .clinic-carousel-card-name,
+.clinic-carousel-card.has-clinic-image .clinic-carousel-card-distance {
+  margin-left: 82px;
+}
+
+.clinic-carousel-card.is-selected .clinic-carousel-card-image {
+  position: static;
+  width: 100%;
+  height: 92px;
+  flex: 0 0 auto;
+}
+
+.clinic-carousel-card.is-selected.has-clinic-image .clinic-carousel-card-code,
+.clinic-carousel-card.is-selected.has-clinic-image .clinic-carousel-card-name,
+.clinic-carousel-card.is-selected.has-clinic-image .clinic-carousel-card-distance {
+  margin-left: 0;
+}
+
+.clinic-carousel-card.is-prev {
+  --card-rotation: 8deg;
+}
+
+.clinic-carousel-card.is-next {
+  --card-rotation: -8deg;
+}
+
+.clinic-carousel-card.is-hidden-stack-card {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.clinic-carousel-card:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.clinic-carousel-card-code {
+  color: var(--primary);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.clinic-carousel-card-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.98rem;
+  font-weight: 750;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+}
+
+.clinic-carousel-card-distance {
+  margin-top: auto;
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.clinic-carousel-card-distance[hidden] {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-container #map-section .map-controls {
+    top: 12px;
+    width: calc(100vw - 24px);
+  }
+
+  .app-container #map-section .app-map-search-input,
+  .app-container #map-section .app-map-clinic-select {
+    min-width: min(100%, 220px);
+  }
+
+  .app-container #map-section #place-sheet {
+    top: 170px;
+    right: 12px;
+    width: min(370px, calc(100vw - 24px));
+    max-height: none;
+  }
+
+  .clinic-carousel {
+    bottom: 12px;
+    left: 10px;
+    width: min(540px, calc(100vw - 80px));
+    padding: 9px 9px 7px;
+    border-radius: 15px;
+  }
+
+  .clinic-carousel-track {
+    height: 176px;
+  }
+
+  .clinic-carousel-card.is-selected {
+    width: 175px;
+    height: 162px;
+  }
+}
+
+@media (max-width: 480px) {
+  .clinic-carousel-hint {
+    max-width: 130px;
+    text-align: right;
+  }
+
+  .app-container #map-section .app-map-search-input,
+  .app-container #map-section .app-map-clinic-select {
+    min-width: 100%;
+  }
+
+  .app-container #map-section .app-map-search-actions {
+    width: 100%;
+  }
+
+  .app-container #map-section .app-map-search-actions .btn {
+    flex: 1;
+  }
+
+  .app-container #map-section #place-sheet {
+    right: 10px;
+    top: 205px;
+    width: calc(100vw - 20px);
+    max-height: none;
+  }
+
+  .clinic-carousel {
+    width: min(440px, calc(100vw - 72px));
+  }
+
+  .clinic-carousel-track {
+    height: 158px;
+  }
+
+  .clinic-carousel-card {
+    width: min(250px, calc(100vw - 125px));
+    height: 96px;
+  }
+
+  .clinic-carousel-card.is-selected {
+    width: clamp(140px, 22vw, 175px);
+    height: 144px;
+  }
+}
