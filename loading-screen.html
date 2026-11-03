@@ -136,12 +136,6 @@
         const urlParams = new URLSearchParams(window.location.search);
         const isFastMode = urlParams.get('fast') === '1' || localStorage.getItem("lite_payload_cache");
 
-        // 1. Wait for the session decision: online or explicitly offline.
-        let sessionActive = true;
-        if (typeof red_leader === 'function') {
-            sessionActive = await red_leader([0]);
-        }
-
         const offlineMode = window.LSEngine.offlineMode === true
             || sessionStorage.getItem("app_offline_mode") === "true";
         if (offlineMode) {
@@ -151,8 +145,6 @@
             updateProgress(100, "Offline mode: using locally stored data.", "OFFLINE");
             return;
         }
-        if (!sessionActive) return;
-
         // 2. Choose the data-loading path based on fast mode.
         if (isFastMode) {
             console.log("⚡ [LSEngine] Fast mode (?fast=1) is enabled. Skipping the lite fetch and loading from OPFS...");

@@ -197,16 +197,27 @@ function isOfflineMode() {
     return window.LSEngine?.offlineMode === true || sessionStorage.getItem("app_offline_mode") === "true";
 }
 
+const SESSION_VERIFIED_KEY = "app_sharepoint_session_verified";
+
 let sessionVerified = false;
 let sessionVerificationPromise = null;
 
 async function ensureOnlineSession() {
     if (isOfflineMode()) return false;
+    if (sessionStorage.getItem(SESSION_VERIFIED_KEY) === "true") {
+        sessionVerified = true;
+        return true;
+    }
     if (sessionVerified) return true;
     if (!sessionVerificationPromise) {
         sessionVerificationPromise = verifySharePointSession()
             .then(sessionActive => {
                 sessionVerified = sessionActive;
+                if (sessionActive) {
+                    sessionStorage.setItem(SESSION_VERIFIED_KEY, "true");
+                } else {
+                    sessionStorage.removeItem(SESSION_VERIFIED_KEY);
+                }
                 return sessionActive;
             })
             .finally(() => {
@@ -217,21 +228,7 @@ async function ensureOnlineSession() {
 }
 
 async function fetchWithSession(url, options) {
-    const response = await fetch(url, options);
-    if (response.status !== 401 && response.status !== 403) return response;
-
-    sessionVerified = false;
-    if (!await ensureOnlineSession()) return null;
-
-    if (!options.signal) return fetch(url, options);
-
-    const retryController = new AbortController();
-    const retryTimeout = setTimeout(() => retryController.abort(), 60000);
-    try {
-        return await fetch(url, { ...options, signal: retryController.signal });
-    } finally {
-        clearTimeout(retryTimeout);
-    }
+    return fetch(url, options);
 }
 
 // --- 🚨 TRIGGER MANUAL SYNC ---
