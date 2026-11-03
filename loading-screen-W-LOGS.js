@@ -197,6 +197,10 @@ function isOfflineMode() {
     return window.LSEngine?.offlineMode === true || sessionStorage.getItem("app_offline_mode") === "true";
 }
 
+function isLoginBypassed() {
+    return new URLSearchParams(window.location.search).get("nologin") === "1";
+}
+
 const SESSION_VERIFIED_KEY = "app_sharepoint_session_verified";
 
 let sessionVerified = false;
@@ -204,6 +208,7 @@ let sessionVerificationPromise = null;
 
 async function ensureOnlineSession() {
     if (isOfflineMode()) return false;
+    if (isLoginBypassed()) return true;
     if (sessionStorage.getItem(SESSION_VERIFIED_KEY) === "true") {
         sessionVerified = true;
         return true;

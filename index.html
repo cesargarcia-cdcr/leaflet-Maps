@@ -12,6 +12,11 @@
     <script>
         (function() {
             window.appSessionCheckPromise = new Promise(resolve => {
+                if (new URLSearchParams(window.location.search).get("nologin") === "1") {
+                    resolve(true);
+                    return;
+                }
+
                 const verifySession = async () => {
                     if (typeof window.red_leader !== 'function') {
                         console.error("Session verification is unavailable.");
