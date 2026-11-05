@@ -107,13 +107,22 @@
         // 2. Choose the data-loading path based on fast mode.
         if (isFastMode) {
             console.log("⚡ [LSEngine] Fast mode (?fast=1) is enabled. Skipping the lite fetch and loading from OPFS...");
-            if (typeof red_leader === 'function') {
-                await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+            let litePayloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+            if (!litePayloadRestored) {
+                console.warn("⚠️ [LSEngine] Lite payload cache is missing. Downloading it now...");
+                await window.LSEngine.taskFetchMainDataLite();
+                litePayloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+            }
+            if (!litePayloadRestored) {
+                throw new Error("The lite payload could not be loaded from cache or downloaded.");
             }
         } else {
             console.log("🌐 [LSEngine] Fetching the main data payload (lite)...");
             await window.LSEngine.taskFetchMainDataLite();
-            await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+            const litePayloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+            if (!litePayloadRestored) {
+                throw new Error("The lite payload could not be restored after download.");
+            }
         }
 
         // 3. Render the map immediately.

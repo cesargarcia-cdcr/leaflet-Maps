@@ -303,7 +303,7 @@ function updateNote() {
     }
 
     resultDiv.textContent = noteParts.join(' | ');
-    scheduleResultAutoSelect();
+    selectResultText();
 }
 
 /* ======= Auto-select result after inactivity or on hover ======= */
@@ -318,7 +318,9 @@ function selectResultText() {
 
     const selection = window.getSelection();
     if (!selection) return;
-    if (selection.toString().trim() !== '') return;
+    const selectionIsInResult = resultDiv.contains(selection.anchorNode)
+        && resultDiv.contains(selection.focusNode);
+    if (selection.toString().trim() !== '' && !selectionIsInResult) return;
 
     const range = document.createRange();
     range.selectNodeContents(resultDiv);
