@@ -8,39 +8,6 @@
     <meta http-equiv="Expires" content="0">
     <script src="theme.js"></script>
 
-    <!-- 🛡️ Session Verification via red_leader -->
-    <script>
-        (function() {
-            window.appSessionCheckPromise = new Promise(resolve => {
-                if (new URLSearchParams(window.location.search).get("nologin") === "1") {
-                    resolve(true);
-                    return;
-                }
-
-                const verifySession = async () => {
-                    if (typeof window.red_leader !== 'function') {
-                        console.error("Session verification is unavailable.");
-                        resolve(false);
-                        return;
-                    }
-
-                    try {
-                        resolve(await window.red_leader([0]));
-                    } catch (error) {
-                        console.error("Error verifying the SharePoint session:", error);
-                        resolve(false);
-                    }
-                };
-
-                if (typeof window.red_leader === 'function') {
-                    verifySession();
-                } else {
-                    window.addEventListener('DOMContentLoaded', verifySession, { once: true });
-                }
-            });
-        })();
-    </script>
-
     <!-- ⚙️ Sync Validation (10h absolute threshold or 4h + 20m away) -->
     <script>
     (function() {
@@ -51,7 +18,6 @@
         let awaySince = 0;
         let hasWindowFocus = document.hasFocus();
         let redirectTimer = null;
-        let syncEvaluationPending = false;
 
         function getLastSyncTimestamp() {
             const timestamp = Number(localStorage.getItem("app_last_sync_timestamp") || 0);
@@ -112,20 +78,10 @@
             return false;
         };
 
-        async function evaluateSyncNeed() {
-            if (syncEvaluationPending) return;
-            syncEvaluationPending = true;
+        function evaluateSyncNeed() {
             updateAwayState();
-            try {
-                const sessionActive = await window.appSessionCheckPromise;
-                if (!sessionActive) return;
-                if (window.checkAndRedirectSync()) return;
-                scheduleNextCheck();
-            } catch (error) {
-                console.error("Error waiting for session verification before sync validation:", error);
-            } finally {
-                syncEvaluationPending = false;
-            }
+            if (window.checkAndRedirectSync()) return;
+            scheduleNextCheck();
         }
 
         function scheduleNextCheck() {
@@ -185,7 +141,7 @@
     <div id="sync-splash" class="sync-splash-container is-hidden">
         <div class="sync-splash-content">
             <h2 class="sync-title">Clinicas del Camino Real</h2>
-            <p id="sync-status" class="sync-status-text">Verifying corporate session...</p>
+            <p id="sync-status" class="sync-status-text">Preparing application data...</p>
             <div class="sync-progress-track">
                 <div id="bt-progress-bar" class="sync-progress-bar"></div>
             </div>

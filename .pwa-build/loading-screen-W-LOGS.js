@@ -6,7 +6,7 @@
 console.log("🌌 [Squadron Briefing]: All wings report in. Initializing operational flight deck...");
 console.log("📢 [Command]: Leader roll-call initiated. Status report requested across all channels.");
 console.log("🔴 [Red Leader Bio]: 'Red Leader, standing by. Managing command routing, service worker deployment, and primary trench run sequence navigation.'");
-console.log("🟡 [Gold Leader Bio]: 'Gold Leader, standing by. Operating security sweeps, SharePoint token verification, and emergency authentication lock-screen protocols.'");
+console.log("🟡 [Gold Leader Bio]: 'Gold Leader, standing by. Monitoring network status and data synchronization.'");
 console.log("🟢 [Green Leader Bio]: 'Green Leader, standing by. Engineering OPFS data synchronization, local cache persistence, lite payload fetching, and background asset cargo bays.'");
 console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD telemetry, progress bar updates, splash screen deflector shields, and URL payload decoding.'");
 
@@ -143,15 +143,9 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
 
 // --- 🔴 RED LEADER: COMMAND, ROUTER & LIFECYCLE MANAGEMENT ---
 
-async function red_leader(steps = [0, 1, 2, 3, 4]) {
+async function red_leader(steps = [1, 2, 3, 4]) {
     console.log("🔴 [Red Leader]: Red Leader, standing by. Flight path requested:", steps);
     try {
-        if (steps.includes(0)) {
-            console.log("🟡 [Gold Leader]: Engaging security sweep (SharePoint session verification)...");
-            const sessionActive = await ensureOnlineSession();
-            if (!sessionActive) return false;
-        }
-
         if (steps.includes(1)) {
             if (isOfflineMode()) return true;
             console.log("🟡 [Gold Leader]: Executing step 2 (Lite payload)...");
@@ -195,43 +189,6 @@ window.red_leader = red_leader;
 
 function isOfflineMode() {
     return window.LSEngine?.offlineMode === true || sessionStorage.getItem("app_offline_mode") === "true";
-}
-
-let sessionVerified = false;
-let sessionVerificationPromise = null;
-
-async function ensureOnlineSession() {
-    if (isOfflineMode()) return false;
-    if (sessionVerified) return true;
-    if (!sessionVerificationPromise) {
-        sessionVerificationPromise = verifySharePointSession()
-            .then(sessionActive => {
-                sessionVerified = sessionActive;
-                return sessionActive;
-            })
-            .finally(() => {
-                sessionVerificationPromise = null;
-            });
-    }
-    return sessionVerificationPromise;
-}
-
-async function fetchWithSession(url, options) {
-    const response = await fetch(url, options);
-    if (response.status !== 401 && response.status !== 403) return response;
-
-    sessionVerified = false;
-    if (!await ensureOnlineSession()) return null;
-
-    if (!options.signal) return fetch(url, options);
-
-    const retryController = new AbortController();
-    const retryTimeout = setTimeout(() => retryController.abort(), 60000);
-    try {
-        return await fetch(url, { ...options, signal: retryController.signal });
-    } finally {
-        clearTimeout(retryTimeout);
-    }
 }
 
 // --- 🚨 TRIGGER MANUAL SYNC ---
@@ -304,143 +261,6 @@ function getPowerAutomateUrl() {
 
 window.LSEngine = window.LSEngine || {};
 window.LSEngine.getPowerAutomateUrl = getPowerAutomateUrl;
-
-// --- 🟡 GOLD LEADER: SECURITY & AUTHENTICATION ---
-function checkSharePointLogo() {
-    console.log("🟡 [Gold Leader]: Scanning target signature (SharePoint logo check), standing by...");
-    return new Promise((resolve) => {
-        const logoUrl = "https://clinicasdelcaminoreal.sharepoint.com/sites/CDCROperationsHub/_api/siteiconmanager/getsitelogo?type=%271%27&hash=639204304455530335";
-        const img = new Image();
-        
-        const timeout = setTimeout(() => {
-            img.src = "";
-            console.warn("🟡 [Gold Leader]: Target scan timed out.");
-            resolve(false);
-        }, 4000);
-
-        img.onload = () => { clearTimeout(timeout); console.log("🟡 [Gold Leader]: Target acquired! Session active."); resolve(true); };
-        img.onerror = () => { clearTimeout(timeout); console.warn("🟡 [Gold Leader]: Target visual lost."); resolve(false); };
-
-        img.src = logoUrl + "&t=" + new Date().getTime();
-    });
-}
-
-async function verifySharePointSession() {
-    if (isOfflineMode()) {
-        console.log("🔓 [Gold Leader]: Offline mode is active; skipping session verification.");
-        return false;
-    }
-
-    console.log("🟡 [Gold Leader]: Checking SharePoint session...");
-    let active = await checkSharePointLogo();
-    if (active) return true;
-
-    await new Promise(r => setTimeout(r, 800));
-    active = await checkSharePointLogo();
-    if (active) return true;
-
-    console.warn("🟡 [Gold Leader]: Session expired. Triggering automatic login lock screen.");
-    return triggerAutomaticLoginFlow();
-}
-
-let loginDecisionPromise = null;
-
-function triggerAutomaticLoginFlow() {
-    console.log("🟡 [Gold Leader]: Deploying authentication lock screen...");
-    const splash = document.getElementById("sync-splash");
-    if (splash) splash.style.display = "none";
-
-    if (loginDecisionPromise) return loginDecisionPromise;
-
-    loginDecisionPromise = new Promise(resolve => {
-        let isResolved = false;
-        let sessionPollInterval;
-        let loginWindow = null;
-        const completeLoginDecision = isOnline => {
-            if (isResolved) return;
-            isResolved = true;
-            clearInterval(sessionPollInterval);
-            try { if (loginWindow && !loginWindow.closed) loginWindow.close(); } catch (e) {}
-            document.getElementById("sp-lock-screen")?.remove();
-            loginDecisionPromise = null;
-            resolve(isOnline);
-        };
-
-        const lockScreen = document.createElement("div");
-        lockScreen.id = "sp-lock-screen";
-        lockScreen.className = "loading-auth-overlay";
-    
-        const sharePointSiteUrl = "https://clinicasdelcaminoreal.sharepoint.com/sites/CDCROperationsHub";
-
-        lockScreen.innerHTML = `
-        <div class="loading-auth-card">
-            <h2 class="loading-auth-title">Sign-In Required / Offline</h2>
-            <p id="lock-status-text" class="loading-auth-status">
-                Your corporate session could not be verified automatically. Authenticate via popup or continue in offline mode using local OPFS backups.
-            </p>
-            <div class="loading-auth-waiting">
-                <div class="loading-auth-spinner"></div>
-                Waiting for authentication...
-            </div>
-            
-            <button id="btn-offline-mode" class="loading-auth-offline-button">
-                🔓 Continue in Offline Mode (Use OPFS Cache)
-            </button>
-            <button id="btn-reopen-popup" class="loading-auth-popup-button">
-                Reopen Login Window
-            </button>
-        </div>
-        `;
-    
-        document.body.appendChild(lockScreen);
-
-        const openPopup = () => {
-            console.log("🟡 [Gold Leader]: Opening authentication window in a normal browser session...");
-        
-            // Without window dimensions, Chrome in --app mode opens a regular browser
-            // window that uses the main profile and avoids cookie isolation.
-            loginWindow = window.open(sharePointSiteUrl, "_blank");
-
-            if (!loginWindow || loginWindow.closed || typeof loginWindow.closed == 'undefined') {
-                console.warn("🟡 [Gold Leader]: Popup blocked or restricted by browser settings.");
-            }
-        };
-
-        openPopup();
-    
-        document.getElementById("btn-reopen-popup").addEventListener("click", () => {
-            if (!loginWindow || loginWindow.closed) openPopup();
-        });
-
-        document.getElementById("btn-offline-mode").addEventListener("click", async () => {
-            console.log("🔓 [Gold Leader]: User selected offline mode; skipping all remote synchronization.");
-            sessionStorage.setItem("app_offline_mode", "true");
-            window.LSEngine = window.LSEngine || {};
-            window.LSEngine.offlineMode = true;
-            clearInterval(sessionPollInterval);
-            try { if (loginWindow && !loginWindow.closed) loginWindow.close(); } catch (e) {}
-        
-            const restored = await window.GreenLeaderStorage.restoreOfflineData();
-            if (!restored) {
-                console.warn("⚠️ [Gold Leader]: No cached payload was found. Continuing offline without downloaded data.");
-            }
-            window.dispatchEvent(new CustomEvent("PayloadReady"));
-            completeLoginDecision(false);
-        });
-
-        sessionPollInterval = setInterval(async () => {
-            if (isResolved || isOfflineMode()) return;
-            const sessionActive = await checkSharePointLogo();
-            if (sessionActive && !isResolved && !isOfflineMode()) {
-                console.log("🟡 [Gold Leader]: Session detected. Closing popup and continuing...");
-                completeLoginDecision(true);
-            }
-        }, 2000);
-    });
-
-    return loginDecisionPromise;
-}
-
 
 // --- 🟢 GREEN LEADER: OPFS & STORAGE ENGINEERING ---
 window.GreenLeaderStorage.clearLocalDatasetsCache = function() {
@@ -573,8 +393,6 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
         return;
     }
 
-    if (!await ensureOnlineSession()) return;
-    
     const cacheBusterToken = `_cb=${Date.now()}`;
     console.log("⚡ [Cache Busting] Applied to Lite Payload:", cacheBusterToken);
     const separator = baseUrl.includes('?') ? '&' : '?';
@@ -584,14 +402,13 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
         updateProgress(30, "Downloading system data...", "FETCHING");
     }
 
-    const response = await fetchWithSession(finalEndpointUrl, {
+    const response = await fetch(finalEndpointUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
         body: JSON.stringify({ action: "load" })
     });
 
-    if (!response) return;
     if (!response.ok) throw new Error(`Data fetch error (HTTP ${response.status})`);
 
     const payload = await response.json();
@@ -629,8 +446,6 @@ async function fetchAndProcessData(isManual = false) {
             return false;
         }
 
-        if (!await ensureOnlineSession()) return false;
-
         try {
             await window.GreenLeaderStorage.clearOPFSLogs();
         } catch (err) {
@@ -648,7 +463,7 @@ async function fetchAndProcessData(isManual = false) {
         
         let csvResponse;
         try {
-            csvResponse = await fetchWithSession(baseUrl, {
+            csvResponse = await fetch(baseUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({}), 
@@ -810,8 +625,6 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
     if (!baseUrl) return;
 
     try {
-        if (!await ensureOnlineSession()) return;
-
         const rootDir = await navigator.storage.getDirectory();
         
         const cacheBusterToken = `_cb=${Date.now()}`;
@@ -823,14 +636,13 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
         }
 
         const previousInventory = await window.GreenLeaderStorage.loadSyncedAssetInventory(rootDir);
-        const response = await fetchWithSession(manifestUrl, {
+        const response = await fetch(manifestUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             cache: "no-store",
             body: JSON.stringify({ action: "READ_MANIFEST" })
         });
 
-        if (!response) throw new Error("Manifest request could not be completed after session verification.");
         if (!response.ok) throw new Error(`Manifest request failed (HTTP ${response.status}).`);
 
         const payload = await response.json();
@@ -927,14 +739,13 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     window.LSEngine.setProgress(progressPercent, `Downloading asset (${processedCount}/${totalFiles}): ${item.name}`, "DOWNLOADING");
                 }
 
-                const downloadRes = await fetchWithSession(baseUrl, {
+                const downloadRes = await fetch(baseUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     cache: "no-store",
                     body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: cleanFilePath })
                 });
 
-                if (!downloadRes) throw new Error(`Download request for '${item.name}' could not be completed after session verification.`);
                 if (!downloadRes.ok) {
                     const errorDetails = (await downloadRes.text()).slice(0, 500);
                     throw new Error(`Asset download failed (HTTP ${downloadRes.status}): ${errorDetails}`);

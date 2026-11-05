@@ -9,47 +9,6 @@
     <script src="theme.js"></script>
     <link rel="stylesheet" href="loading-screen.css">
     <link rel="stylesheet" href="theme.css">
-    <head>
-    <meta charset="UTF-8" />
-    
-    <!-- 🛡️ CRITICAL SESSION GUARD (must be at the very start of <head>) -->
-    <script>
-        (function() {
-            try {
-                // Check the lock conditions (global flag, URL parameters, or session state).
-                const sessionLocked = 
-                    (window.LSEngine && window.LSEngine.isLocked) || 
-                    window.location.search.includes('login_required') ||
-                    localStorage.getItem("session_expired") === "true";
-
-                if (sessionLocked) {
-                    // Option A: Replace the page with a clean authentication screen.
-                    document.documentElement.innerHTML = `
-                        <head>
-                            <title>Authentication Required</title>
-                            <link rel="stylesheet" href="loading-screen.css">
-                            <link rel="stylesheet" href="theme.css">
-                        </head>
-                        <body class="loading-auth-page">
-                            <div class="box">
-                                <h2>🔒 Authentication Required</h2>
-                                <p>No active session was found, or authentication has expired.</p>
-                                <p class="loading-auth-note">Please sign in to continue.</p>
-                            </div>
-                        </body>
-                    `;
-                    
-                    // Stop the remaining page scripts from running.
-                    throw new Error("Access denied: An active session is required.");
-                }
-            } catch (e) {
-                // Ignore the intentional interruption error.
-                if (e.message !== "Access denied: An active session is required.") {
-                    console.error("Error in the security guard:", e);
-                }
-            }
-        })();
-    </script>
 
     <!-- Add the remaining metadata and stylesheets (Leaflet, app styles, etc.) below. -->
     <script>

@@ -9,26 +9,6 @@
     <link rel="manifest" href="manifest.webmanifest">
     <script src="theme.js"></script>
 
-    <!-- 🛡️ Session Verification via red_leader -->
-    <!--
-    <script>
-        (function() {
-            try {
-                if (typeof window.red_leader === 'function') {
-                    window.red_leader([0]);
-                } else {
-                    window.addEventListener('DOMContentLoaded', () => {
-                        if (typeof window.red_leader === 'function') {
-                            window.red_leader([0]);
-                        }
-                    });
-                }
-            } catch (e) {
-                console.error("Error invoking red_leader from guard script:", e);
-            }
-        })();
-    </script>
-    -->
     <!-- ⚙️ Sync Validation (10h absolute threshold or 4h + 20m away) -->
     <script>
     (function() {
