@@ -399,7 +399,7 @@
                     <li><span>Clinic Directory</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>3</kbd></li>
                     <li><span>Provider Directory</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>4</kbd></li>
                     <li><span>Guidelines & Info</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>5</kbd></li>
-                    <li><span>Copy Note (in the Note section)</span> <kbd>Ctrl</kbd> + <kbd>C</kbd></li>
+                    <li><span>Copy Note (in the Note section)</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd></li>
                 </ul>
             </div>
         </div>
@@ -579,18 +579,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error in UI initialization:', e);
     }
 
-    let isNoteSectionVisible = false;
-
-    const noteSection = document.getElementById('note-section');
-    if (noteSection) {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                isNoteSectionVisible = entry.isIntersecting;
-            });
-        }, { threshold: 0.2 });
-
-        observer.observe(noteSection);
-    }
 });
 
 /* ======= Expose Global UI Functions ======= */

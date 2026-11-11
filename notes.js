@@ -412,49 +412,33 @@ function filterEpicGuide(query) {
     });
 }
 
-/* ======= Select + copy result on Ctrl+C ======= */
+/* ======= Select + copy result on Alt+Shift+C ======= */
 document.addEventListener('keydown', (e) => {
-    const isCtrlPressed = e.ctrlKey || e.metaKey;
-    const key = e.key.toLowerCase();
+    if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey || e.key.toLowerCase() !== 'c') return;
 
-    const noteVisible = typeof isNoteSectionVisible !== 'undefined' ? isNoteSectionVisible : true;
-    if (!noteVisible) return;
+    const noteSection = document.getElementById('note-section');
+    if (!noteSection || noteSection.classList.contains('is-hidden') || !noteSection.getClientRects().length) return;
 
-    const selection = window.getSelection();
-    const hasSelection = selection && selection.toString().trim() !== '';
+    e.preventDefault();
 
-    if (isCtrlPressed && key === 'c' && hasSelection) {
+    const resultDiv = document.getElementById('result');
+    if (!resultDiv) return;
+
+    const text = resultDiv.innerText.trim();
+    if (!text || text.includes('Your generated note will appear here')) {
+        alert("⚠️ Insufficient information to copy. Please complete at least one field.");
         return;
     }
 
-    if (isCtrlPressed && key === 'c') {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-
-        const resultDiv = document.getElementById('result');
-        if (!resultDiv) return;
-
-        const text = resultDiv.innerText.trim();
-        if (!text || text.includes('Your generated note will appear here')) {
-            alert("⚠️ Insufficient information to copy. Please complete at least one field.");
-            return;
-        }
-
-        const range = document.createRange();
-        range.selectNodeContents(resultDiv);
-        const selectionToUse = window.getSelection();
-        if (selectionToUse) {
-            selectionToUse.removeAllRanges();
-            selectionToUse.addRange(range);
-        }
-
-        setTimeout(() => {
-            const selectedText = resultDiv.innerText.trim();
-            if (!selectedText || selectedText.includes('Your generated note will appear here')) return;
-            executeCopyAction(selectedText);
-        }, 0);
+    const range = document.createRange();
+    range.selectNodeContents(resultDiv);
+    const selection = window.getSelection();
+    if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
     }
+
+    executeCopyAction(text);
 }, true);
 
 /* ======= 2. Clipboard Copy Function (Supports Selection or ID Fallback) ======= */

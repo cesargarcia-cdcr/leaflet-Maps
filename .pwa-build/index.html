@@ -400,7 +400,7 @@
                     <li><span>Clinic Directory</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>3</kbd></li>
                     <li><span>Provider Directory</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>4</kbd></li>
                     <li><span>Guidelines & Info</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>5</kbd></li>
-                    <li><span>Copy Note (in the Note section)</span> <kbd>Ctrl</kbd> + <kbd>C</kbd></li>
+                    <li><span>Copy Note (in the Note section)</span> <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd></li>
                 </ul>
             </div>
         </div>
@@ -581,41 +581,32 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    let isNoteSectionVisible = false;
-
-    // 1. Observe when the notes section is visible in the viewport.
-    const noteSection = document.getElementById('note-section');
-    if (noteSection) {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                isNoteSectionVisible = entry.isIntersecting;
-            });
-        }, { threshold: 0.2 }); // Trigger when at least 20% of the section is visible.
-
-        observer.observe(noteSection);
-    }
-
-    // 2. Global listener for the Ctrl+C shortcut.
+    // Global listener for the Alt+Shift+C shortcut.
     document.addEventListener('keydown', (e) => {
-        // Check whether Ctrl (or Cmd on Mac) and the C key were pressed.
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-            
-            // Only handle the shortcut while the notes section is visible.
-            if (isNoteSectionVisible) {
-                
-                // Let the browser handle copying when text is selected in an input or textarea.
-                // Otherwise, call the custom copyResult() function.
-                const selectedText = window.getSelection().toString();
-                
-                if (!selectedText) {
-                    e.preventDefault(); // Prevent the default behavior when needed.
-                    if (typeof copyResult === 'function') {
-                        copyResult();
-                        console.log("📋 Ctrl+C detected: running copyResult() automatically.");
-                    }
-                }
-            }
+        if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey || e.key.toLowerCase() !== 'c') return;
+
+        const noteSection = document.getElementById('note-section');
+        if (!noteSection || noteSection.classList.contains('is-hidden') || !noteSection.getClientRects().length) return;
+
+        e.preventDefault();
+        const resultDiv = document.getElementById('result');
+        if (!resultDiv) return;
+
+        const text = resultDiv.innerText.trim();
+        if (!text || text.includes('Your generated note will appear here')) {
+            alert("⚠️ Insufficient information to copy. Please complete at least one field.");
+            return;
         }
+
+        const range = document.createRange();
+        range.selectNodeContents(resultDiv);
+        const selection = window.getSelection();
+        if (selection) {
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        if (typeof copyResult === 'function') copyResult();
     });
 });
 
