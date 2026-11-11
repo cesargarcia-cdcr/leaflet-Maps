@@ -303,65 +303,6 @@ function updateNote() {
     }
 
     resultDiv.textContent = noteParts.join(' | ');
-    selectResultText();
-}
-
-/* ======= Auto-select result after inactivity or on hover ======= */
-let resultAutoSelectTimer = null;
-
-function selectResultText() {
-    const resultDiv = document.getElementById('result');
-    if (!resultDiv) return;
-
-    const text = resultDiv.innerText.trim();
-    if (!text || text.includes('Your generated note will appear here')) return;
-
-    const selection = window.getSelection();
-    if (!selection) return;
-    const selectionIsInResult = resultDiv.contains(selection.anchorNode)
-        && resultDiv.contains(selection.focusNode);
-    if (selection.toString().trim() !== '' && !selectionIsInResult) return;
-
-    const range = document.createRange();
-    range.selectNodeContents(resultDiv);
-    selection.removeAllRanges();
-    selection.addRange(range);
-}
-
-function scheduleResultAutoSelect() {
-    clearTimeout(resultAutoSelectTimer);
-
-    const resultDiv = document.getElementById('result');
-    if (!resultDiv) return;
-
-    const text = resultDiv.innerText.trim();
-    if (!text || text.includes('Your generated note will appear here')) return;
-
-    resultAutoSelectTimer = setTimeout(() => {
-        const selection = window.getSelection();
-        if (!selection || selection.toString().trim() !== '') return;
-        selectResultText();
-    }, 1500);
-}
-
-function bindResultSelectionBehavior() {
-    const resultDiv = document.getElementById('result');
-    if (!resultDiv) return;
-
-    resultDiv.addEventListener('mouseover', () => {
-        clearTimeout(resultAutoSelectTimer);
-        const selection = window.getSelection();
-        if (!selection || selection.toString().trim() === '') {
-            selectResultText();
-        }
-    });
-
-    resultDiv.addEventListener('mouseleave', () => {
-        const selection = window.getSelection();
-        if (!selection || selection.toString().trim() === '') {
-            scheduleResultAutoSelect();
-        }
-    });
 }
 
 /* ======= Reset Form Fields ======= */
@@ -573,7 +514,6 @@ window.addEventListener('DOMContentLoaded', () => {
     initInsuranceDropdown();
     updateNote();
     checkInsuranceConditions();
-    bindResultSelectionBehavior();
 
     const memberIdInput = document.getElementById('InsuranceID');
     if (memberIdInput) {
