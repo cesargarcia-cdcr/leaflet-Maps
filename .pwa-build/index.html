@@ -598,15 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const range = document.createRange();
-        range.selectNodeContents(resultDiv);
-        const selection = window.getSelection();
-        if (selection) {
-            selection.removeAllRanges();
-            selection.addRange(range);
-        }
-
-        if (typeof copyResult === 'function') copyResult();
+        if (typeof executeCopyAction === 'function') executeCopyAction(text);
     });
 });
 

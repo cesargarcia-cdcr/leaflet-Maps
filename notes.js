@@ -412,7 +412,7 @@ function filterEpicGuide(query) {
     });
 }
 
-/* ======= Select + copy result on Alt+Shift+C ======= */
+/* ======= Copy result on Alt+Shift+C ======= */
 document.addEventListener('keydown', (e) => {
     if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey || e.key.toLowerCase() !== 'c') return;
 
@@ -428,14 +428,6 @@ document.addEventListener('keydown', (e) => {
     if (!text || text.includes('Your generated note will appear here')) {
         alert("⚠️ Insufficient information to copy. Please complete at least one field.");
         return;
-    }
-
-    const range = document.createRange();
-    range.selectNodeContents(resultDiv);
-    const selection = window.getSelection();
-    if (selection) {
-        selection.removeAllRanges();
-        selection.addRange(range);
     }
 
     executeCopyAction(text);
