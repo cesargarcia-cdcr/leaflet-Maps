@@ -374,17 +374,12 @@ document.addEventListener('keydown', (e) => {
     executeCopyAction(text);
 }, true);
 
-/* ======= 2. Clipboard Copy Function (Supports Selection or ID Fallback) ======= */
+/* ======= 2. Clipboard Copy Function ======= */
 function copyResult() {
     try {
         updateNote();
-        
-        let resultText = window.getSelection().toString().trim();
-        
-        if (!resultText) {
-            const resultDiv = document.getElementById('result');
-            resultText = resultDiv ? resultDiv.innerText.trim() : '';
-        }
+        const resultDiv = document.getElementById('result');
+        const resultText = resultDiv ? resultDiv.innerText.trim() : '';
 
         if (!resultText || resultText.includes('Your generated note will appear here')) {
             alert("⚠️ Insufficient information to copy. Please complete at least one field.");
