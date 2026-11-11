@@ -302,7 +302,8 @@ function updateNote() {
         noteParts.push("No E/R");
     }
 
-    resultDiv.textContent = noteParts.join(' | ');
+    const generatedNote = noteParts.join(' | ');
+    if (resultDiv.textContent !== generatedNote) resultDiv.textContent = generatedNote;
 }
 
 /* ======= Reset Form Fields ======= */
@@ -353,25 +354,42 @@ function filterEpicGuide(query) {
     });
 }
 
-/* ======= Copy result on Alt+Shift+C ======= */
+/* ======= Select result on Alt+Shift; copy on C ======= */
 document.addEventListener('keydown', (e) => {
-    if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey || e.key.toLowerCase() !== 'c') return;
+    if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return;
 
     const noteSection = document.getElementById('note-section');
     if (!noteSection || noteSection.classList.contains('is-hidden') || !noteSection.getClientRects().length) return;
 
-    e.preventDefault();
-
     const resultDiv = document.getElementById('result');
     if (!resultDiv) return;
 
-    const text = resultDiv.innerText.trim();
-    if (!text || text.includes('Your generated note will appear here')) {
-        alert("⚠️ Insufficient information to copy. Please complete at least one field.");
+    const key = e.key.toLowerCase();
+    if ((key === 'alt' || key === 'shift') && !e.repeat) {
+        const range = document.createRange();
+        range.selectNodeContents(resultDiv);
+        const selection = window.getSelection();
+        if (selection) {
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
         return;
     }
 
-    executeCopyAction(text);
+    if (key !== 'c') return;
+
+    e.preventDefault();
+    if (e.repeat) return;
+    if (window.self !== window.top) {
+        const selectedText = window.getSelection()?.toString().trim() || resultDiv.innerText.trim();
+        if (!selectedText || selectedText.includes('Your generated note will appear here')) {
+            alert("⚠️ Insufficient information to copy. Please complete at least one field.");
+            return;
+        }
+        executeCopyAction(selectedText);
+    } else {
+        copyResult();
+    }
 }, true);
 
 /* ======= 2. Clipboard Copy Function ======= */
