@@ -414,16 +414,18 @@ function copyResult() {
 
 /* ======= 3. Core Execution for PostMessage or Direct Copy ======= */
 function executeCopyAction(textToCopy) {
-    if (window.self !== window.top) {
+    const isEmbedded = window.self !== window.top;
+    if (isEmbedded) {
         window.parent.postMessage(textToCopy, '*');
-        showToast("📤 Solicitud de copia enviada al contenedor...");
-    } else {
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            showToast("✓ Successfully copied to clipboard!");
-        }).catch(() => {
-            fallbackCopyDirect(textToCopy);
-        });
     }
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        showToast(isEmbedded
+            ? "✓ Copied to clipboard and sent to container!"
+            : "✓ Successfully copied to clipboard!");
+    }).catch(() => {
+        fallbackCopyDirect(textToCopy);
+    });
 }
 
 /* ======= 4. Respaldo por si se ejecuta fuera de iframe ======= */
