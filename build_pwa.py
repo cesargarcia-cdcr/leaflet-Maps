@@ -15,6 +15,28 @@ BUILD_DIR = ROOT / ".pwa-build"
 LOCAL_TOOLS = {"build_pwa.py", "serve.py", "serve_pwa.py", ".pwa.var", ".gitignore"}
 
 
+def validate_data_param(data_param):
+    plain_url = data_param.strip()
+    parsed_data_url = urlsplit(plain_url)
+    if parsed_data_url.scheme == "https" and parsed_data_url.netloc:
+        return
+
+    try:
+        decoded_url = base64.b64decode(
+            data_param.replace(" ", "+"),
+            altchars=b"-_",
+            validate=True,
+        ).decode("utf-8")
+    except (ValueError, UnicodeDecodeError) as error:
+        raise ValueError(
+            "The data parameter in .pwa.var must be a plain HTTPS URL or valid Base64 text."
+        ) from error
+
+    decoded = urlsplit(decoded_url)
+    if decoded.scheme != "https" or not decoded.netloc:
+        raise ValueError("The data parameter must be a plain HTTPS URL or decode to one.")
+
+
 def read_data_param():
     if not CONFIG_FILE.is_file():
         raise FileNotFoundError(
@@ -38,14 +60,7 @@ def read_data_param():
     if not data_param:
         raise ValueError("The project URL in .pwa.var must include a non-empty data parameter.")
 
-    try:
-        decoded_url = base64.b64decode(data_param, validate=True).decode("utf-8")
-    except (ValueError, UnicodeDecodeError) as error:
-        raise ValueError("The data parameter in .pwa.var must be valid Base64 text.") from error
-
-    decoded = urlsplit(decoded_url)
-    if decoded.scheme != "https" or not decoded.netloc:
-        raise ValueError("The data parameter must decode to an HTTPS URL.")
+    validate_data_param(data_param)
     return data_param
 
 

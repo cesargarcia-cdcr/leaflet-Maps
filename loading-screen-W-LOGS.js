@@ -251,8 +251,24 @@ function hideSplash(splashElement) {
 function getPowerAutomateUrl() {
     try {
         const params = new URLSearchParams(window.location.search);
-        const encoded = params.get("data");
-        return encoded ? atob(encoded) : null;
+        const data = params.get("data");
+        if (!data) return null;
+
+        const getHttpsUrl = value => {
+            const candidate = value.trim();
+            try {
+                const parsed = new URL(candidate);
+                return parsed.protocol === "https:" && parsed.hostname ? candidate : null;
+            } catch {
+                return null;
+            }
+        };
+
+        const plainUrl = getHttpsUrl(data);
+        if (plainUrl) return plainUrl;
+
+        const decoded = atob(data.replace(/ /g, "+"));
+        return getHttpsUrl(decoded);
     } catch (err) {
         console.error("💥 [Blue Leader]: Invalid Power Automate URL", err);
         return null;
