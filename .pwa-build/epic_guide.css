@@ -3,26 +3,22 @@
 .epic-guide-page #content-area .epic-guide-table,
 .app-container #content-area .epic-guide-table {
     width: 100%;
-    min-width: 1000px;
+    min-width: 900px;
     table-layout: fixed;
 }
 
 .epic-guide-page #content-area .epic-guide-table th:nth-child(1),
-.app-container #content-area .epic-guide-table th:nth-child(1) { width: 7%; }
+.app-container #content-area .epic-guide-table th:nth-child(1) { width: 10%; }
 .epic-guide-page #content-area .epic-guide-table th:nth-child(2),
-.app-container #content-area .epic-guide-table th:nth-child(2) { width: 14%; }
+.app-container #content-area .epic-guide-table th:nth-child(2) { width: 20%; }
 .epic-guide-page #content-area .epic-guide-table th:nth-child(3),
-.app-container #content-area .epic-guide-table th:nth-child(3) { width: 14%; }
+.app-container #content-area .epic-guide-table th:nth-child(3) { width: 20%; }
 .epic-guide-page #content-area .epic-guide-table th:nth-child(4),
-.app-container #content-area .epic-guide-table th:nth-child(4) { width: 13%; }
+.app-container #content-area .epic-guide-table th:nth-child(4) { width: 17%; }
 .epic-guide-page #content-area .epic-guide-table th:nth-child(5),
-.app-container #content-area .epic-guide-table th:nth-child(5) { width: 25%; }
+.app-container #content-area .epic-guide-table th:nth-child(5) { width: 15%; }
 .epic-guide-page #content-area .epic-guide-table th:nth-child(6),
-.app-container #content-area .epic-guide-table th:nth-child(6) { width: 8%; }
-.epic-guide-page #content-area .epic-guide-table th:nth-child(7),
-.app-container #content-area .epic-guide-table th:nth-child(7) { width: 10%; }
-.epic-guide-page #content-area .epic-guide-table th:nth-child(8),
-.app-container #content-area .epic-guide-table th:nth-child(8) { width: 9%; }
+.app-container #content-area .epic-guide-table th:nth-child(6) { width: 18%; }
 
 .epic-guide-table-wrap {
     max-width: 100%;

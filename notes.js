@@ -517,9 +517,11 @@ function toggleFloatingDirectory() {
 
     if (isExpanded) {
         if (expandBtn) expandBtn.textContent = '✕ Minimizar';
+        if (expandBtn) expandBtn.setAttribute('aria-expanded', 'true');
         document.body.style.overflow = 'hidden';
     } else {
         if (expandBtn) expandBtn.textContent = '⤢ Expand';
+        if (expandBtn) expandBtn.setAttribute('aria-expanded', 'false');
         document.body.style.overflow = '';
     }
 }
@@ -529,6 +531,20 @@ window.addEventListener('DOMContentLoaded', () => {
     initInsuranceDropdown();
     updateNote();
     checkInsuranceConditions();
+
+    document.addEventListener('pointerdown', (event) => {
+        const directory = document.querySelector('.directory-column-right');
+        if (directory?.classList.contains('floating-expanded') && !directory.contains(event.target)) {
+            toggleFloatingDirectory();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' &&
+            document.querySelector('.directory-column-right')?.classList.contains('floating-expanded')) {
+            toggleFloatingDirectory();
+        }
+    });
 
     const memberIdInput = document.getElementById('InsuranceID');
     if (memberIdInput) {

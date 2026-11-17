@@ -149,9 +149,7 @@ function loadAndRenderData() {
         sectionsMap[sectionName].push({
             visitCode,
             epicType,
-            nextGen: nextGenType,
-            topic: getField(r, 'Topic'),
-            guidance: getField(r, 'Guidance', 'Guidelines', 'Descripcion'),
+            slot: getField(r, 'Slot'),
             appointmentDuration: getField(r, 'Appointment_Duration', 'Appointment Duration'),
             regTime: getField(checkin || {}, 'Standard Check-in Time') ||
                 getField(r, 'Registration_Time', 'Registration Time', 'RegTime'),
@@ -192,12 +190,10 @@ function loadAndRenderData() {
                 <tr>
                     <th class="text-center">Visit Code</th>
                     <th>Epic Visit Type</th>
-                    <th>NextGen Visit Type</th>
-                    <th>Topic</th>
-                    <th>Guidance</th>
-                    <th>Appointment Duration</th>
+                    <th>Slot</th>
                     <th>Standard Check-in Time</th>
                     <th>META - Oxnard</th>
+                    <th>Appointment Duration</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -209,12 +205,10 @@ function loadAndRenderData() {
             tr.innerHTML = `
                 <td class="text-center"><strong>${escapeHtml(item.visitCode)}</strong></td>
                 <td>${escapeHtml(item.epicType)}</td>
-                <td>${escapeHtml(item.nextGen)}</td>
-                <td>${escapeHtml(item.topic)}</td>
-                <td>${escapeHtml(item.guidance)}</td>
-                <td class="text-center">${escapeHtml(item.appointmentDuration)}</td>
+                <td>${escapeHtml(item.slot)}</td>
                 <td class="text-center">${escapeHtml(item.regTime)}</td>
                 <td class="text-center">${escapeHtml(item.metaRegTime)}</td>
+                <td class="text-center">${escapeHtml(item.appointmentDuration)}</td>
             `;
             tbody.appendChild(tr);
         });

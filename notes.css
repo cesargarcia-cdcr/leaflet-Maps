@@ -174,7 +174,9 @@
 
 .epic-guide-scroll-container {
     max-height: 400px;
-    overflow-y: auto;
+    max-width: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     background: var(--panel);
@@ -304,7 +306,34 @@
 /* ======= Styles for the Floating Right Column (80% Centered) ======= */
 .directory-column-right {
     position: relative;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
     transition: all 0.3s ease-in-out;
+}
+
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table {
+    min-width: 640px;
+}
+
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table th:nth-child(5),
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table td:nth-child(5),
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table th:nth-child(6),
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table td:nth-child(6) {
+    display: none;
+}
+
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table th:nth-child(1),
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table td:nth-child(1) { width: 14%; }
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table th:nth-child(2),
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table td:nth-child(2) { width: 30%; }
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table th:nth-child(3),
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table td:nth-child(3) { width: 30%; }
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table th:nth-child(4),
+.directory-column-right:not(.floating-expanded) #content-area .epic-guide-table td:nth-child(4) { width: 26%; }
+
+.directory-column-right.floating-expanded #content-area .epic-guide-table {
+    min-width: 1000px;
 }
 
 /* Floating state: Occupies 80% and is centered on the screen */
@@ -329,6 +358,8 @@
 /* Adjust the inner container so that the scroll works perfectly at 80% */
 .directory-column-right.floating-expanded .epic-guide-scroll-container {
     max-height: calc(80vh - 160px) !important;
+    max-width: 100%;
+    overflow: auto;
     flex-grow: 1;
 }
 
