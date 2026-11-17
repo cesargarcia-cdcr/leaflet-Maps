@@ -250,12 +250,31 @@ function hideSplash(splashElement) {
 
 function getPowerAutomateUrl() {
     try {
-        const params = new URLSearchParams(window.location.search);
-        const data = params.get("data");
+        const queryParts = window.location.search.replace(/^\?/, "").split("&");
+        const dataIndex = queryParts.findIndex(part => part.split("=", 1)[0] === "data");
+        if (dataIndex < 0) return null;
+
+        const firstValueSeparator = queryParts[dataIndex].indexOf("=");
+        const dataParts = [queryParts[dataIndex].slice(firstValueSeparator + 1)];
+        // A plain endpoint URL may include query parameters in the page query too.
+        for (const part of queryParts.slice(dataIndex + 1)) {
+            const key = part.split("=", 1)[0];
+            if (key === "fast" || key === "reload_ts") break;
+            dataParts.push(part);
+        }
+
+        const data = decodeURIComponent(dataParts.join("&"));
         if (!data) return null;
 
         const getHttpsUrl = value => {
-            const candidate = value.trim();
+            let candidate = value.trim();
+            if (
+                candidate.length > 1
+                && (candidate[0] === '"' || candidate[0] === "'")
+                && candidate[candidate.length - 1] === candidate[0]
+            ) {
+                candidate = candidate.slice(1, -1).trim();
+            }
             try {
                 const parsed = new URL(candidate);
                 return parsed.protocol === "https:" && parsed.hostname ? candidate : null;

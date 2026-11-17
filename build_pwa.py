@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from urllib.parse import parse_qs, urlencode, urlsplit
+from urllib.parse import unquote, urlencode, urlsplit
 
 ROOT = Path(__file__).resolve().parent
 CONFIG_FILE = ROOT / ".pwa.var"
@@ -15,8 +15,36 @@ BUILD_DIR = ROOT / ".pwa-build"
 LOCAL_TOOLS = {"build_pwa.py", "serve.py", "serve_pwa.py", ".pwa.var", ".gitignore"}
 
 
+def extract_data_param(query):
+    query_parts = query.split("&")
+    data_index = next(
+        (
+            index
+            for index, part in enumerate(query_parts)
+            if unquote(part.partition("=")[0]) == "data"
+        ),
+        -1,
+    )
+    if data_index < 0:
+        return ""
+
+    data_parts = [query_parts[data_index].partition("=")[2]]
+    # Plain endpoint query parameters share the page query string.
+    for part in query_parts[data_index + 1:]:
+        if unquote(part.partition("=")[0]) in {"fast", "reload_ts"}:
+            break
+        data_parts.append(part)
+    return unquote("&".join(data_parts))
+
+
 def validate_data_param(data_param):
     plain_url = data_param.strip()
+    if (
+        len(plain_url) > 1
+        and plain_url[0] in {"'", '"'}
+        and plain_url[-1] == plain_url[0]
+    ):
+        plain_url = plain_url[1:-1].strip()
     parsed_data_url = urlsplit(plain_url)
     if parsed_data_url.scheme == "https" and parsed_data_url.netloc:
         return
@@ -56,7 +84,7 @@ def read_data_param():
     ):
         raise ValueError("The first line of .pwa.var must be the project GitHub Pages URL.")
 
-    data_param = parse_qs(parsed_url.query).get("data", [""])[0]
+    data_param = extract_data_param(parsed_url.query)
     if not data_param:
         raise ValueError("The project URL in .pwa.var must include a non-empty data parameter.")
 
