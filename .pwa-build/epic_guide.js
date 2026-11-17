@@ -61,8 +61,23 @@ function getDataRowsFromStorage(key) {
     return [];
 }
 
+function getField(item, ...names) {
+    for (const name of names) {
+        const value = item[name];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+            return String(value).trim();
+        }
+    }
+    return '';
+}
+
+function normalizeMatchValue(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
 function loadAndRenderData() {
     const container = document.getElementById('content-area');
+    if (!container) return;
     
     const mainKeys = ['csv_Epic_Visit_type_equivilant', 'csvData', 'csv_data'];
     let mainRows = [];
@@ -81,7 +96,7 @@ function loadAndRenderData() {
         return;
     }
 
-    const checkinKeys = ['csv_Check_In', 'csv_Check-In', 'csv_check_in'];
+    const checkinKeys = ['csv_Check-In', 'csv_Check_In', 'csv_check_in'];
     let checkinRows = [];
 
     for (let key of checkinKeys) {
@@ -92,54 +107,56 @@ function loadAndRenderData() {
         }
     }
 
-    let checkinMap = new Map();
+    const checkinByVisit = new Map();
+    const checkinByCode = new Map();
+    const ambiguousCodes = new Set();
     checkinRows.forEach(item => {
-        let recId = String(item.Record_ID || item.record_id || '').trim();
-        let section = String(item.Section || item.section || '').trim().toLowerCase();
-        let epicType = String(item.Epic_Visit_Type || item.epic_visit_type || '').trim().toLowerCase();
-
-        if (recId) checkinMap.set(`id:${recId}`, item);
-        if (section && epicType) checkinMap.set(`sec:${section}|epic:${epicType}`, item);
-    });
-
-    let mergedRows = mainRows.map(mainItem => {
-        let recId = String(mainItem.Record_ID || mainItem.record_id || '').trim();
-        let section = String(mainItem.Section || mainItem.section || '').trim().toLowerCase();
-        let epicType = String(mainItem.Epic_Visit_Type || mainItem.epic_visit_type || '').trim().toLowerCase();
-
-        let match = null;
-        if (recId && checkinMap.has(`id:${recId}`)) {
-            match = checkinMap.get(`id:${recId}`);
-        } else if (section && epicType && checkinMap.has(`sec:${section}|epic:${epicType}`)) {
-            match = checkinMap.get(`sec:${section}|epic:${epicType}`);
+        const code = getField(item, 'Visit_Code', 'Visit Code', 'VisitCode');
+        const visitType = getField(item, 'Visit type', 'Visit_Type', 'Visit_Type_Name');
+        if (code && visitType) {
+            checkinByVisit.set(`${normalizeMatchValue(code)}|${normalizeMatchValue(visitType)}`, item);
         }
-
-        if (match) {
-            return {
-                ...mainItem,
-                Registration_Time: (match.Registration_Time !== undefined && match.Registration_Time !== '') ? match.Registration_Time : mainItem.Registration_Time,
-                META_Registration_Time: (match.META_Registration_Time !== undefined && match.META_Registration_Time !== '') ? match.META_Registration_Time : mainItem.META_Registration_Time
-            };
+        if (code) {
+            const normalizedCode = normalizeMatchValue(code);
+            if (checkinByCode.has(normalizedCode)) {
+                ambiguousCodes.add(normalizedCode);
+            } else {
+                checkinByCode.set(normalizedCode, item);
+            }
         }
-        return mainItem;
     });
 
     let sectionsMap = {};
-    mergedRows.forEach(r => {
-        let sectionName = String(r.Section || r.section || 'General').trim();
-        if (!sectionName) sectionName = 'General';
+    mainRows.forEach(r => {
+        const sectionName = getField(r, 'Section', 'section') || 'General';
 
         if (!sectionsMap[sectionName]) {
             sectionsMap[sectionName] = [];
         }
 
+        const visitCode = getField(r, 'Visit_Code', 'Visit Code', 'VisitCode');
+        const epicType = getField(r, 'Epic_Visit_Type', 'Epic Visit Type', 'EpicType');
+        const nextGenType = getField(r, 'NextGen_Visit_Type', 'NextGen Visit Type', 'NextGenType');
+        const normalizedCode = normalizeMatchValue(visitCode);
+        const checkin = checkinByVisit.get(
+            `${normalizedCode}|${normalizeMatchValue(epicType)}`
+        ) || checkinByVisit.get(
+            `${normalizedCode}|${normalizeMatchValue(nextGenType)}`
+        ) || (normalizedCode && !ambiguousCodes.has(normalizedCode)
+            ? checkinByCode.get(normalizedCode)
+            : null);
+
         sectionsMap[sectionName].push({
-            visitCode: r.Visit_Code || r['Visit Code'] || r.VisitCode || '',
-            epicType: r.Epic_Visit_Type || r['Epic Visit Type'] || r.EpicType || '',
-            nextGen: r.NextGen_Visit_Type || r['NextGen Visit Type'] || r.NextGenType || '',
-            guidance: r.Guidance || r.Guidelines || r.Descripcion || '',
-            regTime: r.Registration_Time || r['Registration Time'] || r.RegTime || '',
-            metaRegTime: r.META_Registration_Time || r['META Registration Time'] || r.MetaRegTime || ''
+            visitCode,
+            epicType,
+            nextGen: nextGenType,
+            topic: getField(r, 'Topic'),
+            guidance: getField(r, 'Guidance', 'Guidelines', 'Descripcion'),
+            appointmentDuration: getField(r, 'Appointment_Duration', 'Appointment Duration'),
+            regTime: getField(checkin || {}, 'Standard Check-in Time') ||
+                getField(r, 'Registration_Time', 'Registration Time', 'RegTime'),
+            metaRegTime: getField(checkin || {}, 'META - Oxnard') ||
+                getField(r, 'META_Registration_Time', 'META Registration Time', 'MetaRegTime')
         });
     });
 
@@ -174,11 +191,13 @@ function loadAndRenderData() {
             <thead>
                 <tr>
                     <th class="text-center">Visit Code</th>
-                    <th>Epic Visit Types</th>
-                    <th>NextGen Visit Types</th>
-                    <th>Scheduling Guidelines</th>
-                    <th class="text-center">Reg. Time</th>
-                    <th class="text-center">Meta Reg. Time</th>
+                    <th>Epic Visit Type</th>
+                    <th>NextGen Visit Type</th>
+                    <th>Topic</th>
+                    <th>Guidance</th>
+                    <th>Appointment Duration</th>
+                    <th>Standard Check-in Time</th>
+                    <th>META - Oxnard</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -191,14 +210,19 @@ function loadAndRenderData() {
                 <td class="text-center"><strong>${escapeHtml(item.visitCode)}</strong></td>
                 <td>${escapeHtml(item.epicType)}</td>
                 <td>${escapeHtml(item.nextGen)}</td>
+                <td>${escapeHtml(item.topic)}</td>
                 <td>${escapeHtml(item.guidance)}</td>
+                <td class="text-center">${escapeHtml(item.appointmentDuration)}</td>
                 <td class="text-center">${escapeHtml(item.regTime)}</td>
                 <td class="text-center">${escapeHtml(item.metaRegTime)}</td>
             `;
             tbody.appendChild(tr);
         });
 
-        sectionDiv.appendChild(table);
+        const tableWrapper = document.createElement('div');
+        tableWrapper.className = 'epic-guide-table-wrap';
+        tableWrapper.appendChild(table);
+        sectionDiv.appendChild(tableWrapper);
         container.appendChild(sectionDiv);
     });
 }
