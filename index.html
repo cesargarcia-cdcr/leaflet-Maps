@@ -61,12 +61,14 @@
 
                 if (needsSync) {
                     if (!window.location.pathname.includes("loading-screen")) {
-                        const fastParam = hasLitePayloadCache ? "&fast=1" : "";
-                        const targetSearch = window.location.search
-                            ? window.location.search + fastParam
-                            : (hasLitePayloadCache ? "?fast=1" : "");
+                        const targetUrl = new URL("loading-screen.html", window.location.href);
+                        const targetParams = new URLSearchParams(window.location.search);
+                        const useFastMode = hasLitePayloadCache || targetParams.getAll("fast").includes("1");
+                        targetParams.delete("fast");
+                        if (useFastMode) targetParams.set("fast", "1");
+                        targetUrl.search = targetParams.toString();
 
-                        window.location.replace("loading-screen.html" + targetSearch);
+                        window.location.replace(targetUrl.toString());
                         return true;
                     }
                 } else if (!document.getElementById("dynamic-hide-splash")) {

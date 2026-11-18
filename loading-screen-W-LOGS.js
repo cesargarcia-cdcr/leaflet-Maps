@@ -158,11 +158,17 @@ async function red_leader(steps = [1, 2, 3, 4]) {
             if (isOfflineMode()) return true;
             console.log("🔴 [Red Leader]: Commencing main trench run (fetching and processing core data)...");
             const success = await fetchAndProcessData(true);
-            if (!success) throw new Error("Synchronization process failed.");
-
-            console.log("🔴 [Red Leader]: Executing secondary file sync (Manifest & OPFS files)...");
-            if (typeof window.LSEngine.taskSyncFiles === 'function') {
-                await window.LSEngine.taskSyncFiles();
+            if (!success) {
+                const restored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage("cache_payload.json")
+                    || await window.GreenLeaderStorage.restoreOfflineData();
+                if (!restored) throw new Error("Synchronization failed and no cached payload is available.");
+                console.warn("⚠️ [Red Leader]: Synchronization failed; continuing with the saved payload.");
+                updateProgress(100, "Using saved data; synchronization unavailable.", "READY");
+            } else {
+                console.log("🔴 [Red Leader]: Executing secondary file sync (Manifest & OPFS files)...");
+                if (typeof window.LSEngine.taskSyncFiles === 'function') {
+                    await window.LSEngine.taskSyncFiles();
+                }
             }
         }
 
@@ -250,44 +256,27 @@ function hideSplash(splashElement) {
 
 function getPowerAutomateUrl() {
     try {
-        const queryParts = window.location.search.replace(/^\?/, "").split("&");
-        const dataIndex = queryParts.findIndex(part => part.split("=", 1)[0] === "data");
-        if (dataIndex < 0) return null;
-
-        const firstValueSeparator = queryParts[dataIndex].indexOf("=");
-        const dataParts = [queryParts[dataIndex].slice(firstValueSeparator + 1)];
-        // A plain endpoint URL may include query parameters in the page query too.
-        for (const part of queryParts.slice(dataIndex + 1)) {
-            const key = part.split("=", 1)[0];
-            if (key === "fast" || key === "reload_ts") break;
-            dataParts.push(part);
-        }
-
-        const data = decodeURIComponent(dataParts.join("&"));
+        const params = new URLSearchParams(window.location.search);
+        const data = params.get("data");
         if (!data) return null;
 
-        const getHttpsUrl = value => {
-            let candidate = value.trim();
-            if (
-                candidate.length > 1
-                && (candidate[0] === '"' || candidate[0] === "'")
-                && candidate[candidate.length - 1] === candidate[0]
-            ) {
-                candidate = candidate.slice(1, -1).trim();
-            }
-            try {
-                const parsed = new URL(candidate);
-                return parsed.protocol === "https:" && parsed.hostname ? candidate : null;
-            } catch {
-                return null;
-            }
-        };
+        if (params.get("raw") === "true") {
+            const queryParts = window.location.search.replace(/^\?/, "").split("&");
+            const dataIndex = queryParts.findIndex(part => part.split("=", 1)[0] === "data");
+            const rawIndex = queryParts.findIndex(part => part === "raw=true");
+            if (dataIndex < 0 || rawIndex <= dataIndex) return null;
 
-        const plainUrl = getHttpsUrl(data);
-        if (plainUrl) return plainUrl;
+            const firstValueSeparator = queryParts[dataIndex].indexOf("=");
+            const rawUrl = decodeURIComponent(
+                queryParts.slice(dataIndex, rawIndex)
+                    .map((part, index) => index === 0 ? part.slice(firstValueSeparator + 1) : part)
+                    .join("&")
+            ).trim();
+            const candidate = rawUrl.replace(/^(['"])(.*)\1$/, "$2").trim();
+            return new URL(candidate).protocol === "https:" ? candidate : null;
+        }
 
-        const decoded = atob(data.replace(/ /g, "+"));
-        return getHttpsUrl(decoded);
+        return atob(data);
     } catch (err) {
         console.error("💥 [Blue Leader]: Invalid Power Automate URL", err);
         return null;
@@ -299,8 +288,13 @@ window.LSEngine.getPowerAutomateUrl = getPowerAutomateUrl;
 
 // --- 🟢 GREEN LEADER: OPFS & STORAGE ENGINEERING ---
 window.GreenLeaderStorage.clearLocalDatasetsCache = function() {
-    console.log("🟢 [Green Leader]: Purging all localStorage cache via clear()...");
-    localStorage.clear();
+    console.log("🟢 [Green Leader]: Clearing localStorage while preserving cached CSV datasets...");
+    for (let index = localStorage.length - 1; index >= 0; index--) {
+        const key = localStorage.key(index);
+        if (key && !key.startsWith("csv_")) {
+            localStorage.removeItem(key);
+        }
+    }
 };
 
 window.GreenLeaderStorage.backupParamDataToOPFS = async function() {
@@ -403,7 +397,27 @@ window.GreenLeaderStorage.restoreOfflineData = async function() {
         }
     }
 
-    return false;
+    window.LSEngine = window.LSEngine || {};
+    window.LSEngine.state = window.LSEngine.state || {};
+    let restoredClinicData = false;
+    for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (!key || !key.startsWith("csv_")) continue;
+
+        try {
+            const sectionData = JSON.parse(localStorage.getItem(key));
+            if (!Array.isArray(sectionData)) continue;
+
+            const sectionKey = key.slice(4);
+            const globalPropName = `global${sectionKey.charAt(0).toUpperCase()}${sectionKey.slice(1)}`;
+            window.LSEngine.state[globalPropName] = sectionData;
+            if (sectionKey === "clinics") restoredClinicData = true;
+        } catch (err) {
+            console.warn(`⚠️ [Green Leader]: Ignoring invalid cached dataset '${key}':`, err);
+        }
+    }
+
+    return restoredClinicData;
 };
 
 window.LSEngine = window.LSEngine || {};

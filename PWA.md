@@ -1,10 +1,10 @@
 # Local Chrome app
 
 The PWA build is local-only. It reads the app's `?data=` URL from `.pwa.var`
-and writes a generated app to `.pwa-build/`. The `data` value can be either a
-Base64-encoded HTTPS endpoint or the endpoint as plain text; the page detects
-which format it received. Both paths are ignored by Git; the tracked manifest
-used by GitHub Pages contains no data URL.
+and writes a generated app to `.pwa-build/`. By default, `data` must contain a
+Base64-encoded HTTPS endpoint. To use a plain-text endpoint instead, append
+`&raw=true` after the endpoint URL. Both paths are ignored by Git; the tracked
+manifest used by GitHub Pages contains no data URL.
 
 1. Create `.pwa.var` in the repository root. Put the full GitHub Pages URL,
    including `?data=...`, on its first line. Keep the file private.

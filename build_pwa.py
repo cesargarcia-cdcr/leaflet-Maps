@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from urllib.parse import unquote, urlencode, urlsplit
+from urllib.parse import parse_qs, unquote, urlencode, urlsplit
 
 ROOT = Path(__file__).resolve().parent
 CONFIG_FILE = ROOT / ".pwa.var"
@@ -17,27 +17,16 @@ LOCAL_TOOLS = {"build_pwa.py", "serve.py", "serve_pwa.py", ".pwa.var", ".gitigno
 
 def extract_data_param(query):
     query_parts = query.split("&")
-    data_index = next(
-        (
-            index
-            for index, part in enumerate(query_parts)
-            if unquote(part.partition("=")[0]) == "data"
-        ),
-        -1,
-    )
-    if data_index < 0:
-        return ""
-
-    data_parts = [query_parts[data_index].partition("=")[2]]
-    # Plain endpoint query parameters share the page query string.
-    for part in query_parts[data_index + 1:]:
-        if unquote(part.partition("=")[0]) in {"fast", "reload_ts"}:
-            break
-        data_parts.append(part)
-    return unquote("&".join(data_parts))
+    data_index = next((i for i, part in enumerate(query_parts) if part.partition("=")[0] == "data"), -1)
+    raw_index = next((i for i, part in enumerate(query_parts) if part == "raw=true"), -1)
+    if data_index >= 0 and raw_index > data_index:
+        first_value = query_parts[data_index].partition("=")[2]
+        data_parts = [first_value, *query_parts[data_index + 1:raw_index]]
+        return unquote("&".join(data_parts)), True
+    return parse_qs(query).get("data", [""])[0], False
 
 
-def validate_data_param(data_param):
+def validate_data_param(data_param, is_raw):
     plain_url = data_param.strip()
     if (
         len(plain_url) > 1
@@ -45,24 +34,20 @@ def validate_data_param(data_param):
         and plain_url[-1] == plain_url[0]
     ):
         plain_url = plain_url[1:-1].strip()
-    parsed_data_url = urlsplit(plain_url)
-    if parsed_data_url.scheme == "https" and parsed_data_url.netloc:
-        return
+    if is_raw:
+        parsed_data_url = urlsplit(plain_url)
+        if parsed_data_url.scheme == "https" and parsed_data_url.netloc:
+            return
+        raise ValueError("The raw data parameter must be an HTTPS URL.")
 
     try:
-        decoded_url = base64.b64decode(
-            data_param.replace(" ", "+"),
-            altchars=b"-_",
-            validate=True,
-        ).decode("utf-8")
+        decoded_url = base64.b64decode(data_param, validate=True).decode("utf-8")
     except (ValueError, UnicodeDecodeError) as error:
-        raise ValueError(
-            "The data parameter in .pwa.var must be a plain HTTPS URL or valid Base64 text."
-        ) from error
+        raise ValueError("The data parameter in .pwa.var must be valid Base64 text.") from error
 
     decoded = urlsplit(decoded_url)
     if decoded.scheme != "https" or not decoded.netloc:
-        raise ValueError("The data parameter must be a plain HTTPS URL or decode to one.")
+        raise ValueError("The data parameter must decode to an HTTPS URL.")
 
 
 def read_data_param():
@@ -84,12 +69,12 @@ def read_data_param():
     ):
         raise ValueError("The first line of .pwa.var must be the project GitHub Pages URL.")
 
-    data_param = extract_data_param(parsed_url.query)
+    data_param, is_raw = extract_data_param(parsed_url.query)
     if not data_param:
         raise ValueError("The project URL in .pwa.var must include a non-empty data parameter.")
 
-    validate_data_param(data_param)
-    return data_param
+    validate_data_param(data_param, is_raw)
+    return data_param, is_raw
 
 
 def tracked_project_files():
@@ -117,7 +102,7 @@ def tracked_project_files():
 
 
 def build():
-    data_param = read_data_param()
+    data_param, is_raw = read_data_param()
     files = tracked_project_files()
 
     if BUILD_DIR.is_symlink():
@@ -132,7 +117,10 @@ def build():
         shutil.copy2(source, destination)
 
     manifest = json.loads((ROOT / "manifest.webmanifest").read_text(encoding="utf-8"))
-    manifest["start_url"] = f"./?{urlencode({'data': data_param})}"
+    start_params = {"data": data_param}
+    if is_raw:
+        start_params["raw"] = "true"
+    manifest["start_url"] = f"./?{urlencode(start_params)}"
     (BUILD_DIR / "manifest.webmanifest").write_text(
         json.dumps(manifest, indent=2) + "\n",
         encoding="utf-8",

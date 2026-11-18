@@ -97,9 +97,11 @@
 
         const offlineMode = window.LSEngine.offlineMode === true
             || sessionStorage.getItem("app_offline_mode") === "true";
+        let usedCachedFallback = false;
         if (offlineMode) {
             console.log("🔓 [LSEngine] Offline mode selected. Loading cached data without contacting Power Automate...");
-            await window.GreenLeaderStorage.restoreOfflineData();
+            const restored = await window.GreenLeaderStorage.restoreOfflineData();
+            if (!restored) throw new Error("No usable offline payload was found in the local cache.");
             window.LSEngine.initializeMap();
             updateProgress(100, "Offline mode: using locally stored data.", "OFFLINE");
             return;
@@ -109,20 +111,47 @@
             console.log("⚡ [LSEngine] Fast mode (?fast=1) is enabled. Skipping the lite fetch and loading from OPFS...");
             let litePayloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
             if (!litePayloadRestored) {
-                console.warn("⚠️ [LSEngine] Lite payload cache is missing. Downloading it now...");
-                await window.LSEngine.taskFetchMainDataLite();
-                litePayloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+                litePayloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('cache_payload.json');
+                usedCachedFallback = litePayloadRestored;
             }
             if (!litePayloadRestored) {
-                throw new Error("The lite payload could not be loaded from cache or downloaded.");
+                console.warn("⚠️ [LSEngine] Lite payload cache is missing. Downloading it now...");
+                try {
+                    await window.LSEngine.taskFetchMainDataLite();
+                    litePayloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+                } catch (downloadError) {
+                    console.error("❌ [LSEngine] Lite payload download failed; trying the saved payload.", downloadError);
+                    litePayloadRestored = await window.GreenLeaderStorage.restoreOfflineData();
+                    usedCachedFallback = litePayloadRestored;
+                    if (!litePayloadRestored) throw downloadError;
+                }
+            }
+            if (!litePayloadRestored) {
+                litePayloadRestored = await window.GreenLeaderStorage.restoreOfflineData();
+                usedCachedFallback = litePayloadRestored;
+            }
+            if (!litePayloadRestored) {
+                throw new Error("No usable lite or full payload could be loaded from cache or download.");
             }
         } else {
             console.log("🌐 [LSEngine] Fetching the main data payload (lite)...");
-            await window.LSEngine.taskFetchMainDataLite();
-            const litePayloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
-            if (!litePayloadRestored) {
-                throw new Error("The lite payload could not be restored after download.");
+            try {
+                await window.LSEngine.taskFetchMainDataLite();
+                let payloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
+                if (!payloadRestored) {
+                    payloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('cache_payload.json');
+                    usedCachedFallback = payloadRestored;
+                }
+                if (!payloadRestored) throw new Error("The downloaded payload could not be restored.");
+            } catch (downloadError) {
+                console.error("❌ [LSEngine] Lite payload download failed; trying the saved payload.", downloadError);
+                usedCachedFallback = await window.GreenLeaderStorage.restoreOfflineData();
+                if (!usedCachedFallback) throw downloadError;
             }
+        }
+
+        if (usedCachedFallback) {
+            updateProgress(100, "Using saved data; synchronization skipped.", "READY");
         }
 
         // 3. Render the map immediately.
@@ -133,8 +162,10 @@
             
             // 4. Run the remaining heavy tasks through red_leader (steps 2 and 4).
             if (typeof red_leader === 'function') {
-                await red_leader([2, 4]);
-                await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage(); // Ensure localStorage and global state are updated.
+                await red_leader(usedCachedFallback ? [4] : [2, 4]);
+                if (!usedCachedFallback) {
+                    await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage(); // Ensure localStorage and global state are updated.
+                }
             }
         }
     } catch (err) {
