@@ -156,9 +156,20 @@ async function red_leader(steps = [1, 2, 3, 4]) {
 
         if (steps.includes(2)) {
             if (isOfflineMode()) return true;
-            console.log("🔴 [Red Leader]: Commencing main trench run (fetching and processing core data)...");
-            const success = await fetchAndProcessData(true);
+            let success;
+            if (isIFrameShareMode()) {
+                success = window.IFrameVirtualPCFDataReceived === true;
+                if (success) {
+                    console.log("🔴 [Red Leader]: Using the iframe-shared cache payload instead of requesting it from Power Automate.");
+                }
+            } else {
+                console.log("🔴 [Red Leader]: Commencing main trench run (fetching and processing core data)...");
+                success = await fetchAndProcessData(true);
+            }
             if (!success) {
+                if (isIFrameShareMode()) {
+                    throw new Error("The iframe-shared cache payload is unavailable.");
+                }
                 const restored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage("cache_payload.json")
                     || await window.GreenLeaderStorage.restoreOfflineData();
                 if (!restored) throw new Error("Synchronization failed and no cached payload is available.");
@@ -195,6 +206,10 @@ window.red_leader = red_leader;
 
 function isOfflineMode() {
     return window.LSEngine?.offlineMode === true || sessionStorage.getItem("app_offline_mode") === "true";
+}
+
+function isIFrameShareMode() {
+    return new URLSearchParams(window.location.search).get("iframeShare") === "1";
 }
 
 // --- 🚨 TRIGGER MANUAL SYNC ---
@@ -418,6 +433,50 @@ window.GreenLeaderStorage.restoreOfflineData = async function() {
     }
 
     return restoredClinicData;
+};
+
+window.GreenLeaderStorage.importIFrameSharedFiles = async function(files) {
+    if (!files || typeof files !== "object" || Array.isArray(files)) {
+        throw new Error("The iframe-shared files payload has an invalid format.");
+    }
+
+    const cachePayload = files["cache_payload.json"];
+    if (!cachePayload || typeof cachePayload !== "object" || Array.isArray(cachePayload)) {
+        throw new Error("The iframe-shared cache_payload.json is missing or invalid.");
+    }
+
+    const payloadString = JSON.stringify(cachePayload);
+    await window.GreenLeaderStorage.writeDatasetToOPFS("cache_payload.json", payloadString);
+    localStorage.setItem("cache_payload", payloadString);
+
+    window.LSEngine = window.LSEngine || {};
+    window.LSEngine.state = window.LSEngine.state || {};
+    for (const [sectionKey, sectionData] of Object.entries(cachePayload)) {
+        const globalPropName = `global${sectionKey.charAt(0).toUpperCase()}${sectionKey.slice(1)}`;
+        window.LSEngine.state[globalPropName] = sectionData;
+        if (Array.isArray(sectionData)) {
+            localStorage.setItem(`csv_${sectionKey}`, JSON.stringify(sectionData));
+        }
+    }
+
+    for (const [filename, encodedContent] of Object.entries(files)) {
+        if (filename === "cache_payload.json" || !filename.toLowerCase().endsWith(".docx")) {
+            continue;
+        }
+        if (typeof encodedContent !== "string") {
+            throw new Error(`The iframe-shared DOCX '${filename}' must be Base64 encoded text.`);
+        }
+
+        const binary = atob(encodedContent);
+        const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+        await window.GreenLeaderStorage.writeDatasetToOPFS(filename, bytes);
+    }
+
+    const syncDate = new Date().toISOString().split("T")[0];
+    localStorage.setItem("app_data_version", syncDate);
+    localStorage.setItem("app_last_sync_date", syncDate);
+    localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
+    window.IFrameVirtualPCFDataReceived = true;
 };
 
 window.LSEngine = window.LSEngine || {};
