@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OPFS Diagnostic</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 48rem; padding: 0 1rem; }
+    button { font: inherit; margin: 0.5rem 0.5rem 0.5rem 0; padding: 0.5rem 0.75rem; }
+    pre { background: #f3f4f6; padding: 1rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <h1>OPFS Diagnostic</h1>
+  <p>This checks create, write, close, and read operations in this site's OPFS root. It does not access the automation URL. The probe file stays available for inspection until you remove it.</p>
+  <button id="run-probe" type="button">Run OPFS test</button>
+  <button id="remove-probe" type="button" disabled>Remove probe file</button>
+  <pre id="result" aria-live="polite">Ready.</pre>
+  <script>
+    const probeFileName = "__opfs_probe.txt";
+    const result = document.getElementById("result");
+    const runButton = document.getElementById("run-probe");
+    const removeButton = document.getElementById("remove-probe");
+
+    async function withTimeout(stage, operation) {
+      let timeoutId;
+      try {
+        return await Promise.race([
+          Promise.resolve().then(operation),
+          new Promise((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error(`${stage} timed out after 5 seconds`)), 5000);
+          })
+        ]);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    runButton.addEventListener("click", async () => {
+      runButton.disabled = true;
+      removeButton.disabled = true;
+      result.textContent = `Origin: ${location.origin}\nProbe file: ${probeFileName}\n`;
+
+      let stage = "checking browser support";
+      let writable;
+      try {
+        if (!isSecureContext) throw new Error("This page is not in a secure context.");
+        if (typeof navigator.storage?.getDirectory !== "function") {
+          throw new Error("navigator.storage.getDirectory() is unavailable.");
+        }
+
+        stage = "storage.getDirectory";
+        const root = await withTimeout(stage, () => navigator.storage.getDirectory());
+
+        stage = "root.getFileHandle({ create: true })";
+        const file = await withTimeout(stage, () => root.getFileHandle(probeFileName, { create: true }));
+        removeButton.disabled = false;
+
+        stage = "createWritable";
+        writable = await withTimeout(stage, () => file.createWritable());
+
+        stage = "write";
+        await withTimeout(stage, () => writable.write("OPFS probe succeeded"));
+
+        stage = "close";
+        await withTimeout(stage, () => writable.close());
+        writable = null;
+
+        stage = "read back";
+        const contents = await withTimeout(stage, async () => (await file.getFile()).text());
+        if (contents !== "OPFS probe succeeded") throw new Error("Read-back content did not match.");
+
+        result.textContent += "SUCCESS: OPFS create/write/close/read all worked.\nThe probe file is present in the OPFS root until removed.";
+      } catch (error) {
+        if (writable) await writable.abort().catch(() => {});
+        removeButton.disabled = false;
+        result.textContent += `FAILED at: ${stage}\n${error.name || "Error"}: ${error.message || error}`;
+      } finally {
+        runButton.disabled = false;
+      }
+    });
+
+    removeButton.addEventListener("click", async () => {
+      removeButton.disabled = true;
+      try {
+        const root = await withTimeout("storage.getDirectory", () => navigator.storage.getDirectory());
+        await withTimeout("remove probe file", () => root.removeEntry(probeFileName));
+        result.textContent += "\nProbe file removed.";
+      } catch (error) {
+        result.textContent += `\nCleanup failed: ${error.name || "Error"}: ${error.message || error}`;
+        removeButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
