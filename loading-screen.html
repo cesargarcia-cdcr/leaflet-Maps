@@ -6,7 +6,6 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <script src="iframe-data.js"></script>
     <script src="theme.js"></script>
     <link rel="stylesheet" href="loading-screen.css">
     <link rel="stylesheet" href="theme.css">
@@ -89,36 +88,12 @@
     <script src="block-F12.js"></script>
 
     <script>
-    async function waitForIFrameSharedFiles(timeoutMs = 30000) {
-        let timeoutId;
-        try {
-            return await Promise.race([
-                window.IFrameVirtualPCFDataReady,
-                new Promise((_, reject) => {
-                    timeoutId = setTimeout(
-                        () => reject(new Error("Timed out waiting for the iframe-shared cache_payload.json.")),
-                        timeoutMs
-                    );
-                })
-            ]);
-        } finally {
-            clearTimeout(timeoutId);
-        }
-    }
-
     document.addEventListener('DOMContentLoaded', async () => {
     try {
         console.log("🚀 [LSEngine] Starting the loading sequence...");
         
         const urlParams = new URLSearchParams(window.location.search);
-            const iframeShareMode = urlParams.get("iframeShare") === "1";
         const isFastMode = urlParams.get('fast') === '1' || localStorage.getItem("lite_payload_cache");
-
-            if (iframeShareMode) {
-                updateProgress(10, "Waiting for shared application data...", "RECEIVING");
-                const sharedFiles = await waitForIFrameSharedFiles();
-                await window.GreenLeaderStorage.importIFrameSharedFiles(sharedFiles);
-            }
 
         const offlineMode = window.LSEngine.offlineMode === true
             || sessionStorage.getItem("app_offline_mode") === "true";
@@ -131,7 +106,7 @@
             updateProgress(100, "Offline mode: using locally stored data.", "OFFLINE");
             return;
         }
-        // 2. Choose the regular lite-payload path; iframe sharing replaces only the full payload request.
+        // 2. Choose the data-loading path based on fast mode.
         if (isFastMode) {
             console.log("⚡ [LSEngine] Fast mode (?fast=1) is enabled. Skipping the lite fetch and loading from OPFS...");
             let litePayloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage('lite_payload.json');
@@ -172,13 +147,6 @@
                 console.error("❌ [LSEngine] Lite payload download failed; trying the saved payload.", downloadError);
                 usedCachedFallback = await window.GreenLeaderStorage.restoreOfflineData();
                 if (!usedCachedFallback) throw downloadError;
-            }
-        }
-
-        if (iframeShareMode) {
-            const sharedPayloadRestored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage("cache_payload.json");
-            if (!sharedPayloadRestored) {
-                throw new Error("The iframe-shared cache_payload.json could not be restored.");
             }
         }
 

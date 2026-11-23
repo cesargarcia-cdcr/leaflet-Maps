@@ -41,43 +41,11 @@
         }
     };
 
-    function getIframeDataValue(keys) {
-        const data = window.IFrameVirtualPCFData;
-        if (!data || typeof data !== 'object') return undefined;
-
-        for (const key of keys) {
-            if (Object.prototype.hasOwnProperty.call(data, key)) {
-                return data[key];
-            }
-        }
-        return undefined;
-    }
-
-    function getDataValue(iframeKeys, storageKeys, cachedKey) {
-        const iframeValue = getIframeDataValue(iframeKeys);
-        if (iframeValue !== undefined && iframeValue !== null) {
-            return iframeValue;
-        }
-
-        for (const key of storageKeys) {
-            const value = localStorage.getItem(key);
-            if (value) return value;
-        }
-
-        return typeof window.getCachedData === 'function'
-            ? window.getCachedData(cachedKey)
-            : null;
-    }
-
     /* ---------- Data Load with Enhanced Support ---------- */
     async function loadData() {
         console.log("🔍 [MAP DEBUG] Initializing loadData()...");
         
-        let rawLookup = getDataValue(
-            ["clinicLookup", "csv_clinicLookup"],
-            ["csv_clinicLookup"],
-            "clinicLookup"
-        );
+        let rawLookup = localStorage.getItem("csv_clinicLookup") || (typeof window.getCachedData === 'function' ? window.getCachedData("clinicLookup") : null);
         const nicknameMap = new Map();
         if (rawLookup) {
             let parsedLookup = rawLookup;
@@ -92,11 +60,7 @@
             });
         }
 
-        let rawClinics = getDataValue(
-            ["clinics", "csv_clinics"],
-            ["csv_clinics"],
-            "clinics"
-        );
+        let rawClinics = localStorage.getItem("csv_clinics") || (typeof window.getCachedData === 'function' ? window.getCachedData("clinics") : null);
         
         if (typeof rawClinics === 'string' && (rawClinics.trim().startsWith('[') || rawClinics.trim().startsWith('{'))) {
             try {
@@ -117,11 +81,7 @@
             CLINICS = mapClinicsCsvToObjects(objectRows, nicknameMap);
         }
 
-        const provTxt = getDataValue(
-            ["providersSched", "csv_providersSchedCurr", "csv_providersSched"],
-            ["csv_providersSchedCurr", "csv_providersSched"],
-            "providersSched"
-        );
+        const provTxt = localStorage.getItem("csv_providersSchedCurr") || localStorage.getItem("csv_providersSched") || (typeof window.getCachedData === 'function' ? window.getCachedData("providersSched") : null);
         if (provTxt) {
             let provRows = [];
             let parsedProv = provTxt;
@@ -138,11 +98,7 @@
             }, {});
         }
 
-        let extTxt = getDataValue(
-            ["extensions", "csv_extensions"],
-            ["csv_extensions"],
-            "extensions"
-        );
+        let extTxt = localStorage.getItem("csv_extensions") || (typeof window.getCachedData === 'function' ? window.getCachedData("extensions") : null);
         if (extTxt) {
             let extRows = [];
             let parsedExt = extTxt;
