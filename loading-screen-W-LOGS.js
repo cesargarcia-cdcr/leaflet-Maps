@@ -378,11 +378,11 @@ window.LSEngine.state = window.LSEngine.state || {};
 window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targetFilename = "lite_payload.json") {
     if (isOfflineMode()) {
         await window.GreenLeaderStorage.restoreOfflineData();
-        return;
+        return null;
     }
 
     let baseUrl = overrideUrl || getPowerAutomateUrl();
-    
+
     if (!baseUrl) {
         console.log(`📂 [LSEngine] No URL provided. Attempting offline fallback from OPFS using '${targetFilename}'...`);
         const restored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage(targetFilename);
@@ -390,7 +390,7 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
             console.log("🔄 Attempting emergency fallback with 'cache_payload.json'...");
             await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage("cache_payload.json");
         }
-        return;
+        return null;
     }
 
     const cacheBusterToken = `_cb=${Date.now()}`;
@@ -411,14 +411,24 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
 
     if (!response.ok) throw new Error(`Data fetch error (HTTP ${response.status})`);
 
-    const payload = await response.json();
+    const rawData = await response.json();
+    let payload = rawData && typeof rawData === "object" && "cache_payload" in rawData
+        ? rawData.cache_payload
+        : rawData;
+
+    if (typeof payload === "string") {
+        payload = JSON.parse(payload);
+    }
+
     const payloadString = JSON.stringify(payload);
-    
     await window.GreenLeaderStorage.writeDatasetToOPFS(targetFilename, payloadString);
-    
-    window.LSEngine.state.globalClinics = payload.clinics || [];
-    window.LSEngine.state.globalExtensions = payload.extensions || [];
-    window.LSEngine.state.globalClinicLookup = payload.clinicLookup || [];
+    if (targetFilename !== "cache_payload.json") {
+        await window.GreenLeaderStorage.writeDatasetToOPFS("cache_payload.json", payloadString);
+    }
+
+    window.LSEngine.state.globalClinics = payload?.clinics || [];
+    window.LSEngine.state.globalExtensions = payload?.extensions || [];
+    window.LSEngine.state.globalClinicLookup = payload?.clinicLookup || [];
 
     return payload;
 };
@@ -460,13 +470,13 @@ async function fetchAndProcessData(isManual = false) {
         }, TIMEOUT_LIMIT_MS);
 
         console.log("⚡ [Red Leader]: Transmitting HTTP POST request for core dataset payload...");
-        
+
         let csvResponse;
         try {
             csvResponse = await fetch(baseUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({}), 
+                body: JSON.stringify({}),
                 signal: csvController.signal
             });
         } catch (fetchErr) {
@@ -479,7 +489,7 @@ async function fetchAndProcessData(isManual = false) {
                 throw fetchErr;
             }
         }
-        
+
         clearTimeout(csvTimeout);
 
         if (!csvResponse) return false;
@@ -488,8 +498,16 @@ async function fetchAndProcessData(isManual = false) {
             throw new Error(`Data fetch error (HTTP ${csvResponse.status})`);
         }
 
-        console.log("🟢 [Green Leader]: Payload transmission received successfully. Processing and writing to OPFS cargo bays...");
-        const csvPayload = await csvResponse.json();
+        console.log("🟢 [Green Leader]: Payload transmission received successfully. Unwrapping and writing to OPFS cargo bays...");
+        const rawCsvPayload = await csvResponse.json();
+        let csvPayload = rawCsvPayload && typeof rawCsvPayload === "object" && "cache_payload" in rawCsvPayload
+            ? rawCsvPayload.cache_payload
+            : rawCsvPayload;
+
+        if (typeof csvPayload === "string") {
+            csvPayload = JSON.parse(csvPayload);
+        }
+
         const payloadString = JSON.stringify(csvPayload);
 
         await window.GreenLeaderStorage.writeDatasetToOPFS("cache_payload.json", payloadString);
