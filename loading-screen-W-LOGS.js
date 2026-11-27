@@ -10,8 +10,6 @@ console.log("🟡 [Gold Leader Bio]: 'Gold Leader, standing by. Monitoring netwo
 console.log("🟢 [Green Leader Bio]: 'Green Leader, standing by. Engineering OPFS data synchronization, local cache persistence, lite payload fetching, and background asset cargo bays.'");
 console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD telemetry, progress bar updates, splash screen deflector shields, and URL payload decoding.'");
 
-
-
 (function() {
     let logWriteQueue = Promise.resolve();
     const DEFAULT_LOG_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
@@ -63,7 +61,6 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
         return removedCount;
     }
 
-    // maxAgeMs is a retention duration in milliseconds; older files are removed.
     function clearOPFSLogs(maxAgeMs = DEFAULT_LOG_MAX_AGE_MS) {
         if (!Number.isFinite(maxAgeMs) || maxAgeMs < 0) {
             return Promise.reject(new RangeError("Log retention age must be a non-negative number of milliseconds."));
@@ -97,17 +94,14 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
         }
     }
 
-    // Safely expose the function in the global namespace.
     window.GreenLeaderStorage = window.GreenLeaderStorage || {};
     window.GreenLeaderStorage.writeLogToOPFS = writeLogToOPFS;
     window.GreenLeaderStorage.clearOPFSLogs = clearOPFSLogs;
 
-    // Session buffer and unique filename for each page load.
     const sessionTimestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const sessionLogFilename = `flight_deck_log_${sessionTimestamp}.txt`;
     const logBuffer = [];
 
-    // Intercept console output and back up activity in real time.
     const originalConsoleLog = console.log;
     const originalConsoleWarn = console.warn;
     const originalConsoleError = console.error;
@@ -143,13 +137,17 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
 
 // --- 🔴 RED LEADER: COMMAND, ROUTER & LIFECYCLE MANAGEMENT ---
 
+function isOfflineMode() {
+    return window.LSEngine?.offlineMode === true || sessionStorage.getItem("app_offline_mode") === "true";
+}
+
 async function red_leader(steps = [1, 2, 3, 4]) {
     console.log("🔴 [Red Leader]: Red Leader, standing by. Flight path requested:", steps);
     try {
         if (steps.includes(1)) {
             if (isOfflineMode()) return true;
-            console.log("🟡 [Gold Leader]: Executing step 2 (Lite payload)...");
-            if (window.LSEngine && typeof window.LSEngine.taskFetchMainDataLite === 'function') {
+            console.log("🟡 [Gold Leader]: Executing step 1 (Lite payload)...");
+            if (typeof window.LSEngine.taskFetchMainDataLite === 'function') {
                 await window.LSEngine.taskFetchMainDataLite();
             }
         }
@@ -187,30 +185,21 @@ async function red_leader(steps = [1, 2, 3, 4]) {
 }
 window.red_leader = red_leader;
 
-function isOfflineMode() {
-    return window.LSEngine?.offlineMode === true || sessionStorage.getItem("app_offline_mode") === "true";
-}
-
 // --- 🚨 TRIGGER MANUAL SYNC ---
 window.triggerManualSync = async function() {
     console.log("🚨 [Red Leader]: Manual sync override initiated!");
     sessionStorage.removeItem("app_offline_mode");
     if (window.LSEngine) window.LSEngine.offlineMode = false;
-    
-    // 1. Back up ?data=... to OPFS before clearing everything
+
     await window.GreenLeaderStorage.backupParamDataToOPFS();
-    
-    // 2. Clear all local cache using the adjusted function
     window.GreenLeaderStorage.clearLocalDatasetsCache();
 
-    // 3. Clean redirect with reload timestamp
     await new Promise(resolve => setTimeout(resolve, 900));
     await window.GreenLeaderStorage.flushLogs();
     const freshUrl = new URL(window.location.href);
     freshUrl.searchParams.set('reload_ts', Date.now());
     window.location.href = freshUrl.toString();
 };
-
 
 // --- 🔵 BLUE LEADER: UI, HUD TELEMETRY & MONITORING ---
 function updateProgress(percent, message, state = "LOADING") {
@@ -239,8 +228,8 @@ function hideSplash(splashElement) {
     console.log("🔵 [Blue Leader]: Lowering shields, getting out of there!");
     splashElement.style.opacity = "0";
     splashElement.style.pointerEvents = "none";
-    setTimeout(() => { 
-        splashElement.style.display = "none"; 
+    setTimeout(() => {
+        splashElement.style.display = "none";
         splashElement.classList.add("is-hidden");
         if (window.AppMap && typeof window.AppMap.invalidateSize === 'function') {
             window.AppMap.invalidateSize();
@@ -260,6 +249,7 @@ function getPowerAutomateUrl() {
 }
 
 window.LSEngine = window.LSEngine || {};
+window.LSEngine.state = window.LSEngine.state || {};
 window.LSEngine.getPowerAutomateUrl = getPowerAutomateUrl;
 
 // --- 🟢 GREEN LEADER: OPFS & STORAGE ENGINEERING ---
@@ -270,35 +260,49 @@ window.GreenLeaderStorage.clearLocalDatasetsCache = function() {
 
 window.GreenLeaderStorage.backupParamDataToOPFS = async function() {
     const rawDataParam = new URLSearchParams(window.location.search).get("data");
-    if (rawDataParam) {
-        const rootDir = await navigator.storage.getDirectory();
-        const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
-        const fileHandle = await dataDir.getFileHandle("param_data.txt", { create: true });
-        const writable = await fileHandle.createWritable();
-        await writable.write(rawDataParam);
-        await writable.close();
-        console.log("🟢 [Green Leader]: Parameter ?data=... successfully backed up to OPFS.");
-    }
+    if (!rawDataParam) return;
+
+    const rootDir = await navigator.storage.getDirectory();
+    const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
+    const fileHandle = await dataDir.getFileHandle("param_data.txt", { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(rawDataParam);
+    await writable.close();
+    console.log("🟢 [Green Leader]: Parameter ?data=... successfully backed up to OPFS.");
 };
 
 window.GreenLeaderStorage.writeDatasetToOPFS = async function(filename, contentString) {
     console.log("🟢 [Green Leader]: Stowing cargo safely into OPFS bay:", filename);
     const rootDir = await navigator.storage.getDirectory();
     const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
-    
+
     const fileHandle = await dataDir.getFileHandle(filename, { create: true });
     const writable = await fileHandle.createWritable();
     await writable.write(contentString);
     await writable.close();
 };
 
+function applyParsedPayloadSections(parsedData, filename) {
+    for (const [sectionKey, sectionData] of Object.entries(parsedData)) {
+        const globalPropName = `global${sectionKey.charAt(0).toUpperCase() + sectionKey.slice(1)}`;
+        window.LSEngine.state[globalPropName] = sectionData;
+
+        if (Array.isArray(sectionData)) {
+            localStorage.setItem(`csv_${sectionKey}`, JSON.stringify(sectionData));
+            console.log(`📊 [Green Leader Dynamic]: Section detected in '${filename}' -> Generated cache 'csv_${sectionKey}' (${sectionData.length} records).`);
+        } else {
+            console.log(`⚙️ [Green Leader Dynamic]: Object/config property '${sectionKey}' mapped from '${filename}'.`);
+        }
+    }
+}
+
 window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage = async function(filename = "cache_payload.json") {
     try {
         console.log(`🟢 [Green Leader]: 📂 Reading and mapping dynamically from OPFS using file: (${filename})...`);
-        
+
         const rootDir = await navigator.storage.getDirectory();
         const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
-        
+
         const fileHandle = await dataDir.getFileHandle(filename);
         const file = await fileHandle.getFile();
         const content = await file.text();
@@ -310,30 +314,11 @@ window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage = async function(fi
 
         const parsedData = JSON.parse(content);
         const storageKey = filename.includes("lite") ? "lite_payload_cache" : "cache_payload";
-        
         localStorage.setItem(storageKey, content);
-        if (filename === "cache_payload.json") {
-            localStorage.setItem("cache_payload", content);
-        }
 
-        window.LSEngine = window.LSEngine || {};
-        window.LSEngine.state = window.LSEngine.state || {};
-        
-        for (const [sectionKey, sectionData] of Object.entries(parsedData)) {
-            const globalPropName = `global${sectionKey.charAt(0).toUpperCase() + sectionKey.slice(1)}`;
-            window.LSEngine.state[globalPropName] = sectionData;
-            
-            if (Array.isArray(sectionData)) {
-                localStorage.setItem(`csv_${sectionKey}`, JSON.stringify(sectionData));
-                console.log(`📊 [Green Leader Dynamic]: Section detected in '${filename}' -> Generated cache 'csv_${sectionKey}' (${sectionData.length} records).`);
-            } else {
-                console.log(`⚙️ [Green Leader Dynamic]: Object/config property '${sectionKey}' mapped from '${filename}'.`);
-            }
-        }
-
+        applyParsedPayloadSections(parsedData, filename);
         console.log(`✅ [Green Leader]: Dynamic synchronization and mapping completed successfully for '${filename}'.`);
         return true;
-
     } catch (err) {
         console.warn(`⚠️ [Green Leader]: Could not find or process file '${filename}' in OPFS:`, err);
     }
@@ -352,16 +337,7 @@ window.GreenLeaderStorage.restoreOfflineData = async function() {
         try {
             const parsedData = JSON.parse(content);
             if (!parsedData || typeof parsedData !== "object") continue;
-
-            window.LSEngine = window.LSEngine || {};
-            window.LSEngine.state = window.LSEngine.state || {};
-            for (const [sectionKey, sectionData] of Object.entries(parsedData)) {
-                const globalPropName = `global${sectionKey.charAt(0).toUpperCase()}${sectionKey.slice(1)}`;
-                window.LSEngine.state[globalPropName] = sectionData;
-                if (Array.isArray(sectionData)) {
-                    localStorage.setItem(`csv_${sectionKey}`, JSON.stringify(sectionData));
-                }
-            }
+            applyParsedPayloadSections(parsedData, storageKey);
             return true;
         } catch (err) {
             console.warn(`⚠️ [Green Leader]: Ignoring invalid local offline cache '${storageKey}':`, err);
@@ -371,8 +347,37 @@ window.GreenLeaderStorage.restoreOfflineData = async function() {
     return false;
 };
 
-window.LSEngine = window.LSEngine || {};
-window.LSEngine.state = window.LSEngine.state || {};
+window.GreenLeaderStorage.saveDocxBufferAsHtmlInVisitTypes = async function(arrayBuffer, sourceFileName) {
+    if (typeof window.mammoth === "undefined" || typeof window.mammoth.convertToHtml !== "function") {
+        throw new Error("Mammoth.js browser bundle is not loaded.");
+    }
+
+    const htmlFilename = sourceFileName.replace(/\.docx$/i, ".html");
+    const conversionResult = await window.mammoth.convertToHtml(
+        { arrayBuffer },
+        { styleMap: ["table => table.guideline-table:fresh"] }
+    );
+
+    if (Array.isArray(conversionResult.messages) && conversionResult.messages.length > 0) {
+        console.warn(`⚠️ [Mammoth] Conversion notes for '${sourceFileName}':`, conversionResult.messages);
+    }
+
+    const wrappedHtml = [
+        `<article class="docx-guideline" data-source-docx="${sourceFileName}">`,
+        conversionResult.value,
+        `</article>`
+    ].join("\n");
+
+    const rootDir = await navigator.storage.getDirectory();
+    const visitTypesDir = await rootDir.getDirectoryHandle("Visit_Types", { create: true });
+    const htmlHandle = await visitTypesDir.getFileHandle(htmlFilename, { create: true });
+    const writable = await htmlHandle.createWritable();
+    await writable.write(wrappedHtml);
+    await writable.close();
+
+    console.log(`📄 [OPFS] Converted '${sourceFileName}' -> 'Visit_Types/${htmlFilename}'.`);
+    return `Visit_Types/${htmlFilename}`;
+};
 
 // --- CORE LITE REQUEST ---
 window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targetFilename = "lite_payload.json") {
@@ -381,8 +386,7 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
         return null;
     }
 
-    let baseUrl = overrideUrl || getPowerAutomateUrl();
-
+    const baseUrl = overrideUrl || getPowerAutomateUrl();
     if (!baseUrl) {
         console.log(`📂 [LSEngine] No URL provided. Attempting offline fallback from OPFS using '${targetFilename}'...`);
         const restored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage(targetFilename);
@@ -394,7 +398,6 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
     }
 
     const cacheBusterToken = `_cb=${Date.now()}`;
-    console.log("⚡ [Cache Busting] Applied to Lite Payload:", cacheBusterToken);
     const separator = baseUrl.includes('?') ? '&' : '?';
     const finalEndpointUrl = `${baseUrl}${separator}${cacheBusterToken}`;
 
@@ -433,7 +436,6 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
     return payload;
 };
 
-
 // --- MAIN FETCH ENGINE ---
 async function fetchAndProcessData(isManual = false) {
     if (isOfflineMode()) {
@@ -443,13 +445,13 @@ async function fetchAndProcessData(isManual = false) {
 
     const splash = document.getElementById("sync-splash");
     if (isManual) showSplash(splash);
-    
+
     console.log("🔴 [Red Leader]: Preparing telemetry payload request to command base...");
-    
+
     try {
         updateProgress(20, "Loading core application records from cloud...", "CONNECTING");
-        
-        let baseUrl = getPowerAutomateUrl();
+
+        const baseUrl = getPowerAutomateUrl();
         if (!baseUrl) {
             console.warn("💥 [Red Leader Down]: Power Automate URL telemetry link not found in query parameters.");
             hideSplash(splash);
@@ -461,9 +463,9 @@ async function fetchAndProcessData(isManual = false) {
         } catch (err) {
             console.error("💥 [Green Leader]: Could not clear previous OPFS logs before synchronization:", err);
         }
-        
+
         const csvController = new AbortController();
-        const TIMEOUT_LIMIT_MS = 60000; 
+        const TIMEOUT_LIMIT_MS = 60000;
         const csvTimeout = setTimeout(() => {
             console.warn(`⏱️ [Red Leader]: Transmission timeout reached (${TIMEOUT_LIMIT_MS / 1000}s). Aborting trench run connection...`);
             csvController.abort();
@@ -484,15 +486,13 @@ async function fetchAndProcessData(isManual = false) {
             if (fetchErr.name === 'AbortError') {
                 console.error("💥 [Red Leader Abort]: Trench run aborted. The server took too long to respond or the signal was cancelled.");
                 throw new Error("Synchronization timeout: Server response took too long.");
-            } else {
-                console.error("💥 [Red Leader Network Error]: Connection dropped during data retrieval:", fetchErr);
-                throw fetchErr;
             }
+            console.error("💥 [Red Leader Network Error]: Connection dropped during data retrieval:", fetchErr);
+            throw fetchErr;
         }
 
         clearTimeout(csvTimeout);
 
-        if (!csvResponse) return false;
         if (!csvResponse.ok) {
             console.error(`💥 [Red Leader Error]: Server rejected payload transmission. HTTP Status: ${csvResponse.status} ${csvResponse.statusText}`);
             throw new Error(`Data fetch error (HTTP ${csvResponse.status})`);
@@ -509,12 +509,12 @@ async function fetchAndProcessData(isManual = false) {
         }
 
         const payloadString = JSON.stringify(csvPayload);
-
         await window.GreenLeaderStorage.writeDatasetToOPFS("cache_payload.json", payloadString);
         await window.GreenLeaderStorage.writeDatasetToOPFS("lite_payload.json", payloadString);
 
-        localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
-        localStorage.setItem("app_last_sync_date", new Date().toISOString().split("T")[0]);
+        const todayStr = new Date().toISOString().split("T")[0];
+        localStorage.setItem("app_data_version", todayStr);
+        localStorage.setItem("app_last_sync_date", todayStr);
         localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
 
         console.log("✅ [Red Leader]: Trench run successful! Core datasets safely stored locally.");
@@ -526,7 +526,6 @@ async function fetchAndProcessData(isManual = false) {
         }, 300);
 
         return true;
-
     } catch (error) {
         console.error("💥 [Red Leader Mission Failure]: Critical error in fetchAndProcessData:", error.message || error);
         updateProgress(100, error.message || "Synchronization Error", "ERROR");
@@ -534,7 +533,6 @@ async function fetchAndProcessData(isManual = false) {
         return false;
     }
 }
-
 
 window.GreenLeaderStorage.getSyncedAssetPath = function(item) {
     let rawPath = item.path || "";
@@ -547,7 +545,7 @@ window.GreenLeaderStorage.getSyncedAssetPath = function(item) {
     if (rawPath.endsWith("/") && item.name) {
         rawPath += item.name;
     } else if (!rawPath.endsWith("/") && !rawPath.endsWith(item.name)) {
-        rawPath = rawPath + "/" + item.name;
+        rawPath = `${rawPath}/${item.name}`;
     }
     return rawPath.replace(/\\/g, "/").replace(/([^:]\/)\/+/g, "$1");
 };
@@ -616,7 +614,7 @@ window.GreenLeaderStorage.removeTrackedAsset = async function(rootDir, directory
     const pathParts = relativePath.split("/");
     if (pathParts.length === 0 || pathParts.some(part => !part || part === "." || part === "..")) {
         throw new Error(`Invalid tracked asset path '${relativePath}'.`);
-    };
+    }
 
     let currentDir;
     try {
@@ -630,7 +628,7 @@ window.GreenLeaderStorage.removeTrackedAsset = async function(rootDir, directory
         if (err.name === "NotFoundError") return false;
         throw err;
     }
-}
+};
 
 // --- SECONDARY SYNC TASK ---
 window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
@@ -639,12 +637,12 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
         return;
     }
 
-    let baseUrl = overrideUrl || window.LSEngine.getPowerAutomateUrl();
+    const baseUrl = overrideUrl || window.LSEngine.getPowerAutomateUrl();
     if (!baseUrl) return;
 
     try {
         const rootDir = await navigator.storage.getDirectory();
-        
+
         const cacheBusterToken = `_cb=${Date.now()}`;
         const separator = baseUrl.includes('?') ? '&' : '?';
         const manifestUrl = `${baseUrl}${separator}${cacheBusterToken}`;
@@ -661,7 +659,6 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
             body: JSON.stringify({ action: "READ_MANIFEST" })
         });
 
-        if (!response) throw new Error("Manifest request could not be completed after session verification.");
         if (!response.ok) throw new Error(`Manifest request failed (HTTP ${response.status}).`);
 
         const payload = await response.json();
@@ -684,7 +681,7 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
         const fileItems = manifestSections.flatMap(([, items]) => items).filter(item => {
             if (!item || typeof item !== "object" || !item.name || (!item.path && !item.downloadUrl)) return false;
             const type = (item.type || "").toLowerCase();
-            return type !== "directory" && type !== "folder" && item.name;
+            return type !== "directory" && type !== "folder";
         });
         if (fileItems.length === 0) {
             throw new Error("Manifest response body does not contain any downloadable files.");
@@ -707,50 +704,49 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     throw new Error(`Invalid manifest file path '${cleanFilePath}'.`);
                 }
 
-                const managedDirectory = pathParts.shift();
+                const rawDirectory = pathParts.shift();
+                const managedDirectory = rawDirectory.toLowerCase() === "guidelines_info" ? "Guidelines_Info" : rawDirectory;
                 const expectedRelativePath = pathParts.join("/");
-                if (!expectedFilesByDirectory.has(managedDirectory)) {
-                    expectedFilesByDirectory.set(managedDirectory, new Set());
-                }
-                expectedFilesByDirectory.get(managedDirectory).add(expectedRelativePath);
+                const fileName = pathParts[pathParts.length - 1];
+                const isDocxFile = /\.docx$/i.test(fileName);
 
-                let currentDirHandle = await rootDir.getDirectoryHandle(managedDirectory, { create: true });
-                for (const folderName of pathParts.slice(0, -1)) {
+                const outputDirectory = isDocxFile ? "Visit_Types" : managedDirectory;
+                const outputRelativePath = isDocxFile
+                    ? expectedRelativePath.replace(/\.docx$/i, ".html")
+                    : expectedRelativePath;
+
+                if (!expectedFilesByDirectory.has(outputDirectory)) {
+                    expectedFilesByDirectory.set(outputDirectory, new Set());
+                }
+                expectedFilesByDirectory.get(outputDirectory).add(outputRelativePath);
+
+                let currentDirHandle = await rootDir.getDirectoryHandle(outputDirectory, { create: true });
+                const outputParts = outputRelativePath.split("/");
+                for (const folderName of outputParts.slice(0, -1)) {
                     currentDirHandle = await currentDirHandle.getDirectoryHandle(folderName, { create: true });
                 }
 
-                const fileName = pathParts[pathParts.length - 1];
+                const outputFileName = outputParts[outputParts.length - 1];
                 let fileHandle;
                 let existingFile;
                 try {
-                    fileHandle = await currentDirHandle.getFileHandle(fileName);
+                    fileHandle = await currentDirHandle.getFileHandle(outputFileName);
                     existingFile = await fileHandle.getFile();
                 } catch (err) {
                     if (err.name !== "NotFoundError") throw err;
-                    console.log(`[OPFS] ⚠️ File does not exist locally yet: ${item.name}`);
+                    console.log(`[OPFS] ⚠️ File does not exist locally yet: ${outputFileName}`);
                 }
 
                 if (existingFile) {
                     const serverLastModified = item.lastModified ? new Date(item.lastModified).getTime() : 0;
                     const localLastModified = existingFile.lastModified || 0;
 
-                    console.log(`🔎 [OPFS Eval] Evaluating: "${item.name}"`, {
-                        serverDate: new Date(serverLastModified).toISOString(),
-                        localDate: new Date(localLastModified).toISOString(),
-                        isServerOlderOrEqual: serverLastModified <= localLastModified
-                    });
-
-                    if (
-                        existingFile.size > 0 && 
-                        serverLastModified <= localLastModified
-                    ) {
-                        console.log(`[OPFS] ⏭️ Skipping download (unchanged & up-to-date): ${item.name}`);
+                    if (existingFile.size > 0 && serverLastModified <= localLastModified) {
+                        console.log(`[OPFS] ⏭️ Skipping download (unchanged & up-to-date): ${outputFileName}`);
                         if (typeof window.LSEngine.setProgress === 'function') {
-                            window.LSEngine.setProgress(progressPercent, `Verifying asset (${processedCount}/${totalFiles}): ${item.name}`, "SYNCING");
+                            window.LSEngine.setProgress(progressPercent, `Verifying asset (${processedCount}/${totalFiles}): ${outputFileName}`, "SYNCING");
                         }
-                        continue; 
-                    } else {
-                        console.log(`[OPFS] 📥 Downloading required for: ${item.name}.`);
+                        continue;
                     }
                 }
 
@@ -765,22 +761,27 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     body: JSON.stringify({ action: "DOWNLOAD_FILE", filePath: cleanFilePath })
                 });
 
-                if (!downloadRes) throw new Error(`Download request for '${item.name}' could not be completed after session verification.`);
                 if (!downloadRes.ok) {
                     const errorDetails = (await downloadRes.text()).slice(0, 500);
                     throw new Error(`Asset download failed (HTTP ${downloadRes.status}): ${errorDetails}`);
                 }
-                const fileContent = await downloadRes.blob();
-                if (!fileHandle) {
-                    fileHandle = await currentDirHandle.getFileHandle(fileName, { create: true });
+
+                if (isDocxFile) {
+                    const docxBuffer = await downloadRes.arrayBuffer();
+                    await window.GreenLeaderStorage.saveDocxBufferAsHtmlInVisitTypes(docxBuffer, outputRelativePath);
+                } else {
+                    const fileContent = await downloadRes.blob();
+                    if (!fileHandle) {
+                        fileHandle = await currentDirHandle.getFileHandle(outputFileName, { create: true });
+                    }
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(fileContent);
+                    await writable.close();
+                    console.log(`[OPFS] ✅ Updated/Downloaded new: ${outputFileName}`);
                 }
-                const writable = await fileHandle.createWritable();
-                await writable.write(fileContent);
-                await writable.close();
-                console.log(`[OPFS] ✅ Updated/Downloaded new: ${item.name}`);
             } catch (fileErr) {
                 syncFailed = true;
-                console.warn(`Error processing individual file:`, fileErr);
+                console.warn("Error processing individual file:", fileErr);
             }
         }
 
@@ -808,7 +809,6 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
         if (typeof window.LSEngine.setProgress === 'function') {
             window.LSEngine.setProgress(100, "Background synchronization complete!", "READY");
         }
-
     } catch (err) {
         console.warn("⚠️ Error in secondary file synchronization (OPFS):", err);
         if (typeof window.LSEngine.setProgress === 'function') {
@@ -817,28 +817,18 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
     }
 };
 
-
 // --- LSENGINE SET PROGRESS & REDIRECT CONTROLLER ---
-window.LSEngine = window.LSEngine || {};
-
 window.LSEngine.setProgress = function(percent, message, stateText) {
     const progressBar = document.getElementById('bt-progress-bar');
     const percentageText = document.getElementById('bt-percentage');
     const statusText = document.getElementById('sync-status');
     const stateBadge = document.getElementById('bt-state-text');
 
-    if (progressBar) {
-        progressBar.style.width = `${percent}%`;
-    }
-    if (percentageText) {
-        percentageText.textContent = `${percent}%`;
-    }
-    if (statusText && message) {
-        statusText.textContent = message;
-    }
+    if (progressBar) progressBar.style.width = `${percent}%`;
+    if (percentageText) percentageText.textContent = `${percent}%`;
+    if (statusText && message) statusText.textContent = message;
     if (stateBadge && stateText) {
         stateBadge.textContent = stateText;
-        
         if (stateText === 'ERROR' || stateText === 'WARNING') {
             stateBadge.style.color = '#ef4444';
         } else if (stateText === 'READY') {
@@ -859,9 +849,8 @@ window.LSEngine.setProgress = function(percent, message, stateText) {
     if (stateText === "READY" && percent === 100) {
         console.log("🚀 [Sync]: Synchronization completed 100%. Redirecting cleanly...");
         const currentSearchParams = window.location.search;
-        
+
         let basePath = window.location.pathname;
-        
         if (basePath.endsWith('.html')) {
             basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
         } else if (!basePath.endsWith('/')) {
