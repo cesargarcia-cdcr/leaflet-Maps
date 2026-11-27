@@ -2,13 +2,77 @@
    LOADING SCREEN & OPFS SYNC ENGINE (SQUADRON EDITION)
    ========================================================== */
 
-// --- 🌌 SQUADRON ROLL-CALL & BRIEFING ---
-console.log("🌌 [Squadron Briefing]: All wings report in. Initializing operational flight deck...");
-console.log("📢 [Command]: Leader roll-call initiated. Status report requested across all channels.");
-console.log("🔴 [Red Leader Bio]: 'Red Leader, standing by. Managing command routing, service worker deployment, and primary trench run sequence navigation.'");
-console.log("🟡 [Gold Leader Bio]: 'Gold Leader, standing by. Monitoring network status and data synchronization.'");
-console.log("🟢 [Green Leader Bio]: 'Green Leader, standing by. Engineering OPFS data synchronization, local cache persistence, lite payload fetching, and background asset cargo bays.'");
-console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD telemetry, progress bar updates, splash screen deflector shields, and URL payload decoding.'");
+const OVER_LOGS = [
+    null, // Index 0 reserved so log numbers match 1..49 directly
+    "🖤 [Rogue]: All wings report in. Initializing operational flight deck...", // 1
+    "🖤 [Rogue]: Leader roll-call initiated. Status report requested across all channels.", // 2
+    "🔴 [Red Leader Bio]: 'Red Leader, standing by. Managing command routing, service worker deployment, and primary trench run sequence navigation.'", // 3
+    "🟡 [Gold Leader Bio]: 'Gold Leader, standing by. Monitoring network status and data synchronization.'", // 4
+    "🟢 [Green Leader Bio]: 'Green Leader, standing by. Engineering OPFS data synchronization, local cache persistence, lite payload fetching, and background asset cargo bays.'", // 5
+    "🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD telemetry, progress bar updates, splash screen deflector shields, and URL payload decoding.'", // 6
+    "🟢 [Green Leader]: OPFS Auto-Logging subsystem successfully engaged and monitoring flight channels.", // 7
+    "🔴 [Red Leader]: Red Leader, standing by. Flight path requested:", // 8
+    "🟡 [Gold Leader]: Executing step 1 (Lite payload)...", // 9
+    "🔴 [Red Leader]: Commencing main trench run (fetching and processing core data)...", // 10
+    "🔴 [Red Leader]: Executing secondary file sync (Manifest & OPFS files)...", // 11
+    "🔵 [Blue Leader]: Lock S-foils in attack position (executing step 3)...", // 12
+    "🔵 [Blue Leader]: Target area reached. Get out of there, you're clear!", // 13
+    "🔴 [Red Leader]: Manual sync override initiated!", // 14
+    "🔵 [Blue Leader]: Raising deflector shields (showing splash screen)...", // 15
+    "🔵 [Blue Leader]: Lowering shields, getting out of there!", // 16
+    "🟢 [Green Leader]: Purging all localStorage cache via clear()...", // 17
+    "🟢 [Green Leader]: Parameter ?data=... successfully backed up to OPFS.", // 18
+    "🟢 [Green Leader]: Stowing cargo safely into OPFS bay:", // 19
+    "🟢 [Green Leader]: Dynamic synchronization and mapping completed successfully for:", // 20
+    "🟢 [Green Leader]: Scanning hyperdrive converter for:", // 21
+    "🟢 [Green Leader]: Engaging Mammoth tractor beam on:", // 22
+    "🟢 [Green Leader]: Opening OPFS hangar bay 'Visit_Types'...", // 23
+    "🟢 [Green Leader]: Securing sub-sector folder under 'Visit_Types':", // 24
+    "🟢 [Green Leader]: Transmissions converted and locked in OPFS bay:", // 25
+    "🖤 [Rogue]: No URL provided. Attempting offline fallback from OPFS using:", // 26
+    "🖤 [Rogue]: Attempting emergency fallback with 'cache_payload.json'...", // 27
+    "🖤 [Rogue]: Cache-busting token applied to Lite Payload:", // 28
+    "🔴 [Red Leader]: Skipping data request because offline mode is active.", // 29
+    "🔴 [Red Leader]: Preparing telemetry payload request to command base...", // 30
+    "🔴 [Red Leader]: Transmitting HTTP POST request for core dataset payload...", // 31
+    "🟢 [Green Leader]: Payload transmission received successfully. Unwrapping and writing to OPFS cargo bays...", // 32
+    "🔴 [Red Leader]: Trench run successful! Core datasets safely stored locally.", // 33
+    "🟢 [Green Leader]: Skipping manifest and asset sync because offline mode is active.", // 34
+    "🟢 [Green Leader]: Accessing OPFS main hangar bay...", // 35
+    "🟡 [Gold Leader]: Pinging command relay for READ_MANIFEST...", // 36
+    "🟡 [Gold Leader]: Manifest acquired. Queued downloadable cargo items:", // 37
+    "🔵 [Blue Leader]: Word beacon detected! Rerouting payload to hangar:", // 38
+    "🟢 [Green Leader]: Cargo bay missing local copy for:", // 39
+    "🟡 [Gold Leader]: Comparing sensor timestamps for:", // 40
+    "🟢 [Green Leader]: Local cargo is already up to date. Bypassing run:", // 41
+    "🟡 [Gold Leader]: Stale or missing cargo detected. Launching download run:", // 42
+    "🟡 [Gold Leader]: Requesting DOWNLOAD_FILE for:", // 43
+    "🔵 [Blue Leader]: Raw .docx bytes received. Passing to Green Leader for HTML conversion:", // 44
+    "🟢 [Green Leader]: Standard cargo stowed in OPFS bay:", // 45
+    "🟡 [Gold Leader]: One or more cargo runs hit turbulence; holding stale-file purge to protect valid local files.", // 46
+    "🟢 [Green Leader]: All cargo runs clear. Sweeping stale files from OPFS bays...", // 47
+    "🔴 [Red Leader]: Inventory updated and 'GuidelinesAssetsSynced' signal broadcast.", // 48
+    "🖤 [Rogue]: Synchronization completed 100%. Redirecting cleanly..." // 49
+];
+
+function over(logNumber, ...details) {
+    const message = OVER_LOGS[logNumber] ?? `[OVER #${logNumber}]`;
+    if (details.length > 0) {
+        console.log(message, ...details);
+    } else {
+        console.log(message);
+    }
+    return message;
+}
+window.over = over;
+window.OVER_LOGS = OVER_LOGS;
+
+over(1);
+over(2);
+over(3);
+over(4);
+over(5);
+over(6);
 
 (function() {
     let logWriteQueue = Promise.resolve();
@@ -132,7 +196,7 @@ console.log("🔵 [Blue Leader Bio]: 'Blue Leader, standing by. Monitoring HUD t
     });
     flushLogBuffer();
 
-    console.log("🟢 [Green Leader]: OPFS Auto-Logging subsystem successfully engaged and monitoring flight channels.");
+    over(7);
 })();
 
 // --- 🔴 RED LEADER: COMMAND, ROUTER & LIFECYCLE MANAGEMENT ---
@@ -142,37 +206,37 @@ function isOfflineMode() {
 }
 
 async function red_leader(steps = [1, 2, 3, 4]) {
-    console.log("🔴 [Red Leader]: Red Leader, standing by. Flight path requested:", steps);
+    over(8, steps);
     try {
         if (steps.includes(1)) {
             if (isOfflineMode()) return true;
-            console.log("🟡 [Gold Leader]: Executing step 1 (Lite payload)...");
-            if (typeof window.LSEngine.taskFetchMainDataLite === 'function') {
+            over(9);
+            if (window.LSEngine && typeof window.LSEngine.taskFetchMainDataLite === 'function') {
                 await window.LSEngine.taskFetchMainDataLite();
             }
         }
 
         if (steps.includes(2)) {
             if (isOfflineMode()) return true;
-            console.log("🔴 [Red Leader]: Commencing main trench run (fetching and processing core data)...");
+            over(10);
             const success = await fetchAndProcessData(true);
             if (!success) throw new Error("Synchronization process failed.");
 
-            console.log("🔴 [Red Leader]: Executing secondary file sync (Manifest & OPFS files)...");
+            over(11);
             if (typeof window.LSEngine.taskSyncFiles === 'function') {
                 await window.LSEngine.taskSyncFiles();
             }
         }
 
         if (steps.includes(3)) {
-            console.log("🔵 [Blue Leader]: Lock S-foils in attack position (executing step 3)...");
+            over(12);
             if (typeof initializeInteractiveMap === 'function') {
                 initializeInteractiveMap();
             }
         }
 
         if (steps.includes(4)) {
-            console.log("🔵 [Blue Leader]: Target area reached. Get out of there, you're clear!");
+            over(13);
             if (typeof showAppEntryButton === 'function') {
                 showAppEntryButton();
             }
@@ -187,7 +251,7 @@ window.red_leader = red_leader;
 
 // --- 🚨 TRIGGER MANUAL SYNC ---
 window.triggerManualSync = async function() {
-    console.log("🚨 [Red Leader]: Manual sync override initiated!");
+    over(14);
     sessionStorage.removeItem("app_offline_mode");
     if (window.LSEngine) window.LSEngine.offlineMode = false;
 
@@ -216,7 +280,7 @@ function updateProgress(percent, message, state = "LOADING") {
 
 function showSplash(splashElement) {
     if (!splashElement) return;
-    console.log("🔵 [Blue Leader]: Raising deflector shields (showing splash screen)...");
+    over(15);
     splashElement.classList.remove("is-hidden");
     splashElement.style.pointerEvents = "auto";
     splashElement.style.display = "flex";
@@ -225,7 +289,7 @@ function showSplash(splashElement) {
 
 function hideSplash(splashElement) {
     if (!splashElement) return;
-    console.log("🔵 [Blue Leader]: Lowering shields, getting out of there!");
+    over(16);
     splashElement.style.opacity = "0";
     splashElement.style.pointerEvents = "none";
     setTimeout(() => {
@@ -254,25 +318,25 @@ window.LSEngine.getPowerAutomateUrl = getPowerAutomateUrl;
 
 // --- 🟢 GREEN LEADER: OPFS & STORAGE ENGINEERING ---
 window.GreenLeaderStorage.clearLocalDatasetsCache = function() {
-    console.log("🟢 [Green Leader]: Purging all localStorage cache via clear()...");
+    over(17);
     localStorage.clear();
 };
 
 window.GreenLeaderStorage.backupParamDataToOPFS = async function() {
     const rawDataParam = new URLSearchParams(window.location.search).get("data");
-    if (!rawDataParam) return;
-
-    const rootDir = await navigator.storage.getDirectory();
-    const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
-    const fileHandle = await dataDir.getFileHandle("param_data.txt", { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(rawDataParam);
-    await writable.close();
-    console.log("🟢 [Green Leader]: Parameter ?data=... successfully backed up to OPFS.");
+    if (rawDataParam) {
+        const rootDir = await navigator.storage.getDirectory();
+        const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
+        const fileHandle = await dataDir.getFileHandle("param_data.txt", { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(rawDataParam);
+        await writable.close();
+        over(18);
+    }
 };
 
 window.GreenLeaderStorage.writeDatasetToOPFS = async function(filename, contentString) {
-    console.log("🟢 [Green Leader]: Stowing cargo safely into OPFS bay:", filename);
+    over(19, filename);
     const rootDir = await navigator.storage.getDirectory();
     const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
 
@@ -282,24 +346,8 @@ window.GreenLeaderStorage.writeDatasetToOPFS = async function(filename, contentS
     await writable.close();
 };
 
-function applyParsedPayloadSections(parsedData, filename) {
-    for (const [sectionKey, sectionData] of Object.entries(parsedData)) {
-        const globalPropName = `global${sectionKey.charAt(0).toUpperCase() + sectionKey.slice(1)}`;
-        window.LSEngine.state[globalPropName] = sectionData;
-
-        if (Array.isArray(sectionData)) {
-            localStorage.setItem(`csv_${sectionKey}`, JSON.stringify(sectionData));
-            console.log(`📊 [Green Leader Dynamic]: Section detected in '${filename}' -> Generated cache 'csv_${sectionKey}' (${sectionData.length} records).`);
-        } else {
-            console.log(`⚙️ [Green Leader Dynamic]: Object/config property '${sectionKey}' mapped from '${filename}'.`);
-        }
-    }
-}
-
 window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage = async function(filename = "cache_payload.json") {
     try {
-        console.log(`🟢 [Green Leader]: 📂 Reading and mapping dynamically from OPFS using file: (${filename})...`);
-
         const rootDir = await navigator.storage.getDirectory();
         const dataDir = await rootDir.getDirectoryHandle("App_Data", { create: true });
 
@@ -314,10 +362,22 @@ window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage = async function(fi
 
         const parsedData = JSON.parse(content);
         const storageKey = filename.includes("lite") ? "lite_payload_cache" : "cache_payload";
-        localStorage.setItem(storageKey, content);
 
-        applyParsedPayloadSections(parsedData, filename);
-        console.log(`✅ [Green Leader]: Dynamic synchronization and mapping completed successfully for '${filename}'.`);
+        localStorage.setItem(storageKey, content);
+        if (filename === "cache_payload.json") {
+            localStorage.setItem("cache_payload", content);
+        }
+
+        for (const [sectionKey, sectionData] of Object.entries(parsedData)) {
+            const globalPropName = `global${sectionKey.charAt(0).toUpperCase() + sectionKey.slice(1)}`;
+            window.LSEngine.state[globalPropName] = sectionData;
+
+            if (Array.isArray(sectionData)) {
+                localStorage.setItem(`csv_${sectionKey}`, JSON.stringify(sectionData));
+            }
+        }
+
+        over(20, filename);
         return true;
     } catch (err) {
         console.warn(`⚠️ [Green Leader]: Could not find or process file '${filename}' in OPFS:`, err);
@@ -337,7 +397,14 @@ window.GreenLeaderStorage.restoreOfflineData = async function() {
         try {
             const parsedData = JSON.parse(content);
             if (!parsedData || typeof parsedData !== "object") continue;
-            applyParsedPayloadSections(parsedData, storageKey);
+
+            for (const [sectionKey, sectionData] of Object.entries(parsedData)) {
+                const globalPropName = `global${sectionKey.charAt(0).toUpperCase()}${sectionKey.slice(1)}`;
+                window.LSEngine.state[globalPropName] = sectionData;
+                if (Array.isArray(sectionData)) {
+                    localStorage.setItem(`csv_${sectionKey}`, JSON.stringify(sectionData));
+                }
+            }
             return true;
         } catch (err) {
             console.warn(`⚠️ [Green Leader]: Ignoring invalid local offline cache '${storageKey}':`, err);
@@ -347,36 +414,50 @@ window.GreenLeaderStorage.restoreOfflineData = async function() {
     return false;
 };
 
-window.GreenLeaderStorage.saveDocxBufferAsHtmlInVisitTypes = async function(arrayBuffer, sourceFileName) {
+window.GreenLeaderStorage.saveDocxBufferAsHtmlInVisitTypes = async function(arrayBuffer, outputRelativePath) {
+    over(21, outputRelativePath);
+
     if (typeof window.mammoth === "undefined" || typeof window.mammoth.convertToHtml !== "function") {
+        console.error("💥 [Green Leader]: Mammoth converter offline! Check script load order on loading-screen.html.");
         throw new Error("Mammoth.js browser bundle is not loaded.");
     }
 
-    const htmlFilename = sourceFileName.replace(/\.docx$/i, ".html");
+    const cleanParts = outputRelativePath.split("/").filter(Boolean);
+    const htmlFilename = cleanParts.pop();
+    const sourceDocxName = htmlFilename.replace(/\.html$/i, ".docx");
+
+    over(22, sourceDocxName, `${arrayBuffer.byteLength} bytes`);
     const conversionResult = await window.mammoth.convertToHtml(
         { arrayBuffer },
         { styleMap: ["table => table.guideline-table:fresh"] }
     );
 
     if (Array.isArray(conversionResult.messages) && conversionResult.messages.length > 0) {
-        console.warn(`⚠️ [Mammoth] Conversion notes for '${sourceFileName}':`, conversionResult.messages);
+        console.warn(`🟡 [Gold Leader]: Mammoth reported minor hull advisories for '${sourceDocxName}':`, conversionResult.messages);
     }
 
     const wrappedHtml = [
-        `<article class="docx-guideline" data-source-docx="${sourceFileName}">`,
+        `<article class="docx-guideline" data-source-docx="${sourceDocxName}">`,
         conversionResult.value,
         `</article>`
     ].join("\n");
 
+    over(23);
     const rootDir = await navigator.storage.getDirectory();
-    const visitTypesDir = await rootDir.getDirectoryHandle("Visit_Types", { create: true });
-    const htmlHandle = await visitTypesDir.getFileHandle(htmlFilename, { create: true });
+    let currentDir = await rootDir.getDirectoryHandle("Visit_Types", { create: true });
+    for (const folderName of cleanParts) {
+        over(24, folderName);
+        currentDir = await currentDir.getDirectoryHandle(folderName, { create: true });
+    }
+
+    const htmlHandle = await currentDir.getFileHandle(htmlFilename, { create: true });
     const writable = await htmlHandle.createWritable();
     await writable.write(wrappedHtml);
     await writable.close();
 
-    console.log(`📄 [OPFS] Converted '${sourceFileName}' -> 'Visit_Types/${htmlFilename}'.`);
-    return `Visit_Types/${htmlFilename}`;
+    const savedPath = cleanParts.length ? `Visit_Types/${cleanParts.join("/")}/${htmlFilename}` : `Visit_Types/${htmlFilename}`;
+    over(25, savedPath);
+    return savedPath;
 };
 
 // --- CORE LITE REQUEST ---
@@ -388,16 +469,17 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
 
     const baseUrl = overrideUrl || getPowerAutomateUrl();
     if (!baseUrl) {
-        console.log(`📂 [LSEngine] No URL provided. Attempting offline fallback from OPFS using '${targetFilename}'...`);
+        over(26, targetFilename);
         const restored = await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage(targetFilename);
         if (!restored && targetFilename !== "cache_payload.json") {
-            console.log("🔄 Attempting emergency fallback with 'cache_payload.json'...");
+            over(27);
             await window.GreenLeaderStorage.restoreCacheFromOPFSToLocalStorage("cache_payload.json");
         }
         return null;
     }
 
     const cacheBusterToken = `_cb=${Date.now()}`;
+    over(28, cacheBusterToken);
     const separator = baseUrl.includes('?') ? '&' : '?';
     const finalEndpointUrl = `${baseUrl}${separator}${cacheBusterToken}`;
 
@@ -439,14 +521,14 @@ window.LSEngine.taskFetchMainDataLite = async function(overrideUrl = null, targe
 // --- MAIN FETCH ENGINE ---
 async function fetchAndProcessData(isManual = false) {
     if (isOfflineMode()) {
-        console.log("🔓 [Red Leader]: Skipping data request because offline mode is active.");
+        over(29);
         return false;
     }
 
     const splash = document.getElementById("sync-splash");
     if (isManual) showSplash(splash);
 
-    console.log("🔴 [Red Leader]: Preparing telemetry payload request to command base...");
+    over(30);
 
     try {
         updateProgress(20, "Loading core application records from cloud...", "CONNECTING");
@@ -471,7 +553,7 @@ async function fetchAndProcessData(isManual = false) {
             csvController.abort();
         }, TIMEOUT_LIMIT_MS);
 
-        console.log("⚡ [Red Leader]: Transmitting HTTP POST request for core dataset payload...");
+        over(31);
 
         let csvResponse;
         try {
@@ -493,12 +575,13 @@ async function fetchAndProcessData(isManual = false) {
 
         clearTimeout(csvTimeout);
 
+        if (!csvResponse) return false;
         if (!csvResponse.ok) {
             console.error(`💥 [Red Leader Error]: Server rejected payload transmission. HTTP Status: ${csvResponse.status} ${csvResponse.statusText}`);
             throw new Error(`Data fetch error (HTTP ${csvResponse.status})`);
         }
 
-        console.log("🟢 [Green Leader]: Payload transmission received successfully. Unwrapping and writing to OPFS cargo bays...");
+        over(32);
         const rawCsvPayload = await csvResponse.json();
         let csvPayload = rawCsvPayload && typeof rawCsvPayload === "object" && "cache_payload" in rawCsvPayload
             ? rawCsvPayload.cache_payload
@@ -509,15 +592,15 @@ async function fetchAndProcessData(isManual = false) {
         }
 
         const payloadString = JSON.stringify(csvPayload);
+
         await window.GreenLeaderStorage.writeDatasetToOPFS("cache_payload.json", payloadString);
         await window.GreenLeaderStorage.writeDatasetToOPFS("lite_payload.json", payloadString);
 
-        const todayStr = new Date().toISOString().split("T")[0];
-        localStorage.setItem("app_data_version", todayStr);
-        localStorage.setItem("app_last_sync_date", todayStr);
+        localStorage.setItem("app_data_version", new Date().toISOString().split("T")[0]);
+        localStorage.setItem("app_last_sync_date", new Date().toISOString().split("T")[0]);
         localStorage.setItem("app_last_sync_timestamp", Date.now().toString());
 
-        console.log("✅ [Red Leader]: Trench run successful! Core datasets safely stored locally.");
+        over(33);
         updateProgress(100, "Ready!", "READY");
 
         setTimeout(() => {
@@ -633,7 +716,7 @@ window.GreenLeaderStorage.removeTrackedAsset = async function(rootDir, directory
 // --- SECONDARY SYNC TASK ---
 window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
     if (isOfflineMode()) {
-        console.log("🔓 [Green Leader]: Skipping manifest and asset sync because offline mode is active.");
+        over(34);
         return;
     }
 
@@ -641,6 +724,7 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
     if (!baseUrl) return;
 
     try {
+        over(35);
         const rootDir = await navigator.storage.getDirectory();
 
         const cacheBusterToken = `_cb=${Date.now()}`;
@@ -652,6 +736,7 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
         }
 
         const previousInventory = await window.GreenLeaderStorage.loadSyncedAssetInventory(rootDir);
+        over(36);
         const response = await fetch(manifestUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -687,6 +772,8 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
             throw new Error("Manifest response body does not contain any downloadable files.");
         }
 
+        over(37, fileItems.length);
+
         const totalFiles = fileItems.length;
         let processedCount = 0;
         let syncFailed = false;
@@ -715,6 +802,10 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     ? expectedRelativePath.replace(/\.docx$/i, ".html")
                     : expectedRelativePath;
 
+                if (isDocxFile) {
+                    over(38, fileName, `${outputDirectory}/${outputRelativePath}`);
+                }
+
                 if (!expectedFilesByDirectory.has(outputDirectory)) {
                     expectedFilesByDirectory.set(outputDirectory, new Set());
                 }
@@ -734,26 +825,34 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     existingFile = await fileHandle.getFile();
                 } catch (err) {
                     if (err.name !== "NotFoundError") throw err;
-                    console.log(`[OPFS] ⚠️ File does not exist locally yet: ${outputFileName}`);
+                    over(39, outputFileName);
                 }
 
                 if (existingFile) {
                     const serverLastModified = item.lastModified ? new Date(item.lastModified).getTime() : 0;
                     const localLastModified = existingFile.lastModified || 0;
 
+                    over(40, item.name, {
+                        serverDate: new Date(serverLastModified).toISOString(),
+                        localDate: new Date(localLastModified).toISOString(),
+                        isServerOlderOrEqual: serverLastModified <= localLastModified
+                    });
+
                     if (existingFile.size > 0 && serverLastModified <= localLastModified) {
-                        console.log(`[OPFS] ⏭️ Skipping download (unchanged & up-to-date): ${outputFileName}`);
+                        over(41, outputFileName);
                         if (typeof window.LSEngine.setProgress === 'function') {
                             window.LSEngine.setProgress(progressPercent, `Verifying asset (${processedCount}/${totalFiles}): ${outputFileName}`, "SYNCING");
                         }
                         continue;
                     }
+                    over(42, item.name);
                 }
 
                 if (typeof window.LSEngine.setProgress === 'function') {
                     window.LSEngine.setProgress(progressPercent, `Downloading asset (${processedCount}/${totalFiles}): ${item.name}`, "DOWNLOADING");
                 }
 
+                over(43, cleanFilePath);
                 const downloadRes = await fetch(baseUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -767,6 +866,7 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                 }
 
                 if (isDocxFile) {
+                    over(44, fileName);
                     const docxBuffer = await downloadRes.arrayBuffer();
                     await window.GreenLeaderStorage.saveDocxBufferAsHtmlInVisitTypes(docxBuffer, outputRelativePath);
                 } else {
@@ -777,11 +877,11 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                     const writable = await fileHandle.createWritable();
                     await writable.write(fileContent);
                     await writable.close();
-                    console.log(`[OPFS] ✅ Updated/Downloaded new: ${outputFileName}`);
+                    over(45, `${outputDirectory}/${outputFileName}`);
                 }
             } catch (fileErr) {
                 syncFailed = true;
-                console.warn("Error processing individual file:", {
+                console.warn("💥 [Red Leader]: Hull breach while processing manifest file:", {
                     file: item?.name,
                     name: fileErr?.name,
                     message: fileErr?.message || String(fileErr),
@@ -791,8 +891,9 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
         }
 
         if (syncFailed) {
-            console.warn("⚠️ [OPFS Sync]: At least one manifest file failed; skipping stale-file cleanup to avoid deleting valid local copies.");
+            over(46);
         } else {
+            over(47);
             for (const [directoryName, expectedFiles] of expectedFilesByDirectory) {
                 let removedCount = 0;
                 if (previousInventory) {
@@ -805,9 +906,10 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                 } else {
                     removedCount = await window.GreenLeaderStorage.reconcileSyncedAssetDirectory(rootDir, directoryName, expectedFiles);
                 }
-                console.log(`🧹 [OPFS Sync]: Removed ${removedCount} stale file(s) from ${directoryName}.`);
+                console.log(`🟢 [Green Leader]: Purged ${removedCount} obsolete file(s) from '${directoryName}'.`);
             }
             await window.GreenLeaderStorage.saveSyncedAssetInventory(rootDir, expectedFilesByDirectory);
+            over(48);
             window.dispatchEvent(new CustomEvent("GuidelinesAssetsSynced"));
         }
 
@@ -815,7 +917,11 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
             window.LSEngine.setProgress(100, "Background synchronization complete!", "READY");
         }
     } catch (err) {
-        console.warn("⚠️ Error in secondary file synchronization (OPFS):", err);
+        console.warn("💥 [Red Leader]: Secondary sync run encountered an error:", {
+            name: err?.name,
+            message: err?.message || String(err),
+            stack: err?.stack
+        });
         if (typeof window.LSEngine.setProgress === 'function') {
             window.LSEngine.setProgress(100, "Sync completed with warnings", "WARNING");
         }
@@ -852,7 +958,7 @@ window.LSEngine.setProgress = function(percent, message, stateText) {
     }
 
     if (stateText === "READY" && percent === 100) {
-        console.log("🚀 [Sync]: Synchronization completed 100%. Redirecting cleanly...");
+        over(49);
         const currentSearchParams = window.location.search;
 
         let basePath = window.location.pathname;
