@@ -781,7 +781,12 @@ window.LSEngine.taskSyncFiles = async function(overrideUrl = null) {
                 }
             } catch (fileErr) {
                 syncFailed = true;
-                console.warn("Error processing individual file:", fileErr);
+                console.warn("Error processing individual file:", {
+                    file: item?.name,
+                    name: fileErr?.name,
+                    message: fileErr?.message || String(fileErr),
+                    stack: fileErr?.stack
+                });
             }
         }
 
