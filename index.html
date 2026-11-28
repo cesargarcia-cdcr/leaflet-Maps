@@ -409,69 +409,88 @@
 
     <div class="toast" id="toast">✓ Copied to clipboard!</div>
 
-<!-- Core Scripts & Components -->
-    <script src="notes.js"></script>
-    <script src="Guidelines_Info.js"></script>
-    <script src="map.js"></script>
-    <script src="provider-directory.js"></script>
-    <script src="directory.js"></script>
-    <script src="loading-screen-W-LOGS.js"></script>
-    <script type="module" src="visitTypeRenderer.js"></script>
-    <script src="block-F12.js"></script>
+<!-- 1. Global registry first -->
+<script>
+    window.APP_DATA = window.APP_DATA || {};
+    window.APP_FILES = window.APP_FILES || {};
 
-    <script>
-        window.APP_DATA = window.APP_DATA || {};
-        window.APP_FILES = window.APP_FILES || {};
-
-        window.registerDataFile = function(config, data) {
-            if (!window.APP_FILES[config.file]) {
-                window.APP_FILES[config.file] = config;
-            }
-            window.APP_DATA[config.dataKey] = data;
-            console.log("📁 Registered:", config.file);
-        };
-    </script>
-
-    <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            console.log("⚡ [Index] Verification completed. Ensuring component initialization...");
-            
-            if (typeof window.initManualMap === 'function') {
-                window.initManualMap();
-            } else if (typeof window.getCachedData === 'function' || localStorage.getItem("cache_payload")) {
-                setTimeout(() => {
-                    window.dispatchEvent(new Event('AppDataLoaded'));
-                }, 100);
-            }
-        });
-    </script>
-
-    <script>
-        function openModal(id) {
-            var modal = document.getElementById(id);
-            var overlay = document.getElementById('overlay');
-            if (modal && overlay) {
-                modal.style.display = 'block';
-                overlay.style.display = 'block';
-            }
+    window.registerDataFile = function(config, data) {
+        if (!window.APP_FILES[config.file]) {
+            window.APP_FILES[config.file] = config;
         }
+        window.APP_DATA[config.dataKey] = data;
+        console.log("📁 Registered:", config.file);
+    };
+</script>
 
-        function closeAll() {
-            var modals = document.getElementsByClassName('modal');
-            for (var i = 0; i < modals.length; i++) {
-                modals[i].style.display = 'none';
-            }
-            var overlay = document.getElementById('overlay');
-            if (overlay) {
-                overlay.style.display = 'none';
-            }
+<!-- 2. Core feature scripts -->
+<script src="block-F12.js"></script>
+<script src="notes.js"></script>
+<script src="Guidelines_Info.js"></script>
+<script src="map.js"></script>
+<script src="provider-directory.js"></script>
+<script src="directory.js"></script>
+<script src="loading-screen-W-LOGS.js"></script>
+
+<!-- 3. Single ES module entry for OPFS Visit Type XML tables -->
+<script type="module">
+    import { renderOpfsVisitTypeSections } from "./visitTypeRenderer.js";
+
+    window.renderOpfsVisitTypeSections = renderOpfsVisitTypeSections;
+
+    async function runVisitTypeRender() {
+        try {
+            await renderOpfsVisitTypeSections("content-area");
+        } catch (err) {
+            console.error("Visit type render failed:", err);
         }
-    </script>
+    }
 
-    <script>
+    runVisitTypeRender();
+    window.addEventListener("GuidelinesAssetsSynced", runVisitTypeRender);
+</script>
+
+<!-- 4. Map & app data event bootstrap -->
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+        console.log("⚡ [Index] Verification completed. Ensuring component initialization...");
+
+        if (typeof window.initManualMap === 'function') {
+            window.initManualMap();
+        } else if (typeof window.getCachedData === 'function' || localStorage.getItem("cache_payload")) {
+            setTimeout(() => {
+                window.dispatchEvent(new Event('AppDataLoaded'));
+            }, 100);
+        }
+    });
+</script>
+
+<!-- 5. Modals, navigation & sidebar -->
+<script>
+    function openModal(id) {
+        var modal = document.getElementById(id);
+        var overlay = document.getElementById('overlay');
+        if (modal && overlay) {
+            modal.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+    }
+
+    function closeAll() {
+        var modals = document.getElementsByClassName('modal');
+        for (var i = 0; i < modals.length; i++) {
+            modals[i].style.display = 'none';
+        }
+        var overlay = document.getElementById('overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+</script>
+
+<script>
 'use strict';
 
-/* ======= Sidebar / Burger ======= */
 function enforceCollapsedSidebar() {
     const sidebar = document.querySelector('.sidebar');
     const overlay = document.querySelector('.sidebar-overlay');
@@ -487,7 +506,6 @@ function enforceCollapsedSidebar() {
     }
 }
 
-// Global Toggle Menu Definition
 window.toggleMenu = function toggleMenu(force) {
     const burger = document.querySelector('.burger');
     const sidebar = document.querySelector('.sidebar');
@@ -510,7 +528,6 @@ window.toggleMenu = function toggleMenu(force) {
     }
 };
 
-/* ======= Section Navigation (1 to 5) ======= */
 function navigateTo(s) {
     const sections = {
         note: document.getElementById('note-section'),
@@ -550,14 +567,13 @@ function navigateTo(s) {
         (s === 'note' && i === 0) ||
         (s === 'map' && i === 1) ||
         (s === 'directory' && i === 2) ||
-        (s === 'provider-directory' && i === 3) || 
+        (s === 'provider-directory' && i === 3) ||
         (s === 'info' && i === 4)
     ));
 
     if (typeof window.toggleMenu === 'function') window.toggleMenu(false);
 }
 
-/* ======= Shortcuts Alt+Shift+1/2/3/4/5 ======= */
 document.addEventListener('keydown', e => {
     if (e.altKey && e.shiftKey) {
         if (e.key === '1' || e.code === 'Digit1') { e.preventDefault(); navigateTo('note'); }
@@ -568,7 +584,6 @@ document.addEventListener('keydown', e => {
     }
 });
 
-/* ======= Bootstrap UI Core & Intersection Observer ======= */
 document.addEventListener('DOMContentLoaded', () => {
     try {
         enforceCollapsedSidebar();
@@ -578,10 +593,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
         console.error('Error in UI initialization:', e);
     }
-
 });
 
-/* ======= Expose Global UI Functions ======= */
 window.navigateTo = navigateTo;
 window.enforceCollapsedSidebar = enforceCollapsedSidebar;
 </script>
@@ -590,9 +603,9 @@ window.enforceCollapsedSidebar = enforceCollapsedSidebar;
 function toggleHelpModal() {
     const modal = document.getElementById('help-modal-container');
     const overlay = document.getElementById('help-modal-overlay');
-    
+
     if (!modal || !overlay) return;
-    
+
     const isOpen = modal.style.display === 'block';
     if (isOpen) {
         modal.style.display = 'none';
@@ -603,6 +616,6 @@ function toggleHelpModal() {
     }
 }
 </script>
-
+    
 </body>
 </html>
