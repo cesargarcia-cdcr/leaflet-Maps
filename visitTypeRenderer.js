@@ -26,33 +26,32 @@ function isToggleEnabled(el) {
     return !["0", "false", "off"].includes(val.toLowerCase());
 }
 
-function getEffectiveRunStyle(runEl, pEl) {
+function getEffectiveStyle(runEl, pEl) {
     const pRunPr = getFirstElementNS(getFirstElementNS(pEl, "pPr"), "rPr");
     const rPr = getFirstElementNS(runEl, "rPr");
 
-    const pColor = getFirstElementNS(pRunPr, "color")?.getAttribute("w:val");
-    const rColor = getFirstElementNS(rPr, "color")?.getAttribute("w:val");
-    const color = rColor || pColor;
+    const color = getFirstElementNS(rPr, "color")?.getAttribute("w:val")
+        || getFirstElementNS(pRunPr, "color")?.getAttribute("w:val");
 
-    const rBoldEl = getFirstElementNS(rPr, "b");
-    const pBoldEl = getFirstElementNS(pRunPr, "b");
-    const bold = rBoldEl ? isToggleEnabled(rBoldEl) : isToggleEnabled(pBoldEl);
+    const rBold = getFirstElementNS(rPr, "b");
+    const pBold = getFirstElementNS(pRunPr, "b");
+    const bold = rBold ? isToggleEnabled(rBold) : isToggleEnabled(pBold);
 
-    const rItalicEl = getFirstElementNS(rPr, "i");
-    const pItalicEl = getFirstElementNS(pRunPr, "i");
-    const italic = rItalicEl ? isToggleEnabled(rItalicEl) : isToggleEnabled(pItalicEl);
+    const rItalic = getFirstElementNS(rPr, "i");
+    const pItalic = getFirstElementNS(pRunPr, "i");
+    const italic = rItalic ? isToggleEnabled(rItalic) : isToggleEnabled(pItalic);
 
-    const rUnderlineEl = getFirstElementNS(rPr, "u");
-    const pUnderlineEl = getFirstElementNS(pRunPr, "u");
-    const underline = rUnderlineEl ? isToggleEnabled(rUnderlineEl) : isToggleEnabled(pUnderlineEl);
+    const rUnderline = getFirstElementNS(rPr, "u");
+    const pUnderline = getFirstElementNS(pRunPr, "u");
+    const underline = rUnderline ? isToggleEnabled(rUnderline) : isToggleEnabled(pUnderline);
 
     return { color, bold, italic, underline };
 }
 
-function buildRunNode(runEl, pEl) {
-    const { color, bold, italic, underline } = getEffectiveRunStyle(runEl, pEl);
-
+function renderRun(runEl, pEl) {
+    const { color, bold, italic, underline } = getEffectiveStyle(runEl, pEl);
     const frag = document.createDocumentFragment();
+
     for (const child of Array.from(runEl.childNodes)) {
         if (child.namespaceURI !== W_NS) continue;
         if (child.localName === "t") {
@@ -64,15 +63,11 @@ function buildRunNode(runEl, pEl) {
         }
     }
 
-    const hasStyling = (color && color.toLowerCase() !== "auto") || bold || italic || underline;
-    if (!hasStyling) {
-        return frag;
-    }
+    const hasStyle = (color && color.toLowerCase() !== "auto") || bold || italic || underline;
+    if (!hasStyle) return frag;
 
     const span = document.createElement("span");
-    if (color && color.toLowerCase() !== "auto") {
-        span.style.color = `#${color}`;
-    }
+    if (color && color.toLowerCase() !== "auto") span.style.color = `#${color}`;
     if (bold) span.style.fontWeight = "700";
     if (italic) span.style.fontStyle = "italic";
     if (underline) span.style.textDecoration = "underline";
@@ -80,102 +75,104 @@ function buildRunNode(runEl, pEl) {
     return span;
 }
 
-function buildParagraphNode(pEl) {
+function renderParagraph(pEl) {
     const p = document.createElement("p");
     p.className = "vt-cell-paragraph";
 
-    const pPr = getFirstElementNS(pEl, "pPr");
-    const alignVal = getFirstElementNS(pPr, "jc")?.getAttribute("w:val");
-    if (alignVal === "center" || alignVal === "right") {
-        p.style.textAlign = alignVal;
+    const align = getFirstElementNS(getFirstElementNS(pEl, "pPr"), "jc")?.getAttribute("w:val");
+    if (align === "center" || align === "right") {
+        p.style.textAlign = align;
     }
 
-    const runs = getDirectChildrenNS(pEl, "r");
-    runs.forEach((runEl) => {
-        p.appendChild(buildRunNode(runEl, pEl));
+    getDirectChildrenNS(pEl, "r").forEach((runEl) => {
+        p.appendChild(renderRun(runEl, pEl));
     });
 
     if (!p.textContent && p.children.length === 0) {
         p.appendChild(document.createElement("br"));
     }
-
     return p;
 }
 
-export function convertWordXmlToTable(xmlString, fileName) {
-    const doc = new DOMParser().parseFromString(xmlString, "application/xml");
-    const parseError = doc.getElementsByTagName("parsererror")[0];
-    if (parseError) {
-        throw new Error(`XML parse error in ${fileName}: ${parseError.textContent}`);
+function buildTableFromXml(xmlText, fileName) {
+    const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+    if (doc.getElementsByTagName("parsererror")[0]) {
+        throw new Error(`Invalid XML in ${fileName}`);
     }
 
     const tblEl = getFirstElementNS(doc, "tbl");
     if (!tblEl) {
-        throw new Error(`No <w:tbl> element found in ${fileName}`);
+        throw new Error(`Missing <w:tbl> in ${fileName}`);
     }
 
     const table = document.createElement("table");
-    table.className = "vt-table";
+    table.className = "epic-guide-table vt-table";
     table.dataset.sourceFile = fileName;
 
-    const rows = getDirectChildrenNS(tblEl, "tr");
-    rows.forEach((trEl, rowIndex) => {
+    const tbody = document.createElement("tbody");
+    getDirectChildrenNS(tblEl, "tr").forEach((trEl) => {
         const tr = document.createElement("tr");
-        const trPr = getFirstElementNS(trEl, "trPr");
-        const isHeaderRow = rowIndex === 0 || Boolean(getFirstElementNS(trPr, "tblHeader"));
-
         const cells = getDirectChildrenNS(trEl, "tc");
+
         cells.forEach((tcEl) => {
             const tcPr = getFirstElementNS(tcEl, "tcPr");
-            const gridSpan = getFirstElementNS(tcPr, "gridSpan")?.getAttribute("w:val");
+            const spanVal = getFirstElementNS(tcPr, "gridSpan")?.getAttribute("w:val");
             const fillHex = getFirstElementNS(tcPr, "shd")?.getAttribute("w:fill");
 
-            const cell = document.createElement(isHeaderRow ? "th" : "td");
-            if (gridSpan && parseInt(gridSpan, 10) > 1) {
-                cell.colSpan = parseInt(gridSpan, 10);
+            const td = document.createElement("td");
+            if (spanVal && parseInt(spanVal, 10) > 1) {
+                td.colSpan = parseInt(spanVal, 10);
             }
             if (fillHex && fillHex.toLowerCase() !== "auto") {
-                cell.style.backgroundColor = `#${fillHex}`;
+                td.style.backgroundColor = `#${fillHex}`;
             }
 
-            const paragraphs = getDirectChildrenNS(tcEl, "p");
-            paragraphs.forEach((pEl) => {
-                cell.appendChild(buildParagraphNode(pEl));
+            getDirectChildrenNS(tcEl, "p").forEach((pEl) => {
+                td.appendChild(renderParagraph(pEl));
             });
 
-            tr.appendChild(cell);
+            tr.appendChild(td);
         });
 
-        table.appendChild(tr);
+        tbody.appendChild(tr);
     });
 
+    table.appendChild(tbody);
     return table;
 }
 
-export async function loadAndRenderAllVisitTypeTables(containerSelector) {
-    const container = document.querySelector(containerSelector);
+export async function renderOpfsVisitTypeSections(containerId = "content-area") {
+    const container = document.getElementById(containerId);
     if (!container) return;
 
     const tablesDir = await getTablesDirectory();
-    const files = [];
-
+    const entries = [];
     for await (const [name, handle] of tablesDir.entries()) {
         if (handle.kind === "file" && /^tableXml\d+\.txt$/i.test(name)) {
-            const order = parseInt(name.match(/\d+/)[0], 10);
-            files.push({ name, handle, order });
+            entries.push({ name, handle, order: parseInt(name.match(/\d+/)[0], 10) });
         }
     }
+    entries.sort((a, b) => a.order - b.order);
 
-    files.sort((a, b) => a.order - b.order);
+    container.className = "";
     container.replaceChildren();
 
-    for (const item of files) {
-        const file = await item.handle.getFile();
-        const xmlText = await file.text();
+    for (const item of entries) {
+        const xmlText = await (await item.handle.getFile()).text();
+        const sectionDiv = document.createElement("div");
+        sectionDiv.className = "section-container collapsed";
 
-        const wrapper = document.createElement("div");
-        wrapper.className = "vt-table-card";
-        wrapper.appendChild(convertWordXmlToTable(xmlText, item.name));
-        container.appendChild(wrapper);
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "section-header";
+        headerDiv.textContent = item.name.replace(/\.txt$/i, "");
+        headerDiv.onclick = () => sectionDiv.classList.toggle("collapsed");
+
+        const tableWrap = document.createElement("div");
+        tableWrap.className = "epic-guide-table-wrap";
+        tableWrap.appendChild(buildTableFromXml(xmlText, item.name));
+
+        sectionDiv.appendChild(headerDiv);
+        sectionDiv.appendChild(tableWrap);
+        container.appendChild(sectionDiv);
     }
 }
