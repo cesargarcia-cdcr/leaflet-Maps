@@ -94,7 +94,29 @@ function renderParagraph(pEl) {
     return p;
 }
 
-function buildTableFromXml(xmlText, fileName) {
+function extractFirstRowTitle(tblEl, fallbackTitle) {
+    const firstRow = getDirectChildrenNS(tblEl, "tr")[0];
+    if (!firstRow) return fallbackTitle;
+
+    const cellTexts = getDirectChildrenNS(firstRow, "tc").map((tcEl) => {
+        const paraTexts = getDirectChildrenNS(tcEl, "p").map((pEl) =>
+            getDirectChildrenNS(pEl, "r")
+                .flatMap((rEl) =>
+                    Array.from(rEl.childNodes)
+                        .filter((n) => n.namespaceURI === W_NS && (n.localName === "t" || n.localName === "tab"))
+                        .map((n) => (n.localName === "tab" ? " " : (n.textContent || "")))
+                )
+                .join("")
+                .trim()
+        ).filter(Boolean);
+        return paraTexts.join(" ").trim();
+    }).filter(Boolean);
+
+    const combined = cellTexts.join(" ").replace(/\s+/g, " ").trim();
+    return combined || fallbackTitle;
+}
+
+function parseTableDocument(xmlText, fileName) {
     const doc = new DOMParser().parseFromString(xmlText, "application/xml");
     if (doc.getElementsByTagName("parsererror")[0]) {
         throw new Error(`Invalid XML in ${fileName}`);
@@ -104,6 +126,9 @@ function buildTableFromXml(xmlText, fileName) {
     if (!tblEl) {
         throw new Error(`Missing <w:tbl> in ${fileName}`);
     }
+
+    const fallbackTitle = fileName.replace(/\.txt$/i, "");
+    const title = extractFirstRowTitle(tblEl, fallbackTitle);
 
     const table = document.createElement("table");
     table.className = "epic-guide-table vt-table";
@@ -138,7 +163,7 @@ function buildTableFromXml(xmlText, fileName) {
     });
 
     table.appendChild(tbody);
-    return table;
+    return { title, table };
 }
 
 export async function renderOpfsVisitTypeSections(containerId = "content-area") {
@@ -159,17 +184,19 @@ export async function renderOpfsVisitTypeSections(containerId = "content-area") 
 
     for (const item of entries) {
         const xmlText = await (await item.handle.getFile()).text();
+        const { title, table } = parseTableDocument(xmlText, item.name);
+
         const sectionDiv = document.createElement("div");
         sectionDiv.className = "section-container collapsed";
 
         const headerDiv = document.createElement("div");
         headerDiv.className = "section-header";
-        headerDiv.textContent = item.name.replace(/\.txt$/i, "");
+        headerDiv.textContent = title;
         headerDiv.onclick = () => sectionDiv.classList.toggle("collapsed");
 
         const tableWrap = document.createElement("div");
         tableWrap.className = "epic-guide-table-wrap";
-        tableWrap.appendChild(buildTableFromXml(xmlText, item.name));
+        tableWrap.appendChild(table);
 
         sectionDiv.appendChild(headerDiv);
         sectionDiv.appendChild(tableWrap);
